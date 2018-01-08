@@ -1,0 +1,121 @@
+; mv2.inf
+;
+; Installation inf for the Mirror graphics adapter.
+;
+;
+
+[Version]
+Signature="$CHICAGO$"
+Provider=%Cyberfox%
+ClassGUID={4D36E968-E325-11CE-BFC1-08002BE10318}
+Class=Display
+DriverVer=05/25/2004,1.1
+CatalogFile="mv2.cat"
+
+[DestinationDirs]
+DefaultDestDir   = 11
+mv2.Miniport  = 12  ; drivers
+mv2.Display   = 11  ; system32
+
+;
+; Driver information
+;
+
+[Manufacturer]
+%Cyberfox%   = stdMfg
+
+[stdMfg]
+%Winmv2% = mv2, mv_hook_display_driver2
+
+;
+; General installation section
+;
+
+[mv2]
+CopyFiles=mv2.Miniport, mv2.Display
+
+;
+; File sections
+;
+
+[mv2.Miniport]
+mv2.sys
+
+[mv2.Display]
+mv2.dll
+
+
+;
+; Service Installation
+;
+
+[mv2.Services]
+AddService = mv2, 0x00000002, mv2_Service_Inst, mv2_EventLog_Inst
+
+[mv2_Service_Inst]
+
+ServiceType    = 1                  ; SERVICE_KERNEL_DRIVER
+StartType      = 1                  ; SERVICE_SYSTEM_START
+ErrorControl   = 0                  ; SERVICE_ERROR_IGNORE
+LoadOrderGroup = Video
+ServiceBinary  = %12%\mv2.sys
+
+[mv2_EventLog_Inst]
+AddReg = mv2_EventLog_AddReg
+
+[mv2_EventLog_AddReg]
+HKR,,EventMessageFile,0x00020000,"%SystemRoot%\System32\IoLogMsg.dll;%SystemRoot%\System32\drivers\mv2.sys"
+HKR,,TypesSupported,0x00010001,7
+
+
+;
+; Software Installation
+;
+
+[mv2.SoftwareSettings]
+AddReg = mv2_SoftwareDeviceSettings
+
+[mv2_SoftwareDeviceSettings]
+HKR,, MirrorDriver,                %REG_DWORD%,    1
+HKR,, InstalledDisplayDrivers,     %REG_MULTI_SZ%, mv2
+HKR,, VgaCompatible,               %REG_DWORD%,    0
+HKR,, Attach.ToDesktop,            %REG_DWORD%,    1
+
+
+[mv2.GeneralConfigData]
+MaximumNumberOfDevices = 1
+KeepExistingDriverEnabled = 1
+
+;
+; Source file information
+;
+
+[SourceDisksNames.x86]
+1 = %DiskId%,,,""
+
+[SourceDisksFiles]
+mv2.sys  = 1
+mv2.dll = 1
+
+[Strings]
+
+;
+; Non-Localizable Strings
+;
+
+REG_SZ         = 0x00000000
+REG_MULTI_SZ   = 0x00010000
+REG_EXPAND_SZ  = 0x00020000
+REG_BINARY     = 0x00000001
+REG_DWORD      = 0x00010001
+SERVICEROOT    = "System\CurrentControlSet\Services"
+
+;
+; Localizable Strings
+;
+
+DiskId       = "winmv2 Installation DISK (VIDEO)"
+GraphAdap    = "Graphics Adapter"
+Winmv2    = "mv video hook driver2"
+Cyberfox     = "UVNC BVBA"
+

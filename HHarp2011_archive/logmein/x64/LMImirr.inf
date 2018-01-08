@@ -1,0 +1,67 @@
+; lmimirr.inf
+;
+; Installation inf for the LogMeIn Mirror 
+; Graphics Adapter.
+;
+; Copyright (c) 2001-2006 LogMeIn, Inc.
+;
+
+[Version]
+Signature="$CHICAGO$"
+Provider=%logmein%
+ClassGUID={4D36E968-E325-11CE-BFC1-08002BE10318}
+Class=Display
+DriverVer=5/22/2006,7.01.542
+CatalogFile=lmimirr.cat
+
+[DestinationDirs]
+DefaultDestDir   = 11  ; system32
+lmimirr.Miniport  = 12  ; drivers
+lmimirr.Display   = 11  ; system32
+
+[Manufacturer]
+%logmein% = lmimirrMfg,NTamd64
+
+[lmimirrMfg.NTamd64]
+%lmimirr% = lmimirr, LogMeIn_Mirror_Driver
+
+[lmimirr]
+CopyFiles = lmimirr.Miniport, lmimirr.Display
+
+[lmimirr.Miniport]
+lmimirr.sys
+
+[lmimirr.Display]
+lmimirr.dll
+lmimirr2.dll
+
+[lmimirr.Services]
+AddService = lmimirr, 0x00000002, lmimirr_Service_Inst
+
+[lmimirr_Service_Inst]
+ServiceType    = 1                  ; SERVICE_KERNEL_DRIVER
+StartType      = 1                  ; SERVICE_SYSTEM_START
+ErrorControl   = 0                  ; SERVICE_ERROR_IGNORE
+LoadOrderGroup = Video
+ServiceBinary  = %12%\lmimirr.sys
+
+[lmimirr.SoftwareSettings]
+AddReg = lmimirr_SoftwareDeviceSettings
+
+[lmimirr_SoftwareDeviceSettings]
+HKR,, MirrorDriver,                %REG_DWORD%,    1
+HKR,, InstalledDisplayDrivers,     %REG_MULTI_SZ%, lmimirr
+HKR,, VgaCompatible,               %REG_DWORD%,    0
+HKR,, Attach.ToDesktop,            %REG_DWORD%,    0
+
+[Strings]
+REG_SZ         = 0x00000000
+REG_MULTI_SZ   = 0x00010000
+REG_EXPAND_SZ  = 0x00020000
+REG_BINARY     = 0x00000001
+REG_DWORD      = 0x00010001
+SERVICEROOT    = "System\CurrentControlSet\Services"
+
+logmein      = "LogMeIn, Inc."
+lmimirr       = "LogMeIn Mirror Driver"
+
