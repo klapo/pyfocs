@@ -39,45 +39,52 @@ time /T
 
 
 REM Create gzipped archve from files channel 1
-set outfile = "%targetpath%\%targetfile%_%channel_1%_%yyyy%%mm%%dd%-%hh%.tar.gz"
-echo Channel %channel_1% time: %hh%
-mkdir "%targetpath%\%channel%\"
-echo files: %sourcepath%%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml
-echo archiving to %outfile%...
-bsdtar -czf %outfile% %sourcepath%%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml
-echo Delete original files
-del /Q "%sourcepath%\%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml"
+if EXIST %sourcepath%%channel_1%(
+  set outfile = "%targetpath%\%targetfile%_%channel_1%_%yyyy%%mm%%dd%-%hh%.tar.gz"
+  echo Channel %channel_1% time: %hh%
+  mkdir "%targetpath%\%channel_1%\"
+  echo files: %sourcepath%%channel_1%\%channel_1%_%yyyy%%mm%%dd%%hh%*.xml
+  echo archiving to %outfile%...
+  bsdtar -czf %outfile% %sourcepath%%channel_1%\%channel_1%_%yyyy%%mm%%dd%%hh%*.xml
+  echo Delete original files
+  del /Q "%sourcepath%\%channel_1%\%channel_1%_%yyyy%%mm%%dd%%hh%*.xml"
+)
 
-REM Create gzipped archve from files channel 2
-set outfile = "%targetpath%\%targetfile%_%channel_2%_%yyyy%%mm%%dd%-%hh%.tar.gz"
-echo Channel %channel_2% time: %hh%
-mkdir "%targetpath%\%channel%\"
-echo files: %sourcepath%%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml
-echo archiving to %outfile%...
-bsdtar -czf %outfile% %sourcepath%%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml
-echo Delete original files
-del /Q "%sourcepath%\%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml"
+REM Create gzipped archve from files channel 1
+if EXIST %sourcepath%%channel_2%(
+  set outfile = "%targetpath%\%targetfile%_%channel_2%_%yyyy%%mm%%dd%-%hh%.tar.gz"
+  echo Channel %channel_2% time: %hh%
+  mkdir "%targetpath%\%channel_2%\"
+  echo files: %sourcepath%%channel_2%\%channel_2%_%yyyy%%mm%%dd%%hh%*.xml
+  echo archiving to %outfile%...
+  bsdtar -czf %outfile% %sourcepath%%channel_2%\%channel_2%_%yyyy%%mm%%dd%%hh%*.xml
+  echo Delete original files
+  del /Q "%sourcepath%\%channel_2%\%channel_2%_%yyyy%%mm%%dd%%hh%*.xml"
+)
 
-REM Create gzipped archve from files channel 3
-set outfile="%targetpath%\%targetfile%_%channel_3%_%yyyy%%mm%%dd%-%hh%.tar.gz"
-echo Channel %channel_3% time: %hh%
-mkdir "%targetpath%\%channel%\"
-echo files: %sourcepath%%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml
-echo archiving to %outfile%...
-bsdtar -czf %outfile% %sourcepath%%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml
-echo Delete original files
-del /Q "%sourcepath%\%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml"
+REM Create gzipped archve from files channel 1
+if EXIST %sourcepath%%channel_3%(
+  set outfile = "%targetpath%\%targetfile%_%channel_3%_%yyyy%%mm%%dd%-%hh%.tar.gz"
+  echo Channel %channel_3% time: %hh%
+  mkdir "%targetpath%\%channel_3%\"
+  echo files: %sourcepath%%channel_3%\%channel_3%_%yyyy%%mm%%dd%%hh%*.xml
+  echo archiving to %outfile%...
+  bsdtar -czf %outfile% %sourcepath%%channel_3%\%channel_3%_%yyyy%%mm%%dd%%hh%*.xml
+  echo Delete original files
+  del /Q "%sourcepath%\%channel_3%\%channel_3%_%yyyy%%mm%%dd%%hh%*.xml"
+)
 
-
-REM Create gzipped archve from files channel 4
-set outfile="%targetpath%\%targetfile%_%channel_4%_%yyyy%%mm%%dd%-%hh%.tar.gz"
-echo Channel %channel_4% time: %hh%
-mkdir "%targetpath%\%channel%\"
-echo files: %sourcepath%%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml
-echo archiving to %outfile%...
-bsdtar -czf %outfile% %sourcepath%%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml
-echo Delete original files
-del /Q "%sourcepath%\%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml"
+REM Create gzipped archve from files channel 1
+if EXIST %sourcepath%%channel_4%(
+  set outfile = "%targetpath%\%targetfile%_%channel_4%_%yyyy%%mm%%dd%-%hh%.tar.gz"
+  echo Channel %channel_4% time: %hh%
+  mkdir "%targetpath%\%channel_4%\"
+  echo files: %sourcepath%%channel_4%\%channel_4%_%yyyy%%mm%%dd%%hh%*.xml
+  echo archiving to %outfile%...
+  bsdtar -czf %outfile% %sourcepath%%channel_4%\%channel_4%_%yyyy%%mm%%dd%%hh%*.xml
+  echo Delete original files
+  del /Q "%sourcepath%\%channel_4%\%channel_4%_%yyyy%%mm%%dd%%hh%*.xml"
+)
 
 echo Done!
 
@@ -104,7 +111,7 @@ PING 127.0.0.1 -n 6 >NUL
 PING 127.0.0.1 -n 6 >NUL
 
 REM Delete files older than 2 days
-forfiles.exe -p"%targetpath" -m*.gz -d-2 -c"cmd /c del @PATH\@FILE"
+%~dp0forfiles.exe -p"%targetpath" -m*.gz -d-2 -c"cmd /c del @PATH\@FILE"
 
 time /T
 echo Wait a couple seconds...
