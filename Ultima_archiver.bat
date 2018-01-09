@@ -1,9 +1,5 @@
 @echo off
 REM Script to tar and gzip the Ultima data
-REM written by Christoph Thomas, COAS, 20 Jul 2011
-REM modified by Matthias Zeeman, COAS, 23 Aug 2011
-REM   added 1 minute pause
-REM   added softcoded paths
 
 REM Paths to search for data
 set sourcepath = C:\BMM\HHarp2011\temperature\campaign_rev1\
@@ -46,42 +42,30 @@ REM Create gzipped archve from files channel 1
 set outfile = "%targetpath%\%targetfile%_%channel_1%_%yyyy%%mm%%dd%-%hh%.tar.gz"
 echo Channel %channel_1% time: %hh%
 mkdir "%targetpath%\%channel%\"
-REM echo copying fies...
-REM xcopy /Q /Y "%sourcepath%\%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml" "c:\tmp\%channel%"
 echo files: %sourcepath%%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml
 echo archiving to %outfile%...
-REM bsdtar -czf %outfile% "c:\tmp\%channel%\*.xml"
 bsdtar -czf %outfile% %sourcepath%%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml
 echo Delete original files
-REM del /Q "c:\tmp\%channel%\*.xml"
 del /Q "%sourcepath%\%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml"
 
 REM Create gzipped archve from files channel 2
 set outfile = "%targetpath%\%targetfile%_%channel_2%_%yyyy%%mm%%dd%-%hh%.tar.gz"
 echo Channel %channel_2% time: %hh%
 mkdir "%targetpath%\%channel%\"
-REM echo copying fies...
-REM xcopy /Q /Y "%sourcepath%\%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml" "c:\tmp\%channel%"
 echo files: %sourcepath%%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml
 echo archiving to %outfile%...
-REM bsdtar -czf %outfile% "c:\tmp\%channel%\*.xml"
 bsdtar -czf %outfile% %sourcepath%%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml
 echo Delete original files
-REM del /Q "c:\tmp\%channel%\*.xml"
 del /Q "%sourcepath%\%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml"
 
 REM Create gzipped archve from files channel 3
 set outfile="%targetpath%\%targetfile%_%channel_3%_%yyyy%%mm%%dd%-%hh%.tar.gz"
 echo Channel %channel_3% time: %hh%
 mkdir "%targetpath%\%channel%\"
-REM echo copying fies...
-REM xcopy /Q /Y "%sourcepath%\%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml" "c:\tmp\%channel%"
 echo files: %sourcepath%%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml
 echo archiving to %outfile%...
-REM bsdtar -czf %outfile% "c:\tmp\%channel%\*.xml"
 bsdtar -czf %outfile% %sourcepath%%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml
 echo Delete original files
-REM del /Q "c:\tmp\%channel%\*.xml"
 del /Q "%sourcepath%\%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml"
 
 
@@ -89,21 +73,18 @@ REM Create gzipped archve from files channel 4
 set outfile="%targetpath%\%targetfile%_%channel_4%_%yyyy%%mm%%dd%-%hh%.tar.gz"
 echo Channel %channel_4% time: %hh%
 mkdir "%targetpath%\%channel%\"
-REM echo copying fies...
-REM xcopy /Q /Y "%sourcepath%\%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml" "c:\tmp\%channel%"
 echo files: %sourcepath%%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml
 echo archiving to %outfile%...
-REM bsdtar -czf %outfile% "c:\tmp\%channel%\*.xml"
 bsdtar -czf %outfile% %sourcepath%%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml
 echo Delete original files
-REM del /Q "c:\tmp\%channel%\*.xml"
 del /Q "%sourcepath%\%channel%\%channel%_%yyyy%%mm%%dd%%hh%*.xml"
 
 echo Done!
 
 echo Backup files in %targetfile%
 
-call C:HHarp2011_archive\Unison\unison_backup.bat
+call %~dp0Unison\unison_backup.bat
+REM call C:HHarp2011_archive\Unison\unison_backup.bat
 
 time /T
 echo Wait a couple seconds...
@@ -112,7 +93,8 @@ PING 127.0.0.1 -n 6 >NUL
 PING 127.0.0.1 -n 6 >NUL
 PING 127.0.0.1 -n 6 >NUL
 
-call C:HHarp2011_archive\Unison\unison_backup_mobile.bat
+call %~dp0Unison\unison_backup_mobile.bat
+REM call C:HHarp2011_archive\Unison\unison_backup_mobile.bat
 
 time /T
 echo Wait a couple seconds...
@@ -121,7 +103,8 @@ PING 127.0.0.1 -n 6 >NUL
 PING 127.0.0.1 -n 6 >NUL
 PING 127.0.0.1 -n 6 >NUL
 
-call C:HHarp2011_archive\BPP_Ultima_archive_HHarp2011_deleteold.bat
+REM Delete files older than 2 days
+forfiles.exe -p"%targetpath" -m*.gz -d-2 -c"cmd /c del @PATH\@FILE"
 
 time /T
 echo Wait a couple seconds...
