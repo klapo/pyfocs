@@ -90,18 +90,30 @@ echo Done!
 
 echo Backup files in %targetfile%
 
-call %~dp0Unison\unison_backup.bat
+REM call %~dp0Unison\unison_backup.bat
 REM call C:HHarp2011_archive\Unison\unison_backup.bat
 
-time /T
-echo Wait a couple seconds...
-REM ping of 5 sec each
-PING 127.0.0.1 -n 6 >NUL
-PING 127.0.0.1 -n 6 >NUL
-PING 127.0.0.1 -n 6 >NUL
+REM Unison for mobile backup drive
+IF EXIST m:\BMM\programs\Unison\NUL(
+  echo Found the mobile backup drive
+  echo Attempting unison synchronisation:
+  echo  %sourcedir%  to  %targetdir%
+  %~dp0Unison\Unison-2.40.61 Gtk+.exe %root_local% %root_mobile% -nodeletion %root_mobile% -logfile %logfile_mobile% -force %force% -batch
+)
+ELSE (
+  echo MOBILE BACKUP DISK NOT FOUND
+)
 
-call %~dp0Unison\unison_backup_mobile.bat
-REM call C:HHarp2011_archive\Unison\unison_backup_mobile.bat
+REM Unison for  backup drive
+IF EXIST h:\BMM\programs\Unison\NUL(
+  echo Found the backup drive
+  echo Attempting unison synchronisation:
+  echo  %sourcedir%  to  %targetdir%
+  %~dp0Unison\Unison-2.40.61 Gtk+.exe %root_local% %root_backup% -nodeletion %root_backup% -logfile %logfile_backup% -force %force% -batch
+)
+ELSE (
+  echo BACKUP DISK NOT PRESENT
+)
 
 time /T
 echo Wait a couple seconds...
