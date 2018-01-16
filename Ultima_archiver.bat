@@ -1,133 +1,91 @@
 @echo off
-REM Script to tar and gzip the Ultima data
+REM SETLOCAL ENABLEEXTENSIONS
+set UNISON=%~dp0Unison\
+set path=%UNISON%libs\gtk-runtime-2.16.6.0\Gtk\bin
+echo %UNISON%
+echo %path%
+:: Script to tar and gzip the Ultima data
 
-REM Paths to search for data
-set sourcepath = C:\BMM\HHarp2011\temperature\campaign_rev1\
-set targetpath = C:\BMM\archive\HHarp2011\
-set targetfile = BPP11_HHarp_campaign_rev1
-set channel_1 = channel1
-set channel_2 = channel2
-set channel_3 = channel3
-set channel_4 = channel4
+:: Paths to search for local data
+set sourcepath=C:\Users\Karl Lapo\Desktop\
+set targetpath=C:\Users\Karl Lapo\Desktop\
+set targetfile=archive
+:: Root variables for the unison command
+set root_local=/Users/Karl Lapo/Desktop/archive/
+set root_backup=M:/test/
+set root_mobile=E:/test_archive/
+set logfile_backup=%root_backup%_logfile.txt
+set logfile_mobile=%root_mobile%_logfile.txt
+:: Names of the channels
+set channel_1=channel 1
+set channel_2=channel 2
+set channel_3=channel 3
+set channel_4=channel 4
 
+:: The below works when the script is run in archiving mode. To run on old
+:: data you must specify the dates manually.
 set yyyy=%date:~-4,4%
 set mm=%date:~-10,2%
 set dd=%date:~-7,2%
 
-REM Deal with hours between 0 and 9 correctly
+:: Deal with hours between 0 and 9 correctly
 set hh=%time:~0,2%
 if "%time:~0,1%"==" " set hh=0%hh:~1,1%
-REM set hh=16
 
-time /T
-echo Wait a minute...
-REM ping of 5 sec each
-PING 127.0.0.1 -n 6 >NUL
-PING 127.0.0.1 -n 6 >NUL
-PING 127.0.0.1 -n 6 >NUL
-PING 127.0.0.1 -n 6 >NUL
-PING 127.0.0.1 -n 6 >NUL
-PING 127.0.0.1 -n 6 >NUL
-PING 127.0.0.1 -n 6 >NUL
-PING 127.0.0.1 -n 6 >NUL
-PING 127.0.0.1 -n 6 >NUL
-PING 127.0.0.1 -n 6 >NUL
-PING 127.0.0.1 -n 6 >NUL
-PING 127.0.0.1 -n 6 >NUL
-PING 127.0.0.1 -n 6 >NUL
-time /T
-
+:: Manually specify dates below and uncomment if commented
+set yyyy=2017
+set hh=15
+set dd=13
+set mm=12
 
 REM Create gzipped archve from files channel 1
 if EXIST %sourcepath%%channel_1%(
-  set outfile = "%targetpath%\%targetfile%_%channel_1%_%yyyy%%mm%%dd%-%hh%.tar.gz"
-  echo Channel %channel_1% time: %hh%
-  mkdir "%targetpath%\%channel_1%\"
-  echo files: %sourcepath%%channel_1%\%channel_1%_%yyyy%%mm%%dd%%hh%*.xml
-  echo archiving to %outfile%...
-  bsdtar -czf %outfile% %sourcepath%%channel_1%\%channel_1%_%yyyy%%mm%%dd%%hh%*.xml
+  set outfile=%targetpath%%targetfile%\%channel_1%_%yyyy%%mm%%dd%-%hh%.tar.gz
+  echo %channel_1% time: %hh%:00 %mm%/%dd%/%yyyy%
+  echo files: %sourcepath%%channel_1%\%channel_1%_%yyyy%%mm%%dd%%hh%*
+  echo archiving to %outfile%
+  bsdtar -czf "%outfile%" "%sourcepath%%channel_1%\%channel_1%_%yyyy%%mm%%dd%%hh%*"
   echo Delete original files
-  del /Q "%sourcepath%\%channel_1%\%channel_1%_%yyyy%%mm%%dd%%hh%*.xml"
-)
-
-REM Create gzipped archve from files channel 1
-if EXIST %sourcepath%%channel_2%(
-  set outfile = "%targetpath%\%targetfile%_%channel_2%_%yyyy%%mm%%dd%-%hh%.tar.gz"
-  echo Channel %channel_2% time: %hh%
-  mkdir "%targetpath%\%channel_2%\"
-  echo files: %sourcepath%%channel_2%\%channel_2%_%yyyy%%mm%%dd%%hh%*.xml
-  echo archiving to %outfile%...
-  bsdtar -czf %outfile% %sourcepath%%channel_2%\%channel_2%_%yyyy%%mm%%dd%%hh%*.xml
-  echo Delete original files
-  del /Q "%sourcepath%\%channel_2%\%channel_2%_%yyyy%%mm%%dd%%hh%*.xml"
-)
-
-REM Create gzipped archve from files channel 1
-if EXIST %sourcepath%%channel_3%(
-  set outfile = "%targetpath%\%targetfile%_%channel_3%_%yyyy%%mm%%dd%-%hh%.tar.gz"
-  echo Channel %channel_3% time: %hh%
-  mkdir "%targetpath%\%channel_3%\"
-  echo files: %sourcepath%%channel_3%\%channel_3%_%yyyy%%mm%%dd%%hh%*.xml
-  echo archiving to %outfile%...
-  bsdtar -czf %outfile% %sourcepath%%channel_3%\%channel_3%_%yyyy%%mm%%dd%%hh%*.xml
-  echo Delete original files
-  del /Q "%sourcepath%\%channel_3%\%channel_3%_%yyyy%%mm%%dd%%hh%*.xml"
-)
-
-REM Create gzipped archve from files channel 1
-if EXIST %sourcepath%%channel_4%(
-  set outfile = "%targetpath%\%targetfile%_%channel_4%_%yyyy%%mm%%dd%-%hh%.tar.gz"
-  echo Channel %channel_4% time: %hh%
-  mkdir "%targetpath%\%channel_4%\"
-  echo files: %sourcepath%%channel_4%\%channel_4%_%yyyy%%mm%%dd%%hh%*.xml
-  echo archiving to %outfile%...
-  bsdtar -czf %outfile% %sourcepath%%channel_4%\%channel_4%_%yyyy%%mm%%dd%%hh%*.xml
-  echo Delete original files
-  del /Q "%sourcepath%\%channel_4%\%channel_4%_%yyyy%%mm%%dd%%hh%*.xml"
+  del /Q "%sourcepath%%channel_1%\%channel_1%_%yyyy%%mm%%dd%%hh%*"
 )
 
 echo Done!
-
-echo Backup files in %targetfile%
-
-REM call %~dp0Unison\unison_backup.bat
-REM call C:HHarp2011_archive\Unison\unison_backup.bat
+echo Backup files in %targetpath%%targetfile%
 
 REM Unison for mobile backup drive
-IF EXIST m:\BMM\programs\Unison\NUL(
+if EXIST %root_mobile% (
   echo Found the mobile backup drive
   echo Attempting unison synchronisation:
-  echo  %sourcedir%  to  %targetdir%
-  %~dp0Unison\Unison-2.40.61 Gtk+.exe %root_local% %root_mobile% -nodeletion %root_mobile% -logfile %logfile_mobile% -force %force% -batch
-)
-ELSE (
+  echo  %root_local%  to  %root_mobile%
+  "%UNISON%Unison-2.40.61 Text" "%root_local%" "%root_mobile%" -logfile "%logfile_mobile%" -force "%root_local%" -batch -nodeletion "%root_mobile%"
+) ELSE (
   echo MOBILE BACKUP DISK NOT FOUND
 )
 
+
 REM Unison for  backup drive
-IF EXIST h:\BMM\programs\Unison\NUL(
-  echo Found the backup drive
-  echo Attempting unison synchronisation:
-  echo  %sourcedir%  to  %targetdir%
-  %~dp0Unison\Unison-2.40.61 Gtk+.exe %root_local% %root_backup% -nodeletion %root_backup% -logfile %logfile_backup% -force %force% -batch
-)
-ELSE (
-  echo BACKUP DISK NOT PRESENT
-)
+REM if EXIST %root_backup%\NUL(
+REM   echo Found the backup drive
+REM   echo Attempting unison synchronisation:
+REM   echo  %sourcedir%  to  %targetdir%
+REM   %~dp0Unison\Unison-2.40.61 Gtk+.exe %root_local% %root_backup% -nodeletion %root_backup% -logfile %logfile_backup% -force %force% -batch
+REM ) ELSE (
+REM   echo BACKUP DISK NOT PRESENT
+REM )
 
-time /T
-echo Wait a couple seconds...
-REM ping of 5 sec each
-PING 127.0.0.1 -n 6 >NUL
-PING 127.0.0.1 -n 6 >NUL
-PING 127.0.0.1 -n 6 >NUL
+REM time /T
+REM echo Wait a couple seconds...
+REM REM ping of 5 sec each
+REM PING 127.0.0.1 -n 6 >NUL
+REM PING 127.0.0.1 -n 6 >NUL
+REM PING 127.0.0.1 -n 6 >NUL
 
-REM Delete files older than 2 days
-%~dp0forfiles.exe -p"%targetpath" -m*.gz -d-2 -c"cmd /c del @PATH\@FILE"
-
-time /T
-echo Wait a couple seconds...
-REM ping of 5 sec each
-PING 127.0.0.1 -n 6 >NUL
-PING 127.0.0.1 -n 6 >NUL
-PING 127.0.0.1 -n 6 >NUL
+REM REM Delete files older than 2 days
+REM %~dp0forfiles.exe -p"%targetpath" -m*.gz -d-2 -c"cmd /c del @PATH\@FILE"
+REM
+REM time /T
+REM echo Wait a couple seconds...
+REM REM ping of 5 sec each
+REM PING 127.0.0.1 -n 6 >NUL
+REM PING 127.0.0.1 -n 6 >NUL
+REM PING 127.0.0.1 -n 6 >NUL
