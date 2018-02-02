@@ -1,1 +1,4 @@
 .previously_needed
+.ipynb_checkpoints
+.DS_Store
+channel*
