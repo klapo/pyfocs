@@ -4,33 +4,34 @@ import datetime
 import sys
 import glob
 import tarfile
+import dirsync
+import logging
 
 # Script to tar and gzip the Ultima data
 
 # ------------------------------------------------------------------------------
-# File parameters including paths. Use single quotes as python expects strings.
+# Define paths here. Use single quotes as python expects strings.
 # ------------------------------------------------------------------------------
 # Mode to run the script in
 mode = 'archiving'
+
 # Path to search for local data.
 sourcePath = '/Users/karllapo/Desktop/software/DTS_archive/'
 # Path to where you want the data to end up
 targetPath = '/Users/karllapo/Desktop/archive/'
+
+# Paths to the source data (dirLocal) and backup drive (dirMobile)
+dirLocal = targetPath
+dirMobile = '/Volumes/NO NAME/test_archive'
+logfileMobile = 'dtsarch_logfile.txt'
+
 # Names of the channels. The script will search for targetPath/channel_X.
 channel_1 = 'channel 1'
 channel_2 = 'channel 2'
 channel_3 = 'channel 3'
 channel_4 = 'channel 4'
 channels = [channel_1, channel_2, channel_3, channel_4]
-
-# Root variables for the unison command. rootLocal is where to find the
-# local archive. rootBackup is where to find the backup drive. rootMobile is
-# where to find removable disk. Both back up locations may not be needed. In
-# that case leave the unneeded path as an empty string, e.g., ''. Logfiles are
-# where you want the log of the synchronisation to be written.
-rootLocal = targetPath
-rootMobile = ''
-logfileMobile = rootMobile + '_logfile.txt'
+# ------------------------------------------------------------------------------
 
 # ------------------------------------------------------------------------------
 # Sub function -- actually zips and archives data
@@ -172,34 +173,19 @@ for ch in channels:
 
 # ------------------------------------------------------------------------------
 # Sync to the mobile backup drive.
-if os.path.isdir(rootMobile):
+# ------------------------------------------------------------------------------
+# Open up a file to log the syncing
+os.chdir(dirMobile)
+logger = logging.basicConfig(filename=logfileMobile, level='info',
+                             format='%(asctime)s %(message)s',
+                             datefmt='%m/%d/%Y %H:%M:%S')
+
+if os.path.isdir(dirMobile):
     print('Backing up archives to mobile drive')
-    print('Syncing ' + rootLocal + ' to ' + rootMobile)
+    print('Syncing ' + dirLocal + ' to ' + dirMobile)
 
-    # Check the os. Unix = rsync; Windos = Unison.
-    if os.name == 'nt':
-        mergeCommand = [unisonPath, rootLocal, rootMobile,
-                        '-logfile ' + logfileMobile, ' -force ' + rootLocal,
-                        ' -batch -nodeletion ' + rootMobile]
-        subprocess.check_output(mergeCommand)
-        try:
-            p = subprocess.check_output(mergeCommand)
-        # The tar command indicated an error.
-        except subprocess.CalledProcessError:
-            print('Warning: syncing to the mobile backup failed.')
-
-    elif os.name == 'posix':
-        # Add a trailing backslash to make rsync behave as expected.
-        if not rootMobile[-1] == '/':
-            rootMobile = rootMobile + '/'
-        if not rootLocal[-1] == '/':
-            rootLocal = rootLocal + '/'
-        mergeCommand = ['rsync', '-az', rootLocal, rootMobile]
-        try:
-            p = subprocess.check_output(mergeCommand)
-        # The tar command indicated an error.
-        except subprocess.CalledProcessError:
-            print('Warning: syncing to the mobile backup failed.')
+    dirsync.sync(dirLocal, dirMobile, 'diff', logger=logger)
+    dirsync.sync(dirLocal, dirMobile, 'sync', logger=logger)
 
 else:
     print('Warning: Mobile back-up was not found in the specified path.')
