@@ -37,21 +37,7 @@ channels = [channel_1, channel_2, channel_3, channel_4]
 # Sub function -- actually zips and archives data
 # ------------------------------------------------------------------------------
 # Python libraries for controlling the tarballing
-def make_tarfile(tarName, filesToZip):
-    # Open the tarball and prepare it for writing
-    with tarfile.open(tarName, "w:gz") as tar:
-        # If a wildcard was passed in filesToZip...
-        if '*' in filesToZip:
-            # Glob the wildcard expressions together
-            filesToZip = glob.glob(filesToZip)
-            # Add each file to the tarball
-            for f in filesToZip:
-                tar.add(f, arcname=os.path.basename(f))
-        # Else just tarball the whole thing
-        else:
-            tar.add(filesToZip, arcname=os.path.basename(filesToZip))
-
-def archiveTool(outFile, sourceFile):
+def make_tarfile(sourceDir, tarName, filesToZip):
     '''
     This helper function creates the command to tar.gz the DTS XML files.
     INPUT:
@@ -62,17 +48,34 @@ def archiveTool(outFile, sourceFile):
         flag = True if the archive was sucessfully created. False if an error was
             detected.
     '''
+    
     # Check that the directory actually exists.
-    if os.path.isdir(sourcePath):
-        print('Source files: ' + sourceFile)
-        print('Archiving to: ' + outFile)
+    sourceDir = os.path.dirname(filesToZip)
+    
+    if os.path.isdir(sourceDir):
+        print('Source files: ' + sourceDir)
+        print('Archiving to: ' + tarName)
+    
+        # Open the tarball and prepare it for writing and compress the xml files
+        with tarfile.open(tarName, "w:gz") as tar:
+            
+            # If a wildcard was passed in filesToZip...
+            if '*' in filesToZip:
+                
+                # Glob the wildcard expressions together
+                filesToZip = glob.glob(filesToZip)
+                
+                # Add each file to the tarball
+                for f in filesToZip:
+                    tar.add(f, arcname=os.path.basename(f))
 
-        # Compress xml files
-        make_tarfile(outFile, sourceFile)
-        # Previous version of the code checked for errors in the archiving
-        # and returned a boolean indicating if the process occurred successfully.
+            # Else just tarball the whole thing
+            else:
+                tar.add(filesToZip, arcname=os.path.basename(filesToZip))
+
+        # Exit with a successful indicator
         return(True)
-
+            
     # No files were found, exit and notify.
     else:
         print('Could not find files in specified paths. Please check sourcePath')
