@@ -33,11 +33,12 @@ channel_4 = 'channel 4'
 channels = [channel_1, channel_2, channel_3, channel_4]
 # ------------------------------------------------------------------------------
 
+
 # ------------------------------------------------------------------------------
-# Sub function -- actually zips and archives data
+# make_tarfile -- actually zips and archives data
 # ------------------------------------------------------------------------------
 # Python libraries for controlling the tarballing
-def make_tarfile(sourceDir, tarName, filesToZip):
+def make_tarfile(tarName, filesToZip):
     '''
     This helper function creates the command to tar.gz the DTS XML files.
     INPUT:
@@ -82,8 +83,32 @@ def make_tarfile(sourceDir, tarName, filesToZip):
         return(False)
 
 # ------------------------------------------------------------------------------
+# backup_sync -- sync to an external backup drive.
+# ------------------------------------------------------------------------------
+def backup_sync(dirMobile, dirLocal):
+    # Open up a file to log the syncing
+    os.chdir(dirMobile)
+    logger = logging.basicConfig(filename=logfileMobile, level='info',
+                                 format='%(asctime)s %(message)s',
+                                 datefmt='%m/%d/%Y %H:%M:%S')
+
+    if os.path.isdir(dirMobile):
+        print('Backing up archives to mobile drive')
+        print('Syncing ' + dirLocal + ' to ' + dirMobile)
+
+        dirsync.sync(dirLocal, dirMobile, 'diff', logger=logger)
+        dirsync.sync(dirLocal, dirMobile, 'sync', logger=logger)
+
+    else:
+        print('Warning: Mobile back-up was not found in the specified path.')
+        
+    return()
+# ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
 # Archive data
 # ------------------------------------------------------------------------------
+def archiver()
 for ch in channels:
     channelPath = os.path.join(sourcePath, ch)
 
@@ -108,7 +133,7 @@ for ch in channels:
         sourceFile = os.path.join(sourcePath, channel_1, channel_1 + '_' + dateFileName + '*')
 
         # zip the data and move to archive
-        archiveTool(outFile, sourceFile)
+        make_tarfile(outFile, sourceFile)
 
     ########
     # Archive: To archive previously aquired data.
@@ -166,30 +191,10 @@ for ch in channels:
             sourceFile = os.path.join(sourcePath, ch,
                 channel_1 + '_' + str(yyyy) + str(mm) + str(dd) + hh + '*')
             # Zip and archive this time period
-            archiveTool(outFile, sourceFile)
+            make_tarfile(outFile, sourceFile)
 
             # Iterate the time
             dt = dt + datetime.timedelta(hours=1)
 
     print('Done with ' + ch + '. Backup files in: ' + targetPath)
-# ------------------------------------------------------------------------------
-
-# ------------------------------------------------------------------------------
-# Sync to the mobile backup drive.
-# ------------------------------------------------------------------------------
-# Open up a file to log the syncing
-os.chdir(dirMobile)
-logger = logging.basicConfig(filename=logfileMobile, level='info',
-                             format='%(asctime)s %(message)s',
-                             datefmt='%m/%d/%Y %H:%M:%S')
-
-if os.path.isdir(dirMobile):
-    print('Backing up archives to mobile drive')
-    print('Syncing ' + dirLocal + ' to ' + dirMobile)
-
-    dirsync.sync(dirLocal, dirMobile, 'diff', logger=logger)
-    dirsync.sync(dirLocal, dirMobile, 'sync', logger=logger)
-
-else:
-    print('Warning: Mobile back-up was not found in the specified path.')
 # ------------------------------------------------------------------------------
