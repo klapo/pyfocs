@@ -1,0 +1,48 @@
+Horizontal - 56cm:
+- 82.5
+- 132
+Horizontal - 60.5cm:
+- 136
+- 185.5
+Horizontal - 84cm:
+- 192.25
+- 242
+Horizontal - 86cm:
+- 245
+- 294.5
+coldBathFar:
+- 357
+- 362
+coldBathNear:
+- 17
+- 22
+vertHarpFar_1:
+- 326.2
+- 327.7
+vertHarpFar_2:
+- 328.25
+- 329.75
+vertHarpFar_3:
+- 330.4
+- 331.9
+vertHarpFar_4:
+- 332.25
+- 333.75
+vertHarpNear_1:
+- 47.3
+- 48.5
+vertHarpNear_2:
+- 49.3
+- 50.8
+vertHarpNear_3:
+- 51.5
+- 53.0
+vertHarpNear_4:
+- 53.4
+- 54.9
+warmBathFar:
+- 346
+- 351
+warmBathNear:
+- 29
+- 33

@@ -7,6 +7,4 @@ setup(
     description='Processing of meteorological data.',
     packages=['btmm_process'],
     version='0.1',
-    ext_modules=cythonize('solargeo/*.pyx'),
-    install_requires=['pandas', 'numpy', 'xarray'],
-    tests_require=['pytest', 'engarde'])
+    install_requires=['pandas', 'numpy', 'xarray'])

@@ -1,0 +1,54 @@
+# Example configuration file.
+# For now all entries are required. Future work may dynamically assign default
+# values to certain entries if none is found. 
+# ------------------------------------------------------------------------------
+directories:
+    # Where the data is located
+    dirData: '/Users/karllapo/Desktop/archive/'
+    # Where the processed data should go (includes data output at intermediate steps)
+    dirProcessed: '/Users/karllapo/Desktop/archive/proc'
+    # Name of the channel to be processed
+    channelName: 'channel 1'
+    # Location of the labels file
+    labelsFilePath: '/Users/karllapo/Desktop/software/python/packages/btmm_process/btmm_process/testLocationLib.yml'
+# ------------------------------------------------------------------------------
+fileName:
+    filePrefix: 'expName'
+    fileSuffix: ''
+# ------------------------------------------------------------------------------
+dataProperties:
+    # Number of xml files to concatenate together when making netcdfs.
+    chunkSize: 1000
+    # Give the PT100s the name of either 'probeWarmBath' and 'probeColdBath'
+    probe1Temperature: 'probeWarmBath'
+    probe2Temperature: 'probeColdBath'
+# ------------------------------------------------------------------------------
+calibration:
+    # Based on the labels provided in the labelsFile (above), specify which
+    # regions of the cable are to be used when calibrating.
+    refLoc1: 'warmBathNear'
+    refField1: 'probeWarmBath'
+    refLoc2: 'warmBathFar'
+    refField2: 'probeWarmBath'
+    refLoc3: 'coldBathNear'
+    refField3: 'probeColdBath'
+# ------------------------------------------------------------------------------
+archive:
+    # Mode for the archiving tool.
+    # archiving = zip previously collected data
+    # active = zip data being actively collected (e.g., with a cron script)
+    mode: 'archiving'
+    # Path to search for local data.
+    sourcePath: '/Users/karllapo/Desktop/data/darkmix_data_2017/field/Klöndeel/Original/Ultima_harp'
+    # Path to where you want the data to end up
+    targetPath: '/Users/karllapo/Desktop/archive/'
+    # Paths to the source data (dirLocal) and backup drive (dirBackUp)
+    dirBackUp: '/Volumes/NO NAME/test_archive'
+    logfile: 'dtsarch_logfile.txt'
+
+    # Names of the channels. The script will search for targetPath/channel_X.
+    channel_1: 'channel 1'
+    channel_2: 'channel 2'
+    channel_3: 'channel 3'
+    channel_4: 'channel 4'
+# ------------------------------------------------------------------------------
