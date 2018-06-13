@@ -52,7 +52,7 @@ def make_tarfile(tarName, filesToZip):
             
     # No files were found, exit and notify.
     else:
-        print('Could not find files in specified paths. Please check sourcePath')
+        raise IOError('Could not find files in specified paths. Please check sourcePath')
         return(False)
 
 # ------------------------------------------------------------------------------
@@ -65,7 +65,7 @@ def backup_sync(dirMobile, dirLocal, logfile):
                                  format='%(asctime)s %(message)s',
                                  datefmt='%m/%d/%Y %H:%M:%S')
 
-    if os.path.isdir(dirMobile):
+    if  
         print('Backing up archives to mobile drive')
         print('Syncing ' + dirLocal + ' to ' + dirMobile)
 
@@ -83,13 +83,16 @@ def backup_sync(dirMobile, dirLocal, logfile):
 # ------------------------------------------------------------------------------
 def archiver(sourcePath, targetPath, channels, mode='archiving',
              externalBackUp=False, dirBackUp='', logfile='dtsarch_logfile'):
-
+    '''
+    Script to tar and gzip the Ultima data
+    '''
     for ch in channels:
         channelPath = os.path.join(sourcePath, ch)
 
         ########
         # Active: Meant to be run with a cron job and uses the current time.
         if mode == 'active':
+            print('WARNING: active mode has not been tested! It will probably crash. Sorry :(')
             now = datetime.datetime.now()
             yyyy = now.year
             mm = now.month
