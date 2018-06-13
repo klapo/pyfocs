@@ -1,0 +1,4 @@
+This is a list of packages external to the conda python distribution that the archiver depends on. All can be aquired using the pip command (e.g., pip install XXXXXX)
+logging
+dirsync
+tarfile
