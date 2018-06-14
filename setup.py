@@ -3,8 +3,6 @@ setup(
     name='btmm_process',
     author=u"Karl Lapo",
     author_email='karl-lapo@uni-bayreuth.de',
- 
-
     description='Processing of meteorological data.',
     packages=find_packages(exclude=['ez_setup', 'examples', 'tests']),
     version='0.1',
