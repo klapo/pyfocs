@@ -1,11 +1,12 @@
-import yaml
 import os
 from .labeler import yamlDict
 from .readDTS import tar_read
 from .calibrate import prepCalibrate
 from .dtsarch import dtsarch
 
-def run_btmm_process(configFile, archive_flag=True, tar_read_flag=True, calibrateFlag=True):
+
+def run_btmm_process(configFile, archive_flag=True,
+                     tar_read_flag=True, calibrateFlag=True):
 
     # Load the configuration file
     cfg = yamlDict(configFile)
@@ -21,20 +22,20 @@ def run_btmm_process(configFile, archive_flag=True, tar_read_flag=True, calibrat
         channels = [channel_1, channel_2, channel_3, channel_4]
         sourcePath = cfg['archive']['sourcePath']
         targetPath = cfg['archive']['targetPath']
-        
+
         # Determine if we are backing up to an external directory
         dirBackUp = cfg['archive']['dirBackUp']
-        if os.path.isdir(dirMobile):
+        if os.path.isdir(dirBackUp):
             externalBackUp = True
             logfile = cfg['archive']['logfile']
         else:
             externalBackUp = False
             logfile = []
-        
+
         # Call the archiving function
         dtsarch.archiver(sourcePath, targetPath, channels, mode,
                          externalBackUp=externalBackUp,
-                         dirBackUp=dirBackUp, logfile=logifle):
+                         dirBackUp=dirBackUp, logfile=logfile)
 
     # Call readDTS.tar_read
     if tar_read_flag:

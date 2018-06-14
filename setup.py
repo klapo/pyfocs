@@ -6,11 +6,8 @@ setup(
     description='Processing of meteorological data.',
     packages=find_packages(exclude=['ez_setup', 'examples', 'tests']),
     version='0.1',
-    install_requires=['pandas', 'numpy', 'xarray'])
+    install_requires=['pandas', 'numpy', 'xarray'],
     license='MIT',
     zip_safe=False,
     include_package_data=True,
-    install_requires=[
-          'click'
-          ],
 )
