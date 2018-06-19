@@ -2,6 +2,7 @@ import os
 import xarray as xr
 import numpy as np
 
+
 def prepCalibrate(cfg):
     '''
     Prep the data for being calibrated!
@@ -16,9 +17,10 @@ def prepCalibrate(cfg):
     # Prep the data for calibration
     os.chdir(dirProcessed)
 
-    # Find all netcdf files that match the experiment suffix and prefix. Load them
-    # into a xarray Dataset.
-    ncFiles = [nc for nc in os.listdir() if filePrefix in nc and fileSuffix in nc and '.nc' in nc]
+    # Find all netcdf files that match the experiment suffix and prefix.
+    # Load them into a xarray Dataset.
+    ncFiles = [nc for nc in os.listdir() if filePrefix in nc
+               and fileSuffix in nc and '.nc' in nc]
     ncFiles.sort()
     ds = xr.open_mfdataset(ncFiles, chunks=cfg['dataProperties']['chunkSize'])
 
@@ -26,8 +28,9 @@ def prepCalibrate(cfg):
     ds = matrixInversion(ds, cfg['calibration'])
 
     os.chdir(dirProcessed)
-    ds.to_netcdf(filePrefix + '_calibrated_' + fileSuffix  + '.nc', 'w')
+    ds.to_netcdf(filePrefix + '_calibrated_' + fileSuffix + '.nc', 'w')
     return ds
+
 
 def matrixInversion(ds, refConfig):
     '''
@@ -97,17 +100,3 @@ def matrixInversion(ds, refConfig):
     ds['manualTemp'] = (('time', 'LAF'), manualTemp - 273.15)
 
     return(ds)
-
-        # ##############################
-        # ## Plot Calibration Results ##
-        # ##############################
-        # plt.plot(gamma)
-        # plt.gca().set_ylabel('$\gamma$')
-        #
-        # plt.figure()
-        # plt.plot(C)
-        # plt.gca().set_ylabel('$C(t)$')
-        #
-        # plt.figure()
-        # plt.plot(delta_alpha)
-        # plt.gca().set_ylabel(r'$\Delta  \alpha (z)$')
