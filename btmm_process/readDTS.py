@@ -81,7 +81,7 @@ def xml_read(dumbXMLFile):
     return(actualData, metaData)
 
 
-def tar_read(cfg, prevNumChunk=0):
+def archive_read(cfg, prevNumChunk=0):
     '''
     Reads all archived xml files in the provided directory
     and turns them into netcdfs.
