@@ -1,9 +1,12 @@
 import os
-import dtsarch
 
 
 def run_btmm_process(configFile, archive_flag=True,
                      tar_read_flag=True, calibrateFlag=True):
+    '''
+    This function has not been implemented yet.
+    '''
+
 
     # Load the configuration file
     cfg = yamlDict(configFile)

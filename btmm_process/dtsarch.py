@@ -91,22 +91,30 @@ def archiver(cfg):
 
     # Read the configure file for the archiver arguments
     mode = cfg['archive']['mode']
-    channel_1 = cfg['archive']['channel_1']
-    channel_2 = cfg['archive']['channel_2']
-    channel_3 = cfg['archive']['channel_3']
-    channel_4 = cfg['archive']['channel_4']
-    channels = [channel_1, channel_2, channel_3, channel_4]
+    for ch in cfg['archive']:
+        channels = cfg['archive']['channelName']
     sourcePath = cfg['archive']['sourcePath']
     targetPath = cfg['archive']['targetPath']
 
     # Determine if we are backing up to an external directory
-    dirBackUp = cfg['archive']['dirBackUp']
-    if os.path.isdir(dirBackUp):
-        externalBackUp = True
-        logfile = cfg['archive']['logfile']
-    else:
+    try:
+        dirBackUp = cfg['archive']['dirBackUp']
+        if os.path.isdir(dirBackUp):
+            externalBackUp = True
+            logfile = cfg['archive']['logfile']
+        else:
+            externalBackUp = False
+            logfile = []
+    except KeyError:
+        print('No backup directory provided.')
         externalBackUp = False
         logfile = []
+
+    # Determine if the archiver should clean up the original data directory
+    try:
+        cleanup_flag = cfg['archive']['cleanup_flag']
+    except KeyError:
+        cleanup_flag = False
 
     for ch in channels:
         channelPath = os.path.join(sourcePath, ch)
@@ -191,14 +199,20 @@ def archiver(cfg):
 
                 # Create file names for this hour
                 dateFileName = '_' + str(yyyy) + str(mm) + str(dd) + '-' + hh
-                outFile = os.path.join(targetPath, ch + '_' + str(yyyy) +
+                outFile = os.path.join(targetPath, ch, ch + '_' + str(yyyy) +
                                        str(mm) + str(dd) + '-'
                                        + hh + '.tar.gz')
                 sourceFile = os.path.join(sourcePath, ch,
                                           ch + '_' + str(yyyy) + str(mm)
-                                          + str(dd) + hh + '*')
+                                          + str(dd) + hh + '*.xml')
                 # Zip and archive this time period
-                make_tarfile(outFile, sourceFile)
+                indicator = make_tarfile(outFile, sourceFile)
+
+                # Determine if the xml files should be removed
+                if indicator and cleanup_flag:
+                    print('Cleaning up the raw xml files...')
+                    for f in glob.glob(sourceFile):
+                        os.remove(f)
 
                 # Iterate the time
                 dt = dt + datetime.timedelta(hours=1)
