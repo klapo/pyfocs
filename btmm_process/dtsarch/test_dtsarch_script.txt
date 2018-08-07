@@ -1,6 +1,10 @@
-import dtsarch
+import btmm_process
+
 
 # To test the archiver just 'python test_dtsarch_script' and all should be cool.
+
+# This directory just contains example/development code for the archiver.
+# It needs to be deleted soon.
 
 # Mode to run the script in
 mode = 'archiving'

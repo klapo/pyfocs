@@ -3,7 +3,7 @@ import datetime
 import glob
 import tarfile
 import dirsync
-import logging
+
 
 # ------------------------------------------------------------------------------
 # make_tarfile -- actually zips and archives data
@@ -69,13 +69,8 @@ def backup_sync(dirMobile, dirLocal, logfile):
         print('Backing up archives to mobile drive')
         print('Syncing ' + dirLocal + ' to ' + dirMobile)
 
-        # Open up a file to log the syncing
-        logger = logging.basicConfig(filename=logfile, level='info',
-                                     format='%(asctime)s %(message)s',
-                                     datefmt='%m/%d/%Y %H:%M:%S')
-
-        dirsync.sync(dirLocal, dirMobile, 'diff', logger=logger)
-        dirsync.sync(dirLocal, dirMobile, 'sync', logger=logger)
+        dirsync.sync(dirLocal, dirMobile, 'diff')
+        dirsync.sync(dirLocal, dirMobile, 'sync')
 
     else:
         print('Warning: Mobile back-up was not found in the specified path.')
@@ -88,11 +83,31 @@ def backup_sync(dirMobile, dirLocal, logfile):
 # ------------------------------------------------------------------------------
 
 
-def archiver(sourcePath, targetPath, channels, mode='archiving',
-             externalBackUp=False, dirBackUp='', logfile='dtsarch_logfile'):
+def archiver(cfg):
     '''
-    Script to tar and gzip the Ultima data
+    Script to tar and gzip the Ultima data.
+    Requires a configuration file to run.
     '''
+
+    # Read the configure file for the archiver arguments
+    mode = cfg['archive']['mode']
+    channel_1 = cfg['archive']['channel_1']
+    channel_2 = cfg['archive']['channel_2']
+    channel_3 = cfg['archive']['channel_3']
+    channel_4 = cfg['archive']['channel_4']
+    channels = [channel_1, channel_2, channel_3, channel_4]
+    sourcePath = cfg['archive']['sourcePath']
+    targetPath = cfg['archive']['targetPath']
+
+    # Determine if we are backing up to an external directory
+    dirBackUp = cfg['archive']['dirBackUp']
+    if os.path.isdir(dirBackUp):
+        externalBackUp = True
+        logfile = cfg['archive']['logfile']
+    else:
+        externalBackUp = False
+        logfile = []
+
     for ch in channels:
         channelPath = os.path.join(sourcePath, ch)
 

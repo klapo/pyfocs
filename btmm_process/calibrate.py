@@ -1,6 +1,7 @@
 import os
 import xarray as xr
 import numpy as np
+import sys
 
 
 def prepCalibrate(cfg):
@@ -25,15 +26,35 @@ def prepCalibrate(cfg):
     ds = xr.open_mfdataset(ncFiles, chunks=cfg['dataProperties']['chunkSize'])
 
     # Call the matrix solver function.
-    ds = matrixInversion(ds, cfg['calibration'])
+    ds = matrixInversion(ds, cfg)
 
     os.chdir(dirProcessed)
+
+    # Strip out any unnecessary underscores
+    if fileSuffix[0] == '_':
+        fileSuffix = fileSuffix[1:]
+    if filePrefix[-1] == '_':
+        filePrefix = filePrefix[0:-1]
+
+    # Write to netcdf
     ds.to_netcdf(filePrefix + '_calibrated_' + fileSuffix + '.nc', 'w')
+
+    # Return the dataset
     return ds
 
 
-def matrixInversion(dsCal, refField1, refField2, refField3,
-                    refLoc1, refLoc2, refLoc3, direction='forward'):
+def matrixInversion(dsCal, cfg):
+    refField1 = cfg['calibration']['refField1']
+    refField2 = cfg['calibration']['refField2']
+    refField3 = cfg['calibration']['refField3']
+
+    refLoc1 = cfg['calibration']['refLoc1']
+    refLoc2 = cfg['calibration']['refLoc2']
+    refLoc3 = cfg['calibration']['refLoc3']
+
+    direction = cfg['calibration']['direction']
+
+    # Assume that the PT100 data is in Celsius
     refT1 = dsCal[refField1] + 273.15
     refT2 = dsCal[refField2] + 273.15
     refT3 = dsCal[refField3] + 273.15
@@ -48,7 +69,7 @@ def matrixInversion(dsCal, refField1, refField2, refField3,
 
     ref_z1 = section1.LAF.mean(dim='location')
     ref_z2 = section2.LAF.mean(dim='location')
-    ref_z3 = section2.LAF.mean(dim='location')
+    ref_z3 = section3.LAF.mean(dim='location')
 
     # Amplitudes of stokes/anti-stokes
     if 'logPsPas' in dsCal:
@@ -68,8 +89,8 @@ def matrixInversion(dsCal, refField1, refField2, refField3,
 
     # Within each time step solve for the calibration parameters
     for n, t in enumerate(dsCal.time):
-        print('Time step ' + str(n + 1) + ' of '
-              + str(np.size(dsCal.time.values)), end="\r", flush=True)
+        sys.stdout.write('\r' + 'Time step ' + str(n + 1) + ' of '
+                         + str(np.size(dsCal.time.values)))
         T1 = refT1.sel(time=t).values
         T2 = refT2.sel(time=t).values
         T3 = refT3.sel(time=t).values
