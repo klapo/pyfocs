@@ -197,9 +197,19 @@ def archiver(cfg):
                 else:
                     hh = str(hh)
 
+                if dd < 10:
+                    dd = '0' + str(dd)
+                else:
+                    dd = str(dd) 
+                    
+                if mm < 10:
+                    mm = '0' + str(mm)
+                else:
+                    mm = str(mm)
+
                 # Create file names for this hour
                 dateFileName = '_' + str(yyyy) + str(mm) + str(dd) + '-' + hh
-                outFile = os.path.join(targetPath, ch, ch + '_' + str(yyyy) +
+                outFile = os.path.join(targetPath, ch + '_' + str(yyyy) +
                                        str(mm) + str(dd) + '-'
                                        + hh + '.tar.gz')
                 sourceFile = os.path.join(sourcePath, ch,
