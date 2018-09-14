@@ -1,0 +1,66 @@
+directories:
+  # path to where all the experiment data is located
+  dir_pre: /media/anita/20d0e9bb-ae3d-4884-982d-00039fcc9f54/home/anita/Daten/flyfox_program_test 
+  # name of the folder where the experiments data is located
+  folder_raw_data: FlyFOX
+  # this is where graphics go
+  folder_graphics: graphics
+  # Name of the channels to process (Only one channel was tested)
+  channelName: channel 1
+  # this is where the netCDF files go (raw + calibrated)
+  folder_processed: processed
+
+archive:
+  channelName:
+  # Searches for data to archive following the pattern sourcePath/channelName/*.xml
+  - channel 1
+  - channel 2
+  # Delete the raw xml files after creating the archive?
+  cleanup_flag: False
+  # Unused at the moment but can't be deleted  
+  mode: archiving
+
+calibration:
+  # should be forward except for duplex signals on the reverse channel
+  direction: forward
+  # probe name for the reference baths
+  refField1: warmProbe
+  refField2: coldProbe
+  refField3: warmProbe
+  # name of the calibration baths in the locations section
+  refLoc1: warmBathNear
+  refLoc2: coldBathNear
+  refLoc3: warmBathFar
+
+dataProperties:
+  # the number of time steps it will put in a raw netCDF
+  chunkSize: 1000
+  # which probe goes into which bath (must match the names of refField 1-3)	
+  probe1Temperature: coldProbe   
+  probe2Temperature: warmProbe
+  # Can be specified as [integer][min or s], e.g., 1s or 5min. Used to put the time stamps on a regular interval. Adapt to the interval that fozzie is measuring to not get lots of NaNs.  
+  resampling_time: 1min
+
+flags:
+  # set to True if you want the raw .xml data to be compresseed into hourly archives and to False if this is already done. A True although the archiving has been done already will result in an error
+  archiving_flag: False
+  raw_read_flag: True
+
+locations: 
+  # location library for the baths; Can not be overlapping or the location names will conflict; 
+  # bath location names need to match the names in the 'calibration' section for 'refLoc1-3'
+  coldBathFar:
+  - 83.0
+  - 88.0
+  coldBathNear:
+  - 24.0
+  - 28.0
+  warmBathFar:
+  - 72.0
+  - 78.0
+  warmBathNear:
+  - 16.0
+  - 20.0
+
+fileName:
+  fileSuffix: ''
