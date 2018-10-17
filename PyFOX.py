@@ -7,8 +7,7 @@ Created on Mon Aug 13 10:37:49 2018
 """
 
 import numpy as np
-from datetime import timedelta #, datetime
-#import pytz
+from datetime import timedelta
 import pandas as pd
 import xarray as xr
 
@@ -46,7 +45,7 @@ with open(filename_configfile, 'r') as stream:
 dir_original = os.path.join(config_user['directories']['dir_pre'], config_user['directories']['folder_raw_data'])
 print(dir_original)
 if not os.path.exists(dir_original): # give an error if raw data folder can't be found
-    print('Raw data folder ' + dir_original + ' doesnt exist')
+    print('Raw data folder ' + dir_original + ' does not exist.')
 
 dir_graphics = os.path.join(config_user['directories']['dir_pre'], config_user['directories']['folder_graphics'], config_user['directories']['folder_raw_data'])
 if not os.path.exists(dir_graphics): # create the folder for the graphics if it doesn't already exist
@@ -119,7 +118,7 @@ for dtsf in dir_data:
         ds = btmm_process.labelLocation(ds, labels)
         ds = ds.sortby('time')
         allExperiments[dtsf][nc.split('.')[0]] = ds
-        
+
     print('')
 
 #%% Construct dataset with all experiments/over all the measurement duration
@@ -129,6 +128,11 @@ for dtsf in dir_data:
     # Initialize the tunnel_exp variable for each overarching experiment
     tunnel_exp = None
 
+    # Provide a single message that no calibration will be performed.
+    if not config_user['flags']['calibration_flag']:
+        print('No calibration performed for: ' + dtsf)
+
+    # Loop through all netcdf's associated with this experiment.
     for nc in allExperiments[dtsf]:
         # Extract the experiment from the containing dictionary
         dstemp = allExperiments[dtsf][nc]
@@ -140,12 +144,26 @@ for dtsf in dir_data:
         dstemp = dstemp.resample(time=config_user['dataProperties']['resampling_time']).mean()
 
         # Calibrate the temperatures, if the bath pt100s and dts do not line up in time, do not calibrate
-        if np.size(dstemp.temp.where(~np.isnan(dstemp.temp), drop=True)) > 0:
+        if (np.size(dstemp.temp.where(~np.isnan(dstemp.temp), drop=True)) > 0) and (config_user['flags']['calibration_flag']):
             temp_array, _, _, _ = btmm_process.matrixInversion(dstemp, internal_config[dtsf])
+        elif not config_user['flags']['calibration_flag']:
+            # Just return some nans here, do not notify the user as they should expect this behavior.
+            temp_array = xr.Dataset({'manualTemp':
+                                    (['time', 'LAF'],
+                                     np.ones_like(dstemp.temp.values)
+                                     * np.nan)},
+                                    coords={'LAF': dstemp.LAF,
+                                            'time': dstemp.time})
         else:
             # Just return some nans here and notify the user.
-            temp_array = np.ones_like(dstemp.temp.values) * np.nan
-            print('There was an error in ' + dtsf)
+            temp_array = xr.Dataset({'manualTemp':
+                                    (['time', 'LAF'],
+                                     np.ones_like(dstemp.temp.values)
+                                     * np.nan)},
+                                    coords={'LAF': dstemp.LAF,
+                                            'time': dstemp.time})
+            print('PT100 and DTS data do not line up in time for ' + dtsf)
+            print('The cal_temp field will contain NaNs.')
 
         # Now construct a new array to store this data
 
@@ -157,7 +175,7 @@ for dtsf in dir_data:
                              'cal_temp': (['time', 'LAF'], temp_array.manualTemp),
                              'warmProbe': (['time'], dstemp['warmProbe']),
                              'coldProbe': (['time'], dstemp['coldProbe']),
-                             #'location': (['LAF'], dstemp.location),
+                             # 'location': (['LAF'], dstemp.location),
                              },
                             coords={'time': dstemp.time,
                                     'LAF': LAF,
@@ -165,14 +183,14 @@ for dtsf in dir_data:
 
         # Drop the unnecessary negative LAF indices
         dstemp = dstemp.sel(LAF=dstemp['LAF'] > 0)
-        #dstemp['location'] =  [0 if v is None else v for v in dstemp.location]
+        # dstemp['location'] =  [0 if v is None else v for v in dstemp.location]
         # Concatenate into a single dataset
         if tunnel_exp:
             tunnel_exp = xr.concat([tunnel_exp, dstemp], coords='all')
         else:
             tunnel_exp = xr.Dataset(dstemp)
-        
-#%% Data output       
+
+#%% Data output
     # Output the calibrated and then processed data
 
     os.chdir(internal_config[dtsf]['directories']['dirProcessed'])
@@ -180,19 +198,19 @@ for dtsf in dir_data:
         # Save to a netcdf
         tunnel_exp.to_netcdf(dtsf + '_calibrated.nc', engine="netcdf4")
     else:
-        print('a netCDF with the name', dtsf, '_calibrated.nc already exists. I didnt overwrite')
-        
+        print('A netCDF with the name ' + dtsf + '_calibrated.nc already exists. The file was not overwritten.')
+
     if not os.path.exists(dtsf + '_processed.nc'):
         ds.to_netcdf(dtsf + '_processed.nc', engine='netcdf4')
     else:
-        print('a netCDF with the name', dtsf, '_processed.nc already exists. I didnt overwrite')  
-        
+        print('A netCDF with the name ' + dtsf + '_processed.nc already exists. The file was not overwritten.')
+
     # Write a csv of the locations because Matlab has problems reading them from the netcdf
     header = ['section_name', 'beginning (LAF)', 'end (LAF)']
-    
+
     filename_locations = os.path.join(dir_processed, dtsf, dtsf + '_locations.csv')
-    locations_file = open(filename_locations, 'w')  
-    with locations_file:  
+    locations_file = open(filename_locations, 'w')
+    with locations_file:
         writer = csv.writer(locations_file, delimiter=',')
         writer.writerow(header)
         for key in config_user['locations']:
