@@ -268,8 +268,12 @@ def archiver(cfg):
 
                     dateFileName = '_' + year + month + day + '-' + hour + minute
                     outFile = os.path.join(targetPath, ch + dateFileName + '.tar.gz')
-                    sourceFile = interval_contents
-                    make_tarfile(outFile, sourceFile)
+
+                    # Check if any files fall within the interval
+                    if len(interval_contents) == 0:
+                        print('No xml files in the interval: ' + str(dt1))
+                    else:
+                        make_tarfile(outFile, interval_contents)
 
                     dt1 = dt2
                     dt2 = dt2 + datetime.timedelta(minutes=delta_minutes)
