@@ -147,7 +147,7 @@ def archive_read(cfg, prevNumChunk = 0):
             for nDumb, someDumbFiles in enumerate(dirConXML):
                 if '.xml' not in someDumbFiles:
                     continue
-                print("\r", someDumbFiles + 'File ' + str(nDumb + 1) + ' of '
+                print("\r", someDumbFiles + ' File ' + str(nDumb + 1) + ' of '
                       + str(nTotal), end="")
 
                 # Read the file
@@ -168,7 +168,6 @@ def archive_read(cfg, prevNumChunk = 0):
                 if cfg['flags']['ref_temp_flag'] == 'constant':
                     temp_Dataset['probe1Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe1_value']
                     temp_Dataset['probe2Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe2_value']
-
 
                 if ds:
                     ds = xr.concat([ds, temp_Dataset], dim='time')
