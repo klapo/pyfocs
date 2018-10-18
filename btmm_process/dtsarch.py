@@ -7,61 +7,25 @@ import dirsync
 
 # ------------------------------------------------------------------------------
 # make_tarfile -- actually zips and archives data
-# ------------------------------------------------------------------------------
-# Python libraries for controlling the tarballing
-
-
 def make_tarfile(tarName, filesToZip):
     '''
     This helper function creates the command to tar.gz the DTS XML files.
     INPUT:
-        outFile = Name of the tar.gz file to create
-        sourceFile = Name of the source files to compress. It MUST terminate
-            with a wildcare (*) (I think).
-    OUTPUT:
-        flag = True if the archive was sucessfully created. False if an error
-            was detected.
+        tarName = Name of the tar.gz file to create
+        filesToZip = List with the name of the source files to compress.
     '''
 
-    # Check that the directory actually exists.
-    sourceDir = os.path.dirname(filesToZip)
+    print('Archiving ' + tarName)
 
-    if os.path.isdir(sourceDir):
-        print('Source files: ' + sourceDir)
-        print('Archiving to: ' + tarName)
+    # Open the tarball and prepare it for writing
+    # and compress the xml files
+    with tarfile.open(tarName, "w:gz") as tar:
+        for f in filesToZip:
+            tar.add(f, arcname=os.path.basename(f))
 
-        # Open the tarball and prepare it for writing
-        # and compress the xml files
-        with tarfile.open(tarName, "w:gz") as tar:
-
-            # If a wildcard was passed in filesToZip...
-            if '*' in filesToZip:
-
-                # Glob the wildcard expressions together
-                filesToZip = glob.glob(filesToZip)
-
-                # Add each file to the tarball
-                for f in filesToZip:
-                    tar.add(f, arcname=os.path.basename(f))
-
-            # Else just tarball the whole thing
-            else:
-                tar.add(filesToZip, arcname=os.path.basename(filesToZip))
-
-        # Exit with a successful indicator
-        return(True)
-
-    # No files were found, exit and notify.
-    else:
-        raise IOError('Could not find files in specified paths.' +
-                      'Please check sourcePath')
-        return(False)
 
 # ------------------------------------------------------------------------------
 # backup_sync -- sync to an external backup drive.
-# ------------------------------------------------------------------------------
-
-
 def backup_sync(dirMobile, dirLocal, logfile):
 
     if os.path.isdir(dirMobile):
@@ -76,13 +40,81 @@ def backup_sync(dirMobile, dirLocal, logfile):
         print('Warning: Mobile back-up was not found in the specified path.')
 
     return()
+
+
 # ------------------------------------------------------------------------------
+# Rounds a datetime object to the nearest minute delta
+def round_dt(dt, delta, type='floor'):
+    '''
+    dt - datetime object
+    delta - rounding interval in minutes (e.g., nearest 15, delta=15)
+    type - specifies if we round up or down
+    '''
+    if type == 'floor':
+        dt = dt - datetime.timedelta(minutes=dt.minute % delta,
+                                     seconds=dt.second,
+                                     microseconds=dt.microsecond)
+    elif type == 'ceil':
+        dt = dt + datetime.timedelta(minutes=delta - dt.minute % delta - 1,
+                                     seconds=60 - dt.second - 1,
+                                     microseconds=10**6 - dt.microsecond)
+    else:
+        raise ValueError('Unrecognized dt rounding type. Valid options are'
+                         'floor and ceil.')
+    return(dt)
+
+
+# ------------------------------------------------------------------------------
+# Formats a datetime object into its components pieces or a string
+def dt_strip(dt, str_convert=False):
+    year = dt.year
+    month = dt.month
+    day = dt.day
+    hour = dt.hour
+    minute = dt.minute
+    sec = dt.second
+    msec = dt.microsecond
+
+    if str_convert:
+        year = str(dt.year)
+
+        if month < 10:
+            month = '0' + str(month)
+        else:
+            month = str(month)
+
+        if day < 10:
+            day = '0' + str(day)
+        else:
+            day = str(day)
+
+        if hour < 10:
+            hour = '0' + str(hour)
+        else:
+            hour = str(hour)
+
+        if minute < 10:
+            minute = '0' + str(minute)
+        else:
+            minute = str(minute)
+
+        if sec < 10:
+            sec = '0' + str(sec)
+        else:
+            sec = str(sec)
+
+        if msec < 10:
+            msec = '0' + str(msec)
+        else:
+            msec = str(msec)
+
+    return(year, month, day, hour, minute, sec, msec)
+# ------------------------------------------------------------------------------
+
 
 # ------------------------------------------------------------------------------
 # Archive data
 # ------------------------------------------------------------------------------
-
-
 def archiver(cfg):
     '''
     Script to tar and gzip the Ultima data.
@@ -95,6 +127,7 @@ def archiver(cfg):
         channels = cfg['archive']['channelName']
     sourcePath = cfg['archive']['sourcePath']
     targetPath = cfg['archive']['targetPath']
+    delta_minutes = cfg['archive']['archiveInterval']
 
     # Determine if we are backing up to an external directory
     try:
@@ -161,7 +194,7 @@ def archiver(cfg):
             # Sort the file list alphabetically.
             contents.sort()
 
-            # First datetimes
+            # First datetime of the raw data
             t = contents[0]
             t = t.split('_')[-1]
             t = t.split('.')[0]
@@ -169,10 +202,15 @@ def archiver(cfg):
             month = t[4:6]
             day = t[6:8]
             hour = t[8:10]
+            minute = t[10:12]
+            sec = t[12:14]
+            msec = t[14:16]
             dtInit = datetime.datetime(int(year), int(month),
-                                       int(day), int(hour), 0)
+                                       int(day), int(hour),
+                                       int(minute), int(sec),
+                                       int(msec) * 1000)
 
-            # Last datetime
+            # First datetime of the raw data
             t = contents[-1]
             t = t.split('_')[-1]
             t = t.split('.')[0]
@@ -180,54 +218,87 @@ def archiver(cfg):
             month = t[4:6]
             day = t[6:8]
             hour = t[8:10]
+            minute = t[10:12]
+            sec = t[12:14]
+            msec = t[14:16]
             dtFinal = datetime.datetime(int(year), int(month),
-                                        int(day), int(hour), 0)
+                                        int(day), int(hour),
+                                        int(minute), int(sec),
+                                        int(msec) * 1000)
 
-            # Span the time found in the specified directory
-            dt = dtInit
-            while dt <= dtFinal:
-                yyyy = dt.year
-                mm = dt.month
-                dd = dt.day
+            # First time step interval
+            dt1 = round_dt(dtInit, delta_minutes, type='floor')
+            dt2 = round_dt(dtInit, delta_minutes, type='ceil')
 
-                # Hours require special attention
-                hh = dt.hour
-                if hh < 10:
-                    hh = '0' + str(hh)
+            # Round up to the nearest interval for the end
+            dtFinal = round_dt(dtFinal, delta_minutes, type='ceil')
+            # Empty container for the files in this interval
+            interval_contents = []
+
+            # Iterate through the (date) sorted list of raw xml files
+            for xml_counts, c in enumerate(contents):
+                # Split the file name string into the datetime components
+                t = c.split('_')[-1]
+                t = t.split('.')[0]
+                year = t[0:4]
+                month = t[4:6]
+                day = t[6:8]
+                hour = t[8:10]
+                minute = t[10:12]
+                sec = t[12:14]
+
+                if len(t) > 14:
+                    msec = t[14:16]
                 else:
-                    hh = str(hh)
+                    msec = 0
 
-                if dd < 10:
-                    dd = '0' + str(dd)
-                else:
-                    dd = str(dd) 
-                    
-                if mm < 10:
-                    mm = '0' + str(mm)
-                else:
-                    mm = str(mm)
+                # Convert the file name into a datetime object
+                dt = datetime.datetime(int(year), int(month),
+                                       int(day), int(hour),
+                                       int(minute), int(sec),
+                                       int(msec))
 
-                # Create file names for this hour
-                dateFileName = '_' + str(yyyy) + str(mm) + str(dd) + '-' + hh
-                outFile = os.path.join(targetPath, ch + '_' + str(yyyy) +
-                                       str(mm) + str(dd) + '-'
-                                       + hh + '.tar.gz')
-                sourceFile = os.path.join(sourcePath, ch,
-                                          ch + '_' + str(yyyy) + str(mm)
-                                          + str(dd) + hh + '*.xml')
-                # Zip and archive this time period
-                indicator = make_tarfile(outFile, sourceFile)
+                if dt < dt2 and dt > dt1:
+                    interval_contents.append(os.path.join(sourcePath, ch, c))
 
-                # Determine if the xml files should be removed
-                if indicator and cleanup_flag:
-                    print('Cleaning up the raw xml files...')
-                    for f in glob.glob(sourceFile):
-                        os.remove(f)
+                # We have spanned this interval, save the data and move on
+                elif dt > dt2:
+                    # Create file names for this hour
+                    year, month, day, hour, minute, _, _ = dt_strip(dt1, str_convert=True)
 
-                # Iterate the time
-                dt = dt + datetime.timedelta(hours=1)
+                    dateFileName = '_' + year + month + day + '-' + hour + minute
+                    outFile = os.path.join(targetPath, ch + dateFileName + '.tar.gz')
+                    sourceFile = interval_contents
+                    make_tarfile(outFile, sourceFile)
 
-        print('Done with ' + ch + '. Backup files in: ' + targetPath)
+                    dt1 = dt2
+                    dt2 = dt2 + datetime.timedelta(minutes=delta_minutes)
+
+                    # Determine if the xml files should be removed
+                    if cleanup_flag:
+                        print('Cleaning up the raw xml files...')
+                        for f in sourceFile:
+                            os.remove(f)
+
+                    interval_contents = []
+
+                # We reached the end of the file list, save and exit.
+                if xml_counts == len(contents) - 1:
+                    # Create file names for this hour
+                    year, month, day, hour, minute, _, _ = dt_strip(dt1, str_convert=True)
+
+                    dateFileName = '_' + year + month + day + '-' + hour + minute
+                    outFile = os.path.join(targetPath, ch + dateFileName + '.tar.gz')
+                    sourceFile = interval_contents
+                    make_tarfile(outFile, sourceFile)
+
+                    # Determine if the xml files should be removed
+                    if cleanup_flag:
+                        print('Cleaning up the raw xml files...')
+                        for f in sourceFile:
+                            os.remove(f)
+
+                    print('Done with ' + ch + '.')
 
     ########
     # Back up to the external drive if specified.
