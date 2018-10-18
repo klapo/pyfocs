@@ -114,13 +114,11 @@ for dtsf in dir_data:
     ncfiles = [file for file in contents if '.nc' in file and 'raw' in file]
 
     allExperiments[dtsf] = {}
-    for nc in ncfiles:
-        ds = xr.open_dataset(nc)
-
-        # Assigning to the experiments dictionary
-        ds = btmm_process.labelLocation(ds, labels)
-        ds = ds.sortby('time')
-        allExperiments[dtsf][nc.split('.')[0]] = ds
+    ds = xr.open_mfdataset('*raw*.nc', concat_dim='time')
+    ds = ds.sortby('time')
+    # Assigning to the experiments dictionary
+    ds = btmm_process.labelLocation(ds, labels)
+    allExperiments[dtsf] = ds
 
     print('')
 
@@ -135,63 +133,60 @@ for dtsf in dir_data:
     if not config_user['flags']['calibration_flag']:
         print('No calibration performed for: ' + dtsf)
 
-    # Loop through all netcdf's associated with this experiment.
-    for nc in allExperiments[dtsf]:
-        # Extract the experiment from the containing dictionary
-        dstemp = allExperiments[dtsf][nc]
+    # Extract the experiment from the containing dictionary
+    dstemp = allExperiments[dtsf]
 
-        # Resample to a common time stamp interval with the reference/bath instruments
-        # We need to make the resampling interval a variable from the configuration file (e.g., if we resample to 1 second for
-        # 1 minute averages we will get out a matrix of mostly NaNs)
-        dstemp = dstemp.sortby('time')
-        dstemp = dstemp.resample(time=config_user['dataProperties']['resampling_time']).mean()
+    # Resample to a common time stamp interval with the reference/bath instruments
+    # We need to make the resampling interval a variable from the configuration file (e.g., if we resample to 1 second for
+    # 1 minute averages we will get out a matrix of mostly NaNs)
+    dstemp = dstemp.resample(time=config_user['dataProperties']['resampling_time']).mean()
 
-        # Calibrate the temperatures, if the bath pt100s and dts do not line up in time, do not calibrate
-        if (np.size(dstemp.temp.where(~np.isnan(dstemp.temp), drop=True)) > 0) and (config_user['flags']['calibration_flag']):
-            temp_array, _, _, _ = btmm_process.matrixInversion(dstemp, internal_config[dtsf])
-        elif not config_user['flags']['calibration_flag']:
-            # Just return some nans here, do not notify the user as they should expect this behavior.
-            temp_array = xr.Dataset({'manualTemp':
-                                    (['time', 'LAF'],
-                                     np.ones_like(dstemp.temp.values)
-                                     * np.nan)},
-                                    coords={'LAF': dstemp.LAF,
-                                            'time': dstemp.time})
-        else:
-            # Just return some nans here and notify the user.
-            temp_array = xr.Dataset({'manualTemp':
-                                    (['time', 'LAF'],
-                                     np.ones_like(dstemp.temp.values)
-                                     * np.nan)},
-                                    coords={'LAF': dstemp.LAF,
-                                            'time': dstemp.time})
-            print('PT100 and DTS data do not line up in time for ' + dtsf)
-            print('The cal_temp field will contain NaNs.')
+    # Calibrate the temperatures, if the bath pt100s and dts do not line up in time, do not calibrate
+    if (np.size(dstemp.temp.where(~np.isnan(dstemp.temp), drop=True)) > 0) and (config_user['flags']['calibration_flag']):
+        temp_array, _, _, _ = btmm_process.matrixInversion(dstemp, internal_config[dtsf])
+    elif not config_user['flags']['calibration_flag']:
+        # Just return some nans here, do not notify the user as they should expect this behavior.
+        temp_array = xr.Dataset({'manualTemp':
+                                (['time', 'LAF'],
+                                 np.ones_like(dstemp.temp.values)
+                                 * np.nan)},
+                                coords={'LAF': dstemp.LAF,
+                                        'time': dstemp.time})
+    else:
+        # Just return some nans here and notify the user.
+        temp_array = xr.Dataset({'manualTemp':
+                                (['time', 'LAF'],
+                                 np.ones_like(dstemp.temp.values)
+                                 * np.nan)},
+                                coords={'LAF': dstemp.LAF,
+                                        'time': dstemp.time})
+        print('PT100 and DTS data do not line up in time for ' + dtsf)
+        print('The cal_temp field will contain NaNs.')
 
-        # Now construct a new array to store this data
+    # Now construct a new array to store this data
 
-        # New coordinate for time that is time since beginning of experiment.
-        LAF = dstemp.LAF
+    # New coordinate for time that is time since beginning of experiment.
+    LAF = dstemp.LAF
 
-        # Construct a new dataset with time as a timedelta object
-        dstemp = xr.Dataset({'instr_temp': (['time', 'LAF'], dstemp.temp),
-                             'cal_temp': (['time', 'LAF'], temp_array.manualTemp),
-                             'warmProbe': (['time'], dstemp['warmProbe']),
-                             'coldProbe': (['time'], dstemp['coldProbe']),
-                             # 'location': (['LAF'], dstemp.location),
-                             },
-                            coords={'time': dstemp.time,
-                                    'LAF': LAF,
-                                    'location': (['LAF'], dstemp['location'])})
+    # Construct a new dataset with time as a timedelta object
+    dstemp = xr.Dataset({'instr_temp': (['time', 'LAF'], dstemp.temp),
+                         'cal_temp': (['time', 'LAF'], temp_array.manualTemp),
+                         'warmProbe': (['time'], dstemp['warmProbe']),
+                         'coldProbe': (['time'], dstemp['coldProbe']),
+                         # 'location': (['LAF'], dstemp.location),
+                         },
+                        coords={'time': dstemp.time,
+                                'LAF': LAF,
+                                'location': (['LAF'], dstemp['location'])})
 
-        # Drop the unnecessary negative LAF indices
-        dstemp = dstemp.sel(LAF=dstemp['LAF'] > 0)
-        # dstemp['location'] =  [0 if v is None else v for v in dstemp.location]
-        # Concatenate into a single dataset
-        if tunnel_exp:
-            tunnel_exp = xr.concat([tunnel_exp, dstemp], coords='all')
-        else:
-            tunnel_exp = xr.Dataset(dstemp)
+    # Drop the unnecessary negative LAF indices
+    dstemp = dstemp.sel(LAF=dstemp['LAF'] > 0)
+    # dstemp['location'] =  [0 if v is None else v for v in dstemp.location]
+    # Concatenate into a single dataset
+    if tunnel_exp:
+        tunnel_exp = xr.concat([tunnel_exp, dstemp], coords='all')
+    else:
+        tunnel_exp = xr.Dataset(dstemp)
 
 #%% Data output
     # Output the calibrated and then processed data
