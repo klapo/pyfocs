@@ -91,6 +91,9 @@ if config_user['flags']['archiving_flag']:
 # write raw netCDF
 if config_user['flags']['raw_read_flag']:
     for dtsf in DTS_folders:
+        print('-------------')
+        print(dtsf)
+        print('-------------')
         print('creating raw netcdf for experiment: ', dtsf)
         btmm_process.archive_read(internal_config[dtsf])
 
