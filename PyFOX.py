@@ -14,6 +14,10 @@ import xarray as xr
 # OS interaction
 import os
 import yaml
+import tkinter as tk  # For the dialog that lets you choose your config file
+from tkinter import filedialog
+import copy
+import csv
 
 # UBT's package for handling dts data
 import btmm_process
@@ -22,14 +26,6 @@ import btmm_process
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
-
-
-import tkinter as tk #for the dialog that lets you choose your config file
-from tkinter import filedialog
-
-import copy
-
-import csv
 
 #%% open the config file
 root = tk.Tk()
@@ -43,7 +39,6 @@ with open(filename_configfile, 'r') as stream:
 #%% create directories
 
 dir_original = os.path.join(config_user['directories']['dir_pre'], config_user['directories']['folder_raw_data'])
-print(dir_original)
 if not os.path.exists(dir_original): # give an error if raw data folder can't be found
     print('Raw data folder ' + dir_original + ' does not exist.')
 
@@ -60,15 +55,16 @@ os.chdir(dir_original)
 contents = os.listdir()
 # The CR6 part will not be necessary for flyfox but leave it in here for later
 DTS_folders = [c for c in contents if 'CR6' not in c and not c[0] == '.']
+external_dat = [c for c in contents if 'CR6' in c and not c[0] == '.'][0]
+external_data_folders = os.path.join(dir_original, external_dat)
 
-# Loop through all of the XT data directories
+# Loop through all of the DTS data directories
 # assemble internal config for each dts folder within the experiment folder
 dir_data = {}
 internal_config = {}
 for dtsf in DTS_folders:
     # get all the directories within this experiment folder
     dir_data[dtsf] = os.path.join(dir_original, dtsf)
-
 
 for dtsf in DTS_folders:
     internal_config[dtsf] = {}
@@ -80,7 +76,6 @@ for dtsf in DTS_folders:
     internal_config[dtsf]['fileName']['filePrefix'] = config_user['directories']['folder_raw_data'] + '_' + dtsf
     if not os.path.exists(internal_config[dtsf]['archive']['targetPath']): # create the folder for the processed files if it doesn't already exist
         os.makedirs(internal_config[dtsf]['archive']['targetPath'])
-
 
 # archiving
 if config_user['flags']['archiving_flag']:
@@ -99,16 +94,17 @@ if config_user['flags']['raw_read_flag']:
 
 #%% Open the raw saved as netcdf
 # Create an empty dictionary to hold the DTS data
-
 allExperiments = {}
 labels = config_user['locations']
 
+print('-------------')
+print('Loading raw netcdf files for procesing.')
+print('-------------')
 for dtsf in dir_data:
-    print('-------------')
     print(dtsf)
-    print('-------------')
 
-    # Find all the netcdfs in this directory, open the raw data netcdfs, and put into the dictionary.
+    # Find all the netcdfs in this directory, open the raw data netcdfs,
+    # and put into the dictionary.
     os.chdir(internal_config[dtsf]['directories']['dirProcessed'])
     contents = os.listdir()
     ncfiles = [file for file in contents if '.nc' in file and 'raw' in file]
@@ -120,10 +116,82 @@ for dtsf in dir_data:
     ds = btmm_process.labelLocation(ds, labels)
     allExperiments[dtsf] = ds
 
-    print('')
+print('')
+
+#%% Deal with an external datastream
+# Go to the data logger directory and find the multiplexer files
+# Many of the flags/string matching here is specific to the DarkMix wind
+# tunnel experiments. These should be ignored when extrapolating to other uses.
+if (os.path.isdir(external_data_folders)) and (config_user['flags']['ref_temp_flag'] == 'external'):
+    external_data_flag = True
+    external_data = {}
+    probe1Cols = config_user['dataProperties']['probe1_value']
+    probe2Cols = config_user['dataProperties']['probe2_value']
+    probe1Name = config_user['dataProperties']['probe1Temperature']
+    probe2Name = config_user['dataProperties']['probe2Temperature']
+
+    # Construct the time zone argument
+    offset = config_user['dataProperties']['UTC_offset']
+    sign = offset * -1
+    # Flip the sign for the POSIX convention.
+    if sign > 0:
+        sign = '+'
+    elif sign < 0:
+        sign = '-'
+    tz = 'Etc/GMT' + sign + str(offset)
+
+    print('-------------')
+    print('External data stream found... assuming it is a ' +
+          'CR6 with a multiplexer controlling the PT100s.')
+    print('-------------')
+    os.chdir(external_data_folders)
+    contents = os.listdir()
+
+    ########
+    # Read the PT100 data from the multiplexer file
+    multiplexer = [file for file in contents if 'multiplexer_data' in file][0]
+    if multiplexer:
+        # The columns with multiple lines creates some problems for pandas, so read the column headers separately
+        # Read the PT100 column headers
+        pt100s_col_names = pd.read_csv(multiplexer, header=1, nrows=0, index_col=0)
+        # Read only the data
+        pt100s = pd.read_csv(multiplexer, header=None, skiprows=4, index_col=0,
+                             parse_dates=True, infer_datetime_format=True, sep=',')
+
+        # Tidy up the pt100 data
+        # Rename the columns
+        pt100s.columns = pt100s_col_names.columns
+        pt100s.index.names = ['time']
+
+    # Now extract each individual experiment
+    for dtsf in dir_data:
+        print(dtsf)
+
+        if multiplexer:
+            external_data[dtsf] = xr.Dataset()
+            # This is a line specific to the DarkMix wind tunnel
+            temp_pts = pt100s[(pt100s.experiment_flag_Max == -1)
+                              & (pt100s.experiment_name == dtsf)]
+            drop_columns = [cols for cols in temp_pts.columns
+                            if cols not in probe1Cols
+                            and cols not in probe2Cols]
+            temp_pts = temp_pts.drop(drop_columns, axis=1)
+
+            # Conver the datetime to UTC
+            time = temp_pts.index.tz_localize(tz).tz_convert('UTC')
+
+            # Create a warm and cold bath average
+            probe1 = xr.DataArray.from_series(temp_pts[probe1Cols].mean(axis=1))
+            probe2 = xr.DataArray.from_series(temp_pts[probe2Cols].mean(axis=1))
+            external_data[dtsf] = xr.Dataset({probe1Name: ('time', probe1),
+                                              probe2Name: ('time', probe2)},
+                                             coords={'time': time.values})
+            external_data[dtsf] = external_data[dtsf].resample(time=config_user['dataProperties']['resampling_time']).mean()
+
+else:
+    external_data_flag = False
 
 #%% Construct dataset with all experiments/over all the measurement duration
-
 for dtsf in dir_data:
 
     # Initialize the tunnel_exp variable for each overarching experiment
@@ -141,8 +209,18 @@ for dtsf in dir_data:
     # 1 minute averages we will get out a matrix of mostly NaNs)
     dstemp = dstemp.resample(time=config_user['dataProperties']['resampling_time']).mean()
 
+    if external_data_flag:
+        # Reindex the DTS data to the averaged pt100 time data.
+        dstemp = dstemp.reindex_like(external_data[dtsf].time,
+                                     method='nearest',
+                                     tolerance=1)
+
+        # Assign the pt100s to the xarray datasets
+        dstemp[probe1Name] = external_data[dtsf][probe1Name]
+        dstemp[probe2Name] = external_data[dtsf][probe2Name]
+
     # Calibrate the temperatures, if the bath pt100s and dts do not line up in time, do not calibrate
-    if (np.size(dstemp.temp.where(~np.isnan(dstemp.temp), drop=True)) > 0) and (config_user['flags']['calibration_flag']):
+    if (np.size(np.flatnonzero(~np.isnan(dstemp.temp.values))) > 0) and (config_user['flags']['calibration_flag']):
         temp_array, _, _, _ = btmm_process.matrixInversion(dstemp, internal_config[dtsf])
     elif not config_user['flags']['calibration_flag']:
         # Just return some nans here, do not notify the user as they should expect this behavior.
@@ -213,30 +291,3 @@ for dtsf in dir_data:
         writer.writerow(header)
         for key in config_user['locations']:
             writer.writerow([key, np.min(config_user['locations'][key]), np.max(config_user['locations'][key])])
-
-#%%######
-# # Plotting!
-# import FlyFox_plotting_v1
-#
-# if config_user['flags']['plotting_flag']:
-#     for dtsf in dir_data:
-#         print('-------------')
-#         print('Plotting experiment: ' + dtsf)
-#         print('-------------')
-#
-#         # Find all the netcdfs in this directory, open the raw data netcdfs, and put into the dictionary.
-#         os.chdir(internal_config[dtsf]['directories']['dirProcessed'])
-#         ds = xr.open_dataset(dtsf + '_calibrated.nc')
-#         FlyFox_plotting_v1.flyfox_heatmap(ds)
-#
-#         fig, ax = plt.subplots(1, 1, figsize=(12, 8))
-#
-#         ax.pcolor(ds.time, ds.LAF, ds.cal_temp, cmap='viridis')
-#         ax.set_xlabel('time')
-#         ax.set_ylabel('LAF (m)')
-#         fig.colorbar()
-#
-#         # Save the figure
-#         os.chdir(dir_graphics)
-#         fig.savefig('caltemp_heatmap_' + dtsf + config_user['fileName']['fileSuffix'] + '.pdf')
-#         fig.savefig('caltemp_heatmap_' + dtsf + config_user['fileName']['fileSuffix'] + '.png')
