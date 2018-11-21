@@ -25,9 +25,11 @@ def xml_read(dumbXMLFile):
                 'LAF_end': float(doc['endIndex']['#text']),
                 'dLAF': float(doc['stepIncrement']['#text']),
                 'dt_start': pd.to_datetime(doc['startDateTimeIndex'],
-                                           infer_datetime_format=True),
+                                           infer_datetime_format=True,
+                                           utc=True),
                 'dt_end': pd.to_datetime(doc['endDateTimeIndex'],
-                                         infer_datetime_format=True),
+                                         infer_datetime_format=True,
+                                         utc=True),
                 'probe1Temperature': float(doc['customData']
                                            ['probe1Temperature']['#text']),
                 'probe2Temperature': float(doc['customData']
@@ -169,6 +171,12 @@ def archive_read(cfg, prevNumChunk = 0):
                     temp_Dataset['probe1Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe1_value']
                     temp_Dataset['probe2Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe2_value']
 
+
+                if cfg['flags']['ref_temp_flag'] == 'external':
+                    temp_Dataset['probe1Temperature'] = np.ones_like(temp_Dataset.LAF.size) * -9999
+                    temp_Dataset['probe2Temperature'] = np.ones_like(temp_Dataset.LAF.size) * -9999
+
+
                 if ds:
                     ds = xr.concat([ds, temp_Dataset], dim='time')
                 else:
@@ -270,9 +278,23 @@ def dir_read(cfg, prevNumChunk=0):
             # Create a temporary xarray Dataset
             temp_Dataset = xr.Dataset.from_dataframe(df)
             temp_Dataset.coords['time'] = meta['dt_start']
-            temp_Dataset['probe1Temperature'] = meta['probe1Temperature']
-            temp_Dataset['probe2Temperature'] = meta['probe2Temperature']
             temp_Dataset['fiberStatus'] = meta['fiberOK']
+
+            # Determine how to handle the reference probes
+            # Default behavior is to use the instrument reported reference temperatures.
+            if cfg['flags']['ref_temp_flag'] == 'default':
+                temp_Dataset['probe1Temperature'] = meta['probe1Temperature']
+                temp_Dataset['probe2Temperature'] = meta['probe2Temperature']
+
+            # Use constant temperatures provided by the user.
+            if cfg['flags']['ref_temp_flag'] == 'constant':
+                temp_Dataset['probe1Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe1_value']
+                temp_Dataset['probe2Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe2_value']
+
+
+            if cfg['flags']['ref_temp_flag'] == 'external':
+                temp_Dataset['probe1Temperature'] = np.ones_like(temp_Dataset.LAF.size) * -9999
+                temp_Dataset['probe2Temperature'] = np.ones_like(temp_Dataset.LAF.size) * -9999
 
             if ds:
                 ds = xr.concat([ds, temp_Dataset], dim='time')

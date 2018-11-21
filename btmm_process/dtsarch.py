@@ -196,31 +196,59 @@ def archiver(cfg):
 
             # First datetime of the raw data
             t = contents[0]
-            t = t.split('_')[-1]
-            t = t.split('.')[0]
-            year = t[0:4]
-            month = t[4:6]
-            day = t[6:8]
-            hour = t[8:10]
-            minute = t[10:12]
-            sec = t[12:14]
-            msec = t[14:16]
+            if 'UTC' not in t:
+                t = t.split('_')[-2:]
+                t = t.split('.')[0:2]
+                year = t[0:4]
+                month = t[4:6]
+                day = t[6:8]
+                hour = t[8:10]
+                minute = t[10:12]
+                sec = t[12:14]
+                msec = t[14:16]
+            else:
+                t = t.split('_')[-2:]
+                t_ymd = t[0]
+                t = t[-1].split('.')[0:2]
+                t_hms = t[0]
+                t_us = t[1]
+                year = t_ymd[0:4]
+                month = t_ymd[4:6]
+                day = t_ymd[6:8]
+                hour = t_hms[0:2]
+                minute = t_hms[2:4]
+                sec = t_hms[4:6]
+                msec = t_us
             dtInit = datetime.datetime(int(year), int(month),
                                        int(day), int(hour),
                                        int(minute), int(sec),
                                        int(msec) * 1000)
 
-            # First datetime of the raw data
+            # Last datetime of the raw data
             t = contents[-1]
-            t = t.split('_')[-1]
-            t = t.split('.')[0]
-            year = t[0:4]
-            month = t[4:6]
-            day = t[6:8]
-            hour = t[8:10]
-            minute = t[10:12]
-            sec = t[12:14]
-            msec = t[14:16]
+            if 'UTC' not in t:
+                t = t.split('_')[-2:]
+                t = t.split('.')[0:2]
+                year = t[0:4]
+                month = t[4:6]
+                day = t[6:8]
+                hour = t[8:10]
+                minute = t[10:12]
+                sec = t[12:14]
+                msec = t[14:16]
+            else:
+                t = t.split('_')[-2:]
+                t_ymd = t[0]
+                t = t[-1].split('.')[0:2]
+                t_hms = t[0]
+                t_us = t[1]
+                year = t_ymd[0:4]
+                month = t_ymd[4:6]
+                day = t_ymd[6:8]
+                hour = t_hms[0:2]
+                minute = t_hms[2:4]
+                sec = t_hms[4:6]
+                msec = t_us
             dtFinal = datetime.datetime(int(year), int(month),
                                         int(day), int(hour),
                                         int(minute), int(sec),
@@ -234,23 +262,39 @@ def archiver(cfg):
             dtFinal = round_dt(dtFinal, delta_minutes, type='ceil')
             # Empty container for the files in this interval
             interval_contents = []
-
+            xml_counts = 0
             # Iterate through the (date) sorted list of raw xml files
-            for xml_counts, c in enumerate(contents):
+            while xml_counts <= len(contents) - 1:
                 # Split the file name string into the datetime components
-                t = c.split('_')[-1]
-                t = t.split('.')[0]
-                year = t[0:4]
-                month = t[4:6]
-                day = t[6:8]
-                hour = t[8:10]
-                minute = t[10:12]
-                sec = t[12:14]
+                c = contents[xml_counts]
 
-                if len(t) > 14:
-                    msec = t[14:16]
+                if 'UTC' not in c:
+                    t = c.split('_')[-2:]
+                    t = t.split('.')[0:2]
+                    year = t[0:4]
+                    month = t[4:6]
+                    day = t[6:8]
+                    hour = t[8:10]
+                    minute = t[10:12]
+                    sec = t[12:14]
+                    if len(t) > 14:
+                        msec = t[14:16]
+                    else:
+                        msec = 0
+
                 else:
-                    msec = 0
+                    t = c.split('_')[-2:]
+                    t_ymd = t[0]
+                    t = t[-1].split('.')[0:2]
+                    t_hms = t[0]
+                    t_us = t[1]
+                    year = t_ymd[0:4]
+                    month = t_ymd[4:6]
+                    day = t_ymd[6:8]
+                    hour = t_hms[0:2]
+                    minute = t_hms[2:4]
+                    sec = t_hms[4:6]
+                    msec = t_us
 
                 # Convert the file name into a datetime object
                 dt = datetime.datetime(int(year), int(month),
@@ -260,6 +304,7 @@ def archiver(cfg):
 
                 if dt < dt2 and dt > dt1:
                     interval_contents.append(os.path.join(sourcePath, ch, c))
+                    xml_counts = xml_counts + 1
 
                 # We have spanned this interval, save the data and move on
                 elif dt > dt2:
@@ -274,7 +319,6 @@ def archiver(cfg):
                         print('No xml files in the interval: ' + str(dt1))
                     else:
                         make_tarfile(outFile, interval_contents)
-
                     dt1 = dt2
                     dt2 = dt2 + datetime.timedelta(minutes=delta_minutes)
 
@@ -303,6 +347,8 @@ def archiver(cfg):
                             os.remove(f)
 
                     print('Done with ' + ch + '.')
+                    xml_counts = xml_counts + 1
+                    break
 
     ########
     # Back up to the external drive if specified.
