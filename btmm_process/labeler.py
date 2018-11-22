@@ -45,17 +45,19 @@ def labelLocation(ds, location):
 
         # The label locations occur only once in the LAF domain.
         else:
-            LAF1 = min(location[l])
-            LAF2 = max(location[l])
-            ds.coords['location'].loc[(ds.LAF > LAF1) & (ds.LAF < LAF2)] = l
-
-            # For locations where the relative start is at a larger LAF than
-            # the relative end of the section, indicate that we need to
-            # flip the LAF.
-            if not location[l][0] > location[l][-1]:
-                ds.coords['location_flip'].loc[(ds.LAF > LAF1)
-                                               & (ds.LAF < LAF2)] = True
-    return(ds)
+            if np.size(location[l]) > 1:
+                LAF1 = min(location[l])
+                LAF2 = max(location[l])
+                ds.coords['location'].loc[(ds.LAF > LAF1) & (ds.LAF < LAF2)] = l
+    
+                # For locations where the relative start is at a larger LAF than
+                # the relative end of the section, indicate that we need to
+                # flip the LAF.
+                if not location[l][0] > location[l][-1]:
+                    ds.coords['location_flip'].loc[(ds.LAF > LAF1)
+                                                   & (ds.LAF < LAF2)] = True
+            else:
+                ds.coords['location'].loc[(ds.LAF == location[l])] = l 
 
 
 def dtsPhysicalCoords(ds, location, coord_opt='relative', align='right'):
