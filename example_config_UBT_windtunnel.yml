@@ -1,0 +1,116 @@
+directories:
+  # path to where all the experiment data is located
+  dir_pre: /Users/karllapo/Desktop/proj/DarkMix_FlyFOX/data/
+  # name of the folder where the experiments data is located
+  folder_raw_data: 12mm_fat
+  # this is where graphics go
+  folder_graphics: graphics
+  # Name of the channels to process (Only one channel was tested)
+  channelName: channel 1
+  # this is where the netCDF files go (raw + calibrated)
+  folder_processed: processed
+
+archive:
+  channelName:
+  # Searches for data to archive following the pattern sourcePath/channelName/*.xml
+  - channel 1
+  # Delete the raw xml files after creating the archive?
+  cleanup_flag: False
+  # Unused at the moment but can't be deleted
+  mode: archiving
+  # Interval (in minutes) over which to archive the raw xml files.
+  archiveInterval: 20
+
+calibration:
+  # should be forward except for duplex signals on the reverse channel
+  direction: forward
+  # probe name for the reference baths
+  refField1: warmProbe
+  refField2: coldProbe
+  refField3: warmProbe
+  # name of the calibration baths in the locations section
+  refLoc1: warmBathNear
+  refLoc2: coldBathNear
+  refLoc3: warmBathFar
+
+dataProperties:
+  # Using standard (non-POSIX) notation, indicate the number of hours from UTC.
+  # If the DTS specifies a timezone, this is only used to align the external
+  # data stream with the DTS. +1 = CET, -5 = East Coast USA
+  UTC_offset: +1
+
+  # the number of time steps it to be put in a raw netCDF
+  chunkSize: 1000
+
+  # which probe goes into which bath (must match the names of refField 1-3)
+  probe1Temperature: coldProbe
+  probe2Temperature: warmProbe
+
+  # Can be specified as [integer][min or s], e.g., 1s or 5min. Used to put the
+  # time stamps on a regular interval. Adapt to the DTS measurement interval
+  # to avoid many NaNs.
+  resampling_time: 1s
+
+  # The following fields are only used if ref_temp_flag is 'constant' or
+  # 'external'.
+  # If 'constant' these values will be used instead of PT100 observations for
+  # calibrating and correspond to 'refField' and 'refLoc' in the calibration
+  # section.
+  # If ref_temp_flag is 'external', these fields should instead indicate the
+  # column name(s) of the PT100s corresponding to probe1Tempearture and
+  # probe2Temperature. If multiple columns are indicated, the average
+  # temperature is computed and assigned the names in 'probe1Temperature' and
+  # 'probe2Temperature'.
+  probe1_value:
+      - PT100_bath_U2
+      - PT100_bath_U3
+  probe2_value:
+      - PT100_bath_U1
+      - PT100_bath_U4
+
+
+flags:
+  # True - raw .xml data compressed into archives of length 'archiveInterval'
+  # False - if archives already exist
+  archiving_flag: True
+  # Read the raw files?
+  raw_read_flag: True
+  # Perform a calibration?
+  calibration_flag: True
+  # PT100 flag. Options:
+  #  - DTS instrument recorded temps ('default')
+  #  - Constant temperature values ('constant')
+  #  - Externally-recorded PT100 temperatures ('external')
+  ref_temp_flag: external
+
+locations:
+  # location library for the baths; Can not be overlapping or the location
+  # names will conflict; bath location names need to match the names in the
+  # 'calibration' section for 'refLoc1-3'
+  coldBathFar:
+  - 83.0
+  - 88.0
+  coldBathNear:
+  - 24.0
+  - 28.0
+  fiber_1:
+  - 50.0
+  - 53.15
+  fiber_2:
+  - 57.5
+  - 60.55
+  fiber_3:
+  - 57.0
+  - 53.9
+  fiber_4:
+  - 64.5
+  - 61.4
+  warmBathFar:
+  - 72.0
+  - 78.0
+  warmBathNear:
+  - 16.0
+  - 20.0
+
+fileName:
+  fileSuffix: ''
