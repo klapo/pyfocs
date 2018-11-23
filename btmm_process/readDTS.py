@@ -6,7 +6,7 @@ import xarray as xr
 import glob
 import tarfile
 import numpy as np
-from .labeler import labelLocation, yamlDict
+from .labeler import labelLoc_general, labelLoc_additional, yamlDict
 
 
 def xml_read(dumbXMLFile):

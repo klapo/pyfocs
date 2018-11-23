@@ -4,7 +4,7 @@ import numpy as np
 import xarray as xr
 
 
-def labelLocation(ds, location):
+def labelLoc_general(ds, location):
     '''
     Assign location tags to an xarray Dataset containing DTS data.
 
@@ -26,39 +26,81 @@ def labelLocation(ds, location):
     ds.attrs['locations'] = ';'.join(list(location.keys()))
 
     # Loop over all labels and find where they exist in the LAF domain.
-    for l in location:
-        shape = np.shape(location[l])
-
+    for lc in location:
+        shape = np.shape(location[lc])
         # For non-continuous label locations, loop through each labeled section
         if np.size(shape) > 1:
             for loc_num in np.arange(0, max(shape)):
-                LAF1 = min(location[l][loc_num])
-                LAF2 = max(location[l][loc_num])
-                ds.coords['location'].loc[(ds.LAF > LAF1) & (ds.LAF < LAF2)] = l
+                LAF1 = min(location[lc][loc_num])
+                LAF2 = max(location[lc][loc_num])
+                ds.coords['location'].loc[(ds.LAF > LAF1) & (ds.LAF < LAF2)] = lc
 
                 # For locations where the relative start is at a larger LAF
                 # than the relative end of the section indicate that we need
                 # to flip the LAF
-                if not location[l][loc_num][0] > location[l][loc_num][-1]:
+                if not location[lc][loc_num][0] > location[lc][loc_num][-1]:
                     ds.coords['location_flip'].loc[(ds.LAF > LAF1)
                                                    & (ds.LAF < LAF2)] = True
 
         # The label locations occur only once in the LAF domain.
         else:
-            if np.size(location[l]) > 1:
-                LAF1 = min(location[l])
-                LAF2 = max(location[l])
-                ds.coords['location'].loc[(ds.LAF > LAF1) & (ds.LAF < LAF2)] = l
+            if np.size(location[lc]) > 1:
+                LAF1 = min(location[lc])
+                LAF2 = max(location[lc])
+                ds.coords['location'].loc[(ds.LAF > LAF1) & (ds.LAF < LAF2)] = lc
     
                 # For locations where the relative start is at a larger LAF than
                 # the relative end of the section, indicate that we need to
                 # flip the LAF.
-                if not location[l][0] > location[l][-1]:
+                if not location[lc][0] > location[lc][-1]:
                     ds.coords['location_flip'].loc[(ds.LAF > LAF1)
                                                    & (ds.LAF < LAF2)] = True
             else:
-                ds.coords['location'].loc[(ds.LAF == location[l])] = l 
+                ds.coords['location'].loc[(ds.LAF == location[lc])] = lc 
+                
+    return ds
 
+def labelLoc_additional(ds, location, loc_type):
+    '''
+    Assign location tags to an xarray Dataset containing DTS data.
+
+    Input:
+        ds       -  xarray dataset with DTS data. Expects to find a dimension
+                    labeled 'LAF'
+        location -  dictionary specifying location labels of the form:
+                    dict['label'] = [float of section LAF start, float of
+                    section LAF end]
+                    If the section has a fiber that 'points'
+    Output:
+        ds       -  the same xarray that was passed to the function, but with
+                    the new 'loc_type'.
+    '''
+
+    # Pre-alloate the new coordinates that are to be assigned.
+    ds.coords[loc_type] = (('LAF'), [None] * ds.LAF.size)
+    ds.attrs[loc_type] = ';'.join(list(location.keys()))
+
+    # Loop over all labels and find where they exist in the LAF domain.
+    for lc in location:
+        shape = np.shape(location[lc])
+
+        # For non-continuous label locations, loop through each labeled section
+        if np.size(shape) > 1:
+            for loc_num in np.arange(0, max(shape)):
+                LAF1 = min(location[lc][loc_num])
+                LAF2 = max(location[lc][loc_num])
+                ds.coords[loc_type].loc[(ds.LAF > LAF1) & (ds.LAF < LAF2)] = lc
+
+        # The label locations occur only once in the LAF domain.
+        else:
+            if np.size(location[lc]) > 1:
+                LAF1 = min(location[lc])
+                LAF2 = max(location[lc])
+                ds.coords[loc_type].loc[(ds.LAF > LAF1) & (ds.LAF < LAF2)] = lc
+            else:
+                ds.coords[loc_type].loc[(ds.LAF == location[lc])] = lc 
+                
+    return ds
 
 def dtsPhysicalCoords(ds, location, coord_opt='relative', align='right'):
     '''
