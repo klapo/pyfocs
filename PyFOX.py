@@ -53,9 +53,10 @@ if not os.path.exists(dir_processed): # create the super-folder for the processe
 # find all experiments to be processed and make a list of them
 os.chdir(dir_original)
 contents = os.listdir()
+
 # The CR6 part will not be necessary for flyfox but leave it in here for later
-DTS_folders = [c for c in contents if 'CR6' not in c and not c[0] == '.']
-external_dat = [c for c in contents if 'CR6' in c and not c[0] == '.'][0]
+DTS_folders = [c for c in contents if 'Logger' not in c and not c[0] == '.']
+external_dat = [c for c in contents if 'Logger' in c and not c[0] == '.'][0]
 external_data_folders = os.path.join(dir_original, external_dat)
 
 # Loop through all of the DTS data directories
@@ -95,7 +96,9 @@ if config_user['flags']['raw_read_flag']:
 #%% Open the raw saved as netcdf
 # Create an empty dictionary to hold the DTS data
 allExperiments = {}
-labels = config_user['locations']
+labels_general = config_user['loc_general']
+labels_ms = config_user['loc_ms']
+labels_ref_instr = config_user['loc_ref_instr']
 
 print('-------------')
 print('Loading raw netcdf files for procesing.')
@@ -113,7 +116,9 @@ for dtsf in dir_data:
     ds = xr.open_mfdataset('*raw*.nc', concat_dim='time')
     ds = ds.sortby('time')
     # Assigning to the experiments dictionary
-    ds = btmm_process.labelLocation(ds, labels)
+    ds = btmm_process.labelLoc_general(ds, labels_general)
+    ds = btmm_process.labelLoc_additional(ds, labels_ms, 'loc_ms')
+    ds = btmm_process.labelLoc_additional(ds, labels_ref_instr, 'loc_ref_instr')
     allExperiments[dtsf] = ds
 
 print('')
