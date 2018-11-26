@@ -57,7 +57,7 @@ contents = os.listdir()
 # The CR6 part will not be necessary for flyfox but leave it in here for later
 DTS_folders = [c for c in contents if 'Logger' not in c and not c[0] == '.']
 external_dat = [c for c in contents if 'Logger' in c and not c[0] == '.'][0]
-external_data_folders = os.path.join(dir_original, external_dat)
+external_data_folders = os.path.join(dir_original, external_dat, 'converted')
 
 # Loop through all of the DTS data directories
 # assemble internal config for each dts folder within the experiment folder
@@ -174,9 +174,11 @@ if (os.path.isdir(external_data_folders)) and (config_user['flags']['ref_temp_fl
 
         if multiplexer:
             external_data[dtsf] = xr.Dataset()
-            # This is a line specific to the DarkMix wind tunnel
-            temp_pts = pt100s[(pt100s.experiment_flag_Max == -1)
+            if hasattr(pt100s, 'experiment_flag_Max'):
+                temp_pts = pt100s[(pt100s.experiment_flag_Max == -1) # This is a line specific to the DarkMix wind tunnel
                               & (pt100s.experiment_name == dtsf)]
+            else: # for data without experiment_flags
+                temp_pts = pt100s
             drop_columns = [cols for cols in temp_pts.columns
                             if cols not in probe1Cols
                             and cols not in probe2Cols]
@@ -294,5 +296,9 @@ for dtsf in dir_data:
     with locations_file:
         writer = csv.writer(locations_file, delimiter=',')
         writer.writerow(header)
-        for key in config_user['locations']:
-            writer.writerow([key, np.min(config_user['locations'][key]), np.max(config_user['locations'][key])])
+        for key in config_user['loc_general']:
+            writer.writerow([key, np.min(config_user['loc_general'][key]), np.max(config_user['loc_general'][key])])
+        for key in config_user['loc_ms']:
+            writer.writerow([key, np.min(config_user['loc_ms'][key]), np.max(config_user['loc_ms'][key])])
+        for key in config_user['loc_ref_instr']:
+            writer.writerow([key, config_user['loc_ref_instr'][key], config_user['loc_ref_instr'][key]])

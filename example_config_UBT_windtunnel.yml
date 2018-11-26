@@ -64,10 +64,10 @@ dataProperties:
   # 'probe2Temperature'.
   probe1_value:
       - PT100_bath_U2
-      - PT100_bath_U3
+      - PT100_bath_U4
   probe2_value:
       - PT100_bath_U1
-      - PT100_bath_U4
+      - PT100_bath_U3
 
 
 flags:
