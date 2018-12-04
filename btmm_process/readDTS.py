@@ -246,7 +246,7 @@ def dir_read(cfg, prevNumChunk=0):
         filePrefix = filePrefix + '_'
 
     # Read label configuration files
-    labels = cfg['locations']
+    labels = cfg['loc_general']
 
     # Start keeping track of chunks
     numChunk = 0

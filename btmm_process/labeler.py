@@ -21,9 +21,9 @@ def labelLoc_general(ds, location):
     '''
 
     # Pre-alloate the new coordinates that are to be assigned.
-    ds.coords['location'] = (('LAF'), [None] * ds.LAF.size)
+    ds.coords['loc_general'] = (('LAF'), [None] * ds.LAF.size)
     ds.coords['location_flip'] = (('LAF'), [False] * ds.LAF.size)
-    ds.attrs['locations'] = ';'.join(list(location.keys()))
+    ds.attrs['loc_general'] = ';'.join(list(location.keys()))
 
     # Loop over all labels and find where they exist in the LAF domain.
     for lc in location:
@@ -33,7 +33,7 @@ def labelLoc_general(ds, location):
             for loc_num in np.arange(0, max(shape)):
                 LAF1 = min(location[lc][loc_num])
                 LAF2 = max(location[lc][loc_num])
-                ds.coords['location'].loc[(ds.LAF > LAF1) & (ds.LAF < LAF2)] = lc
+                ds.coords['loc_general'].loc[(ds.LAF > LAF1) & (ds.LAF < LAF2)] = lc
 
                 # For locations where the relative start is at a larger LAF
                 # than the relative end of the section indicate that we need
@@ -47,7 +47,7 @@ def labelLoc_general(ds, location):
             if np.size(location[lc]) > 1:
                 LAF1 = min(location[lc])
                 LAF2 = max(location[lc])
-                ds.coords['location'].loc[(ds.LAF > LAF1) & (ds.LAF < LAF2)] = lc
+                ds.coords['loc_general'].loc[(ds.LAF > LAF1) & (ds.LAF < LAF2)] = lc
     
                 # For locations where the relative start is at a larger LAF than
                 # the relative end of the section, indicate that we need to
@@ -56,7 +56,7 @@ def labelLoc_general(ds, location):
                     ds.coords['location_flip'].loc[(ds.LAF > LAF1)
                                                    & (ds.LAF < LAF2)] = True
             else:
-                ds.coords['location'].loc[(ds.LAF == location[lc])] = lc 
+                ds.coords['loc_general'].loc[(ds.LAF == location[lc])] = lc 
                 
     return ds
 
@@ -205,7 +205,7 @@ def dtsPhysicalCoords(ds, location, coord_opt='relative', align='right'):
 
             # Create the dimension we will concatenate along (don't worry,
             # section_num will disappear after swapping dimensions)
-            section.coords['location'] = (('section_num'),
+            section.coords['loc_general'] = (('section_num'),
                                           np.unique(section.location.values))
             all_sections[section_num] = section
 
