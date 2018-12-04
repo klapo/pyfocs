@@ -57,7 +57,7 @@ contents = os.listdir()
 # The CR6 part will not be necessary for flyfox but leave it in here for later
 DTS_folders = [c for c in contents if 'Logger' not in c and not c[0] == '.']
 external_dat = [c for c in contents if 'Logger' in c and not c[0] == '.'][0]
-external_data_folders = os.path.join(dir_original, external_dat, 'converted')
+external_data_folders = os.path.join(dir_original, external_dat)
 
 # Loop through all of the DTS data directories
 # assemble internal config for each dts folder within the experiment folder
@@ -275,13 +275,14 @@ for dtsf in dir_data:
 
 #%% Data output
     # Output the calibrated and then processed data
-
+    suffix_cal = '_calibrated_SS'
+    
     os.chdir(internal_config[dtsf]['directories']['dirProcessed'])
-    if not os.path.exists(dtsf + '_calibrated.nc'):
+    if not os.path.exists(dtsf + suffix_cal + '.nc'):
         # Save to a netcdf
-        tunnel_exp.to_netcdf(dtsf + '_calibrated.nc', engine="netcdf4")
+        tunnel_exp.to_netcdf(dtsf + suffix_cal + '.nc', engine="netcdf4")
     else:
-        print('A netCDF with the name ' + dtsf + '_calibrated.nc already exists. The file was not overwritten.')
+        print('A netCDF with the name ' + dtsf + suffix_cal + '.nc already exists. The file was not overwritten.')
 
     if not os.path.exists(dtsf + '_processed.nc'):
         ds.to_netcdf(dtsf + '_processed.nc', engine='netcdf4')
