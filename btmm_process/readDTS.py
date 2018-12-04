@@ -111,7 +111,7 @@ def archive_read(cfg, prevNumChunk = 0):
         filePrefix = filePrefix + '_'
 
     # Read label configuration files
-    labels = cfg['locations']
+    labels = cfg['loc_general']
 
     # Start keeping track of chunks
     numChunk = 0
@@ -189,7 +189,7 @@ def archive_read(cfg, prevNumChunk = 0):
                     ds.attrs = {'LAF_beg': meta['LAF_beg'],
                                 'LAF_end': meta['LAF_end'],
                                 'dLAF': meta['dLAF']}
-                    ds = labelLocation(ds, labels)
+                    ds = labelLoc_general(ds, labels)
 
                     # Label the Ultima PT100 data. These names are used in
                     # calibration and must match the 'refField' variables.
@@ -308,7 +308,7 @@ def dir_read(cfg, prevNumChunk=0):
                 ds.attrs = {'LAF_beg': meta['LAF_beg'],
                             'LAF_end': meta['LAF_end'],
                             'dLAF': meta['dLAF']}
-                ds = labelLocation(ds, labels)
+                ds = labelLoc_general(ds, labels)
 
                 # Label the Ultima PT100 data. These names are used in
                 # calibration and must match the 'refField' variables.
