@@ -6,6 +6,9 @@ Created on Mon Aug 13 10:37:49 2018
 @author: anita
 """
 
+from IPython import get_ipython #clearing variables that python still knows from before
+get_ipython().magic('reset -sf')
+
 import numpy as np
 from datetime import timedelta
 import pandas as pd
@@ -154,19 +157,26 @@ if (os.path.isdir(external_data_folders)) and (config_user['flags']['ref_temp_fl
 
     ########
     # Read the PT100 data from the multiplexer file
-    multiplexer = [file for file in contents if 'multiplexer_data' in file][0]
-    if multiplexer:
-        # The columns with multiple lines creates some problems for pandas, so read the column headers separately
-        # Read the PT100 column headers
-        pt100s_col_names = pd.read_csv(multiplexer, header=1, nrows=0, index_col=0)
-        # Read only the data
-        pt100s = pd.read_csv(multiplexer, header=None, skiprows=4, index_col=0,
-                             parse_dates=True, infer_datetime_format=True, sep=',')
-
-        # Tidy up the pt100 data
-        # Rename the columns
-        pt100s.columns = pt100s_col_names.columns
-        pt100s.index.names = ['time']
+    multi = [file for file in contents if 'multiplexer_data' in file]
+    
+    # The columns with multiple lines creates some problems for pandas, so read the column headers separately
+    # Read the PT100 column headers; they should be the same for each multiplexer file
+    pt100s_col_names = pd.read_csv(multi[0], header=1, nrows=0, index_col=0)
+    
+    for multiplexer in multi:
+        
+        # Read only the data; load the first one, append the others
+        try:
+            pt100s
+        except NameError:
+            pt100s = pd.read_csv(multiplexer, header=None, skiprows=4, index_col=0, parse_dates=True, infer_datetime_format=True, sep=',')
+        else:
+            pt100s = pd.concat([pt100s, pd.read_csv(multiplexer, header=None, skiprows=4, index_col=0, parse_dates=True, infer_datetime_format=True, sep=',')], axis = 0)
+    
+    # Tidy up the pt100 data
+    # Rename the columns
+    pt100s.columns = pt100s_col_names.columns
+    pt100s.index.names = ['time']
 
     # Now extract each individual experiment
     for dtsf in dir_data:
@@ -262,7 +272,7 @@ for dtsf in dir_data:
                          },
                         coords={'time': dstemp.time,
                                 'LAF': LAF,
-                                'location': (['LAF'], dstemp['location'])})
+                                'location': (['LAF'], dstemp['loc_general'])})
 
     # Drop the unnecessary negative LAF indices
     dstemp = dstemp.sel(LAF=dstemp['LAF'] > 0)
