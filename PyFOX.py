@@ -161,21 +161,21 @@ if (os.path.isdir(external_data_folders)) and (config_user['flags']['ref_temp_fl
     
     # The columns with multiple lines creates some problems for pandas, so read the column headers separately
     # Read the PT100 column headers; they should be the same for each multiplexer file
-    pt100s_col_names = pd.read_csv(multi[0], header=1, nrows=0, index_col=0)
     
     for multiplexer in multi:
-        
+        pt100s_col_names = pd.read_csv(multi[0], header=1, nrows=0, index_col=0)
+        new_data = pd.read_csv(multiplexer, header=None, skiprows=4, index_col=0, parse_dates=True, infer_datetime_format=True, sep=',')
+        new_data.columns = pt100s_col_names.columns 
         # Read only the data; load the first one, append the others
         try:
             pt100s
         except NameError:
-            pt100s = pd.read_csv(multiplexer, header=None, skiprows=4, index_col=0, parse_dates=True, infer_datetime_format=True, sep=',')
+            pt100s = new_data
         else:
-            pt100s = pd.concat([pt100s, pd.read_csv(multiplexer, header=None, skiprows=4, index_col=0, parse_dates=True, infer_datetime_format=True, sep=',')], axis = 0)
+            pt100s = pd.concat([pt100s, new_data], axis = 0)
     
     # Tidy up the pt100 data
     # Rename the columns
-    pt100s.columns = pt100s_col_names.columns
     pt100s.index.names = ['time']
 
     # Now extract each individual experiment
