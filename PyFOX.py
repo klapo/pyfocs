@@ -2,12 +2,11 @@
 # -*- coding: utf-8 -*-
 """
 Created on Mon Aug 13 10:37:49 2018
-
 @author: anita
 """
 
-from IPython import get_ipython #clearing variables that python still knows from before
-get_ipython().magic('reset -sf')
+# from IPython import get_ipython #clearing variables that python still knows from before
+# get_ipython().magic('reset -sf')
 
 import numpy as np
 from datetime import timedelta
@@ -31,9 +30,10 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 #%% open the config file
-root = tk.Tk()
-root.withdraw() # to close this stupid root window that doesn't let itself be closed anymore AT ALL otherwise
-filename_configfile = filedialog.askopenfilename()
+# root = tk.Tk()
+# root.withdraw() # to close this stupid root window that doesn't let itself be closed anymore AT ALL otherwise
+# filename_configfile = filedialog.askopenfilename()
+filename_configfile = '/Users/karllapo/gdrive/DarkMix/software/python/scripts/PyFOX/example_config_UBT_windtunnel.yml'
 
 with open(filename_configfile, 'r') as stream:
     config_user = yaml.load(stream)
@@ -59,10 +59,23 @@ contents = os.listdir()
 DTS_folders = [c for c in contents if 'external' not in c and not c[0] == '.']
 
 # Now find the external data streams (if any)
-external_data_content = os.listdir(os.path.join(dir_original), 'external')
-external_dat = [c for c in external_data_content
-                if 'external' in c and not c[0] == '.'][0]
-external_data_folder = os.path.join(dir_original, external_dat)
+dir_ext = os.path.join(config_user['directories']['dir_pre'], 'external')
+external_data_content = os.listdir(dir_ext)
+external_data_folders = {}
+for c in external_data_content:
+    if os.path.isdir(os.path.join(dir_ext, c)):
+        temp_files = os.listdir(os.path.join(dir_ext, c))
+    else:
+        continue
+    if 'RBR' in c and not c[0] == '.':
+        external_data_folders['RBR'] = [os.path.join(dir_ext, c, tf)
+                                        for tf in temp_files
+                                        if 'RBR' in tf and not c[0] == '.']
+    if 'Logger' in c and not c[0] == '.':
+        external_data_folders['multiplexer'] = [os.path.join(dir_ext, c, tf)
+                                                for tf in temp_files
+                                                if 'multiplexer_data' in tf
+                                                and not c[0] == '.']
 
 # Loop through all of the DTS data directories
 # assemble internal config for each dts folder within the experiment folder
@@ -130,11 +143,10 @@ print('')
 
 #%% Deal with an external datastream
 # Go to the data logger directory and find the multiplexer files
-# Many of the flags/string matching here is specific to the DarkMix wind
-# tunnel experiments. These should be ignored when extrapolating to other uses.
-if (os.path.isdir(external_data_folder)) and (config_user['flags']['ref_temp_flag'] == 'external'):
+if config_user['flags']['ref_temp_flag'] == 'external':
     external_data_flag = True
     external_data = {}
+    pt100s = None
     probe1Cols = config_user['dataProperties']['probe1_value']
     probe2Cols = config_user['dataProperties']['probe2_value']
     probe1Name = config_user['dataProperties']['probe1Temperature']
@@ -150,39 +162,51 @@ if (os.path.isdir(external_data_folder)) and (config_user['flags']['ref_temp_fla
         sign = '-'
     tz = 'Etc/GMT' + sign + str(offset)
 
-    print('-------------')
-    print('External data stream found... assuming it is a ' +
-          'CR6 with a multiplexer controlling the PT100s.')
-    print('-------------')
-    os.chdir(external_data_folder)
-    contents = os.listdir()
+    for extdat_source in external_data_folders:
+        print('-------------')
+        print('Found external data stream: ' + extdat_source)
+        print('-------------')
+        temp_extdata = external_data_folders[extdat_source]
 
-    ########
-    # Read the PT100 data from the multiplexer file
-    multi = [file for file in contents if 'multiplexer_data' in file]
+        # Deal with PT100s on a multiplexer
+        if extdat_source == 'multiplexer':
+            # Read the PT100 data from the multiplexer file
+            # The columns with multiple lines creates some problems for pandas,
+            # so read the column headers separately; they should be the same
+            # for each multiplexer file.
+            for multiplexer in temp_extdata:
+                pt100s_col_names = pd.read_csv(temp_extdata[0], header=1,
+                                               nrows=0, index_col=0)
+                new_data = pd.read_csv(multiplexer, header=None, skiprows=4,
+                                       index_col=0, parse_dates=True,
+                                       infer_datetime_format=True, sep=',')
+                new_data.columns = pt100s_col_names.columns
+                new_data.index.names = ['time']
+                new_data = new_data.resample(config_user['dataProperties']['resampling_time']).mean()
+                # Read only the data; load the first one, append the others
+                if pt100s is not None:
+                    pt100s = pd.concat([pt100s, new_data], axis='columns')
+                else:
+                    pt100s = new_data
 
-    # The columns with multiple lines creates some problems for pandas, so read the column headers separately
-    # Read the PT100 column headers; they should be the same for each multiplexer file
-
-    for multiplexer in multi:
-        pt100s_col_names = pd.read_csv(multi[0], header=1, nrows=0, index_col=0)
-        new_data = pd.read_csv(multiplexer, header=None, skiprows=4, index_col=0, parse_dates=True, infer_datetime_format=True, sep=',')
-        new_data.columns = pt100s_col_names.columns
-        # Read only the data; load the first one, append the others
-        try:
-            pt100s
-        except NameError:
-            pt100s = new_data
-        else:
-            pt100s = pd.concat([pt100s, new_data], axis = 0)
-
-    # Tidy up the pt100 data
-    # Rename the columns
-    pt100s.index.names = ['time']
+        # Deal with any RBRs
+        if extdat_source == 'RBR':
+            for solo in temp_extdata:
+                new_data = pd.read_csv(solo, header=0,
+                                       index_col=0, parse_dates=True,
+                                       infer_datetime_format=True, sep=',')
+                new_data.columns = [os.path.split(solo)[1].split('.')[0]]
+                new_data = new_data.resample(config_user['dataProperties']['resampling_time']).mean()
+                new_data.index.names = ['time']
+                if pt100s is not None:
+                    pt100s = pd.concat([pt100s, new_data], axis='columns')
+                else:
+                    pt100s = new_data
 
     # Now extract each individual experiment
     for dtsf in dir_data:
-        print(dtsf)
+        print('Constructing external data stream for ' + dtsf)
+        print('')
 
         if multiplexer:
             external_data[dtsf] = xr.Dataset()
