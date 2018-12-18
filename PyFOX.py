@@ -56,11 +56,13 @@ if not os.path.exists(dir_processed): # create the super-folder for the processe
 # find all experiments to be processed and make a list of them
 os.chdir(dir_original)
 contents = os.listdir()
+DTS_folders = [c for c in contents if 'external' not in c and not c[0] == '.']
 
-# The CR6 part will not be necessary for flyfox but leave it in here for later
-DTS_folders = [c for c in contents if 'Logger' not in c and not c[0] == '.']
-external_dat = [c for c in contents if 'Logger' in c and not c[0] == '.'][0]
-external_data_folders = os.path.join(dir_original, external_dat)
+# Now find the external data streams (if any)
+external_data_content = os.listdir(os.path.join(dir_original), 'external')
+external_dat = [c for c in external_data_content
+                if 'external' in c and not c[0] == '.'][0]
+external_data_folder = os.path.join(dir_original, external_dat)
 
 # Loop through all of the DTS data directories
 # assemble internal config for each dts folder within the experiment folder
@@ -130,7 +132,7 @@ print('')
 # Go to the data logger directory and find the multiplexer files
 # Many of the flags/string matching here is specific to the DarkMix wind
 # tunnel experiments. These should be ignored when extrapolating to other uses.
-if (os.path.isdir(external_data_folders)) and (config_user['flags']['ref_temp_flag'] == 'external'):
+if (os.path.isdir(external_data_folder)) and (config_user['flags']['ref_temp_flag'] == 'external'):
     external_data_flag = True
     external_data = {}
     probe1Cols = config_user['dataProperties']['probe1_value']
@@ -152,20 +154,20 @@ if (os.path.isdir(external_data_folders)) and (config_user['flags']['ref_temp_fl
     print('External data stream found... assuming it is a ' +
           'CR6 with a multiplexer controlling the PT100s.')
     print('-------------')
-    os.chdir(external_data_folders)
+    os.chdir(external_data_folder)
     contents = os.listdir()
 
     ########
     # Read the PT100 data from the multiplexer file
     multi = [file for file in contents if 'multiplexer_data' in file]
-    
+
     # The columns with multiple lines creates some problems for pandas, so read the column headers separately
     # Read the PT100 column headers; they should be the same for each multiplexer file
-    
+
     for multiplexer in multi:
         pt100s_col_names = pd.read_csv(multi[0], header=1, nrows=0, index_col=0)
         new_data = pd.read_csv(multiplexer, header=None, skiprows=4, index_col=0, parse_dates=True, infer_datetime_format=True, sep=',')
-        new_data.columns = pt100s_col_names.columns 
+        new_data.columns = pt100s_col_names.columns
         # Read only the data; load the first one, append the others
         try:
             pt100s
@@ -173,7 +175,7 @@ if (os.path.isdir(external_data_folders)) and (config_user['flags']['ref_temp_fl
             pt100s = new_data
         else:
             pt100s = pd.concat([pt100s, new_data], axis = 0)
-    
+
     # Tidy up the pt100 data
     # Rename the columns
     pt100s.index.names = ['time']
@@ -286,7 +288,7 @@ for dtsf in dir_data:
 #%% Data output
     # Output the calibrated and then processed data
     suffix_cal = '_calibrated_SS'
-    
+
     os.chdir(internal_config[dtsf]['directories']['dirProcessed'])
     if not os.path.exists(dtsf + suffix_cal + '.nc'):
         # Save to a netcdf
