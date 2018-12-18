@@ -1,8 +1,9 @@
 directories:
+  # afp-volume:host=DarkMix-server.local,user=anitafreundorfer,volume=darkmix_archive
   # path to where all the experiment data is located
-  dir_pre: /Users/karllapo/Desktop/proj/DarkMix_FlyFOX/data/
+  dir_pre: '/media/anita/20d0e9bb-ae3d-4884-982d-00039fcc9f54/home/anita/Daten/LEOPOLD'
   # name of the folder where the experiments data is located
-  folder_raw_data: 12mm_fat
+  folder_raw_data: data_LEOPOLD
   # this is where graphics go
   folder_graphics: graphics
   # Name of the channels to process (Only one channel was tested)
@@ -63,18 +64,18 @@ dataProperties:
   # 'probe2Temperature'.
   probe1_value:
       - PT100_bath_U2
-      - PT100_bath_U3
+      - PT100_bath_U4
   probe2_value:
       - PT100_bath_U1
-      - PT100_bath_U4
+      - PT100_bath_U3
 
 
 flags:
   # True - raw .xml data compressed into archives of length 'archiveInterval'
   # False - if archives already exist
-  archiving_flag: True
+  archiving_flag: False
   # Read the raw files?
-  raw_read_flag: True
+  raw_read_flag: False
   # Perform a calibration?
   calibration_flag: True
   # PT100 flag. Options:
@@ -83,34 +84,303 @@ flags:
   #  - Externally-recorded PT100 temperatures ('external')
   ref_temp_flag: external
 
-locations:
-  # location library for the baths; Can not be overlapping or the location
-  # names will conflict; bath location names need to match the names in the
-  # 'calibration' section for 'refLoc1-3'
-  coldBathFar:
-  - 83.0
-  - 88.0
-  coldBathNear:
-  - 24.0
-  - 28.0
-  fiber_1:
-  - 50.0
-  - 53.15
-  fiber_2:
-  - 57.5
-  - 60.55
-  fiber_3:
-  - 57.0
-  - 53.9
-  fiber_4:
-  - 64.5
-  - 61.4
-  warmBathFar:
-  - 72.0
-  - 78.0
-  warmBathNear:
-  - 16.0
-  - 20.0
 
 fileName:
   fileSuffix: ''
+
+loc_general:
+  # location library for the baths, splices and test sections; Can not be overlapping or the location names will conflict/be overwritten;
+  # bath location names need to match the names in the 'calibration' section for 'refLoc1-3'
+  
+  coldBathFarPVC: #I don't know bath locations yet
+  - 83.0 
+  - 88.0
+  coldBathNearPVC:
+  - 24.0
+  - 28.0
+  warmBathFarPVC:
+  - 72.0
+  - 78.0
+  warmBathNearPVC:
+  - 16.0
+  - 20.0
+#  splices:
+
+#  test sections: Stainless steel, Horizontal array, cones pointing north
+  testSectionHSSN1: #SS core 1
+  - 184.998 #uphill end
+  - 181.439 #downhill end
+  testSectionHSSN2: #SS core 2
+  - 348.956 #uphill end
+  - 352.388 #downhill end
+  testSectionHSSN3: #SS core 3
+  - 382.257 #uphill end
+  - 378.825 #downhill end
+  testSectionHSSN4: #SS core 4
+  - 546.088 #uphill end
+  - 549.647 #downhill end
+
+#  test sections: Stainless steel, Horizontal array, cones pointing south
+  testSectionHSSS1: #SS core 1
+  - 192.624 #uphill end
+  - 189.192 #downhill end
+  testSectionHSSS2: #SS core 2
+  - 341.203 #uphill end
+  - 344.635 #downhill end
+  testSectionHSSS3: #SS core 3
+  - 389.882 #uphill end
+  - 386.451 #downhill end
+  testSectionHSSS4: #SS core 4
+  - 538.462 #uphill end
+  - 541.894 #downhill end
+
+#  test sections: Stainless steel, Horizontal array, heated without cones
+  testSectionHSSH1: #SS core 1
+  - 185.379 #uphill end
+  - 188.811 #downhill end
+  testSectionHSSH2: #SS core 2
+  - 346.575 #uphill end #####################check this number!!!!! LAb book says 348.575 but that can't be it!
+  - 349.016 #downhill end
+  testSectionHSSH3: #SS core 3
+  - 382.638 #uphill end
+  - 386.197 #downhill end
+  testSectionHSSH4: #SS core 4
+  - 545.707 #uphill end
+  - 542.275 #downhill end
+
+#  test sections: Stainless steel, Horizontal array, unheated without cones
+  testSectionHSSU1: #SS core 1
+  - 193.132 #uphill end
+  - 196.564 #downhill end
+  testSectionHSSU2: #SS core 2
+  - 340.695 #uphill end
+  - 337.263 #downhill end
+  testSectionHSSU3: #SS core 3
+  - 390.518 #uphill end
+  - 393.950 #downhill end
+  testSectionHSSU4: #SS core 4
+  - 537.964 #uphill end
+  - 534.522 #downhill end
+
+# test sections: PVC coated fiber, horizontal array 
+  testSectionHPVCN: # PVC, cones pointing north
+  - 120.431 #uphill end 
+  - 123.863 #downhill end
+  testSectionHPVCS: # PVC, cones pointing south
+  - 112.805 #uphill end 
+  - 116.237 #downhill end 
+  testSectionHPVCH: # PVC, heated 
+  - 120.050 #uphill end 
+  - 116.618 #downhill end 
+  testSectionHPVCU: # PVC, unheated
+  - 112.424 #uphill end 
+  - 108.992 #downhill end 
+
+#  test sections: Stainless steel, Vertical array, cones pointing up
+  testSectionVSSUp1: #SS core 1
+  - 217.408 #upper end
+  - 220.586 #lower end
+  testSectionVSSUp2: #SS core 2
+  - 316.419 #upper end
+  - 313.241 #lower end
+  testSectionVSSUp3: #SS core 3
+  - 414.794 #upper end
+  - 417.972 #lower end
+  testSectionVSSUp4: #SS core 4
+  - 513.678 #upper end
+  - 510.500 #lower end
+
+#  test sections: Stainless steel, Vertical array, cones pointing down
+  testSectionVSSDown1: #SS core 1
+  - 209.147 #upper end
+  - 212.451 #lower end
+  testSectionVSSDown2: #SS core 2
+  - 324.553 #upper end
+  - 321.503 #lower end
+  testSectionVSSDown3: #SS core 3
+  - 406.533 #upper end
+  - 409.710 #lower end
+  testSectionVSSDown4: #SS core 4
+  - 521.812 #upper end
+  - 518.762 #lower end
+
+#  test sections: Stainless steel, Vertical array, heated
+  testSectionVSSH1: #SS core 1
+  - 217.027 #upper end
+  - 213.977 #lower end
+  testSectionVSSH2: #SS core 2
+  - 316.673 #upper end
+  - 319.978 #lower end
+  testSectionVSSH3: #SS core 3
+  - 414.413 #upper end
+  - 411.235 #lower end
+  testSectionVSSH4: #SS core 4
+  - 513.932 #upper end
+  - 517.236 #lower end
+
+#  test sections: Stainless steel, Vertical array, unheated
+  testSectionVSSU1: #SS core 1
+  - 208.893 #upper end
+  - 205.715 #lower end
+  testSectionVSSU2: #SS core 2
+  - 325.062 #upper end
+  - 328.112 #lower end
+  testSectionVSSU3: #SS core 3
+  - 406.151 #upper end
+  - 403.101 #lower end
+  testSectionVSSU4: #SS core 4
+  - 522.193 #upper end
+  - 525.371 #lower end
+
+# test sections: PVC coated fiber, vertical array 
+  testSectionVPVCUp: # PVC, cones pointing up
+  - 87.767 #upper end 
+  - 84.716 #lower end
+  testSectionVPVCDown: # PVC, cones pointing down
+  - 95.011 #upper end 
+  - 91.961 #lower end 
+  testSectionVPVCH: # PVC, heated 
+  - 88.148 #upper end 
+  - 91.325 #lower end 
+  testSectionVPVCU: # PVC, unheated
+  - 95.393 #upper end 
+  - 98.443 #lower end 
+
+loc_ms: #microstructure locations
+#  cone sections: Stainless steel, Horizontal array, cones pointing north
+  coneSectionHSSN1: #SS core 1
+  - 184.489 #uphill end
+  - 182.710 #downhill end
+  coneSectionHSSN2: #SS core 2
+  - 349.338 #uphill end
+  - 351.117 #downhill end
+  coneSectionHSSN3: #SS core 3
+  - 381.875 #uphill end
+  - 380.069 #downhill end
+  coneSectionHSSN4: #SS core 4
+  - 546.596 #uphill end
+  - 548.376 #downhill end
+
+#  cone sections: Stainless steel, Horizontal array, cones pointing south
+  coneSectionHSSS1: #SS core 1
+  - 192.115 #uphill end
+  - 190.463 #downhill end
+  coneSectionHSSS2: #SS core 2
+  - 341.712 #uphill end
+  - 343.491 #downhill end
+  coneSectionHSSS3: #SS core 3
+  - 389.501 #uphill end
+  - 387.894 #downhill end
+  coneSectionHSSS4: #SS core 4
+  - 538.970 #uphill end
+  - 540.623 #downhill end
+
+# cone sections: PVC coated fiber, horizontal array 
+  coneSectionHPVCN: # PVC, cones pointing north
+  - 120.813 #uphill end 
+  - 122.592 #downhill end
+  coneSectionHPVCS: # PVC, cones pointing south
+  - 113.187 #uphill end 
+  - 114.966 #downhill end 
+
+#  cone sections: Stainless steel, Vertical array, cones pointing up
+  coneSectionVSSUp1: #SS core 1
+  - 218.298 #upper end
+  - 219.823 #lower end
+  coneSectionVSSUp2: #SS core 2
+  - 316.419 #upper end
+  - 315.529 #lower end
+  coneSectionVSSUp3: #SS core 3
+  - 414.794 #upper end
+  - 415.557 #lower end
+  coneSectionVSSUp4: #SS core 4
+  - 513.678 #upper end
+  - 512.788 #lower end
+
+#  cone sections: Stainless steel, Vertical array, cones pointing down
+  coneSectionVSSDown1: #SS core 1
+  - 210.037 #upper end
+  - 211.562 #lower end
+  coneSectionVSSDown2: #SS core 2
+  - 323.791 #upper end
+  - 322.265 #lower end
+  coneSectionVSSDown3: #SS core 3
+  - 407.295 #upper end
+  - 408.947 #lower end
+  coneSectionVSSDown4: #SS core 4
+  - 521.049 #upper end
+  - 519.524 #lower end
+
+# cone sections: PVC coated fiber, vertical array 
+  coneSectionVPVCUp: # PVC, cones pointing up
+  - 86.877 #upper end 
+  - 85.352 #lower end
+  coneSectionVPVCDown: # PVC, cones pointing down
+  - 94.249 #upper end 
+  - 92.724 #lower end 
+
+loc_ref_instr:
+#  CSAT locations: Stainless steel, Horizontal array, cones pointing north
+  CSATlocationHSSN1: 183.854 #SS core 1
+  CSATlocationHSSN2: 349.973 #SS core 2
+  CSATlocationHSSN3: 381.240 #SS core 3
+  CSATlocationHSSN4: 547.232 #SS core 4
+  
+#  CSAT locations: Stainless steel, Horizontal array, cones pointing south
+  CSATlocationHSSS1: 191.607 #SS core 1
+  CSATlocationHSSS2: 342.347 #SS core 2
+  CSATlocationHSSS3: 388.866 #SS core 3
+  CSATlocationHSSS4: 539.606 #SS core 4
+  
+#  CSAT locations: Stainless steel, Horizontal array, heated without cones
+  CSATlocationHSSH1: 186.396 #SS core 1
+  CSATlocationHSSH2: 347.431 #SS core 2
+  CSATlocationHSSH3: 383.782 #SS core 3
+  CSATlocationHSSH4: 544.690 #SS core 4
+  
+#  CSAT locations: Stainless steel, Horizontal array, unheated without cones
+  CSATlocationHSSU1: 194.276 #SS core 1
+  CSATlocationHSSU2: 339.678 #SS core 2
+  CSATlocationHSSU3: 391.535 #SS core 3
+  CSATlocationHSSU4: 536.937 #SS core 4
+  
+# CSAT locations: PVC coated fiber, horizontal array 
+  CSATlocationHPVCN: 121.448 # PVC, cones pointing north
+  CSATlocationHPVCS: 113.822 # PVC, cones pointing south
+  CSATlocationHPVCH: 119.033 # PVC, heated 
+  CSATlocationHPVCU: 111.407 # PVC, unheated
+    
+
+#  CSAT locations: Stainless steel, Vertical array, cones pointing up
+  CSATlocationVSSUp1: 218.552 #SS core 1
+  CSATlocationVSSUp2: 315.275 #SS core 2
+  CSATlocationVSSUp3: 415.938 #SS core 3
+  CSATlocationVSSUp4: 512.534 #SS core 4
+  
+#  CSAT locations: Stainless steel, Vertical array, cones pointing down
+  CSATlocationVSSDown1: 210.418 #SS core 1
+  CSATlocationVSSDown2: 323.409 #SS core 2
+  CSATlocationVSSDown3: 407.804 #SS core 3
+  CSATlocationVSSDown4: 520.668 #SS core 4
+  
+#  CSAT locations: Stainless steel, Vertical array, heated
+  CSATlocationVSSH1: 215.756 #SS core 1
+  CSATlocationVSSH2: 318.071 #SS core 2
+  CSATlocationVSSH3: 413.015 #SS core 3
+  CSATlocationVSSH4: 515.330 #SS core 4
+  
+#  CSAT locations: Stainless steel, Vertical array, unheated
+  CSATlocationVSSU1: 207.622 #SS core 1
+  CSATlocationVSSU2: 326.333 #SS core 2
+  CSATlocationVSSU3: 405.007 #SS core 3
+  CSATlocationVSSU4: 523.468 #SS core 4
+ 
+# CSAT locations: PVC coated fiber, vertical array 
+  CSATlocationVPVCUp: 86.623 # PVC, cones pointing up
+  CSATlocationVPVCDown: 93.867 # PVC, cones pointing down
+  CSATlocationVPVCH: 89.292 # PVC, heated 
+  CSATlocationVPVCU: 96.537 # PVC, unheated
+  
+
+
+

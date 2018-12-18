@@ -6,6 +6,9 @@ Created on Mon Aug 13 10:37:49 2018
 @author: anita
 """
 
+from IPython import get_ipython #clearing variables that python still knows from before
+get_ipython().magic('reset -sf')
+
 import numpy as np
 from datetime import timedelta
 import pandas as pd
@@ -53,9 +56,10 @@ if not os.path.exists(dir_processed): # create the super-folder for the processe
 # find all experiments to be processed and make a list of them
 os.chdir(dir_original)
 contents = os.listdir()
+
 # The CR6 part will not be necessary for flyfox but leave it in here for later
-DTS_folders = [c for c in contents if 'CR6' not in c and not c[0] == '.']
-external_dat = [c for c in contents if 'CR6' in c and not c[0] == '.'][0]
+DTS_folders = [c for c in contents if 'Logger' not in c and not c[0] == '.']
+external_dat = [c for c in contents if 'Logger' in c and not c[0] == '.'][0]
 external_data_folders = os.path.join(dir_original, external_dat)
 
 # Loop through all of the DTS data directories
@@ -95,7 +99,9 @@ if config_user['flags']['raw_read_flag']:
 #%% Open the raw saved as netcdf
 # Create an empty dictionary to hold the DTS data
 allExperiments = {}
-labels = config_user['locations']
+labels_general = config_user['loc_general']
+labels_ms = config_user['loc_ms']
+labels_ref_instr = config_user['loc_ref_instr']
 
 print('-------------')
 print('Loading raw netcdf files for procesing.')
@@ -113,7 +119,9 @@ for dtsf in dir_data:
     ds = xr.open_mfdataset('*raw*.nc', concat_dim='time')
     ds = ds.sortby('time')
     # Assigning to the experiments dictionary
-    ds = btmm_process.labelLocation(ds, labels)
+    ds = btmm_process.labelLoc_general(ds, labels_general)
+    ds = btmm_process.labelLoc_additional(ds, labels_ms, 'loc_ms')
+    ds = btmm_process.labelLoc_additional(ds, labels_ref_instr, 'loc_ref_instr')
     allExperiments[dtsf] = ds
 
 print('')
@@ -149,19 +157,26 @@ if (os.path.isdir(external_data_folders)) and (config_user['flags']['ref_temp_fl
 
     ########
     # Read the PT100 data from the multiplexer file
-    multiplexer = [file for file in contents if 'multiplexer_data' in file][0]
-    if multiplexer:
-        # The columns with multiple lines creates some problems for pandas, so read the column headers separately
-        # Read the PT100 column headers
-        pt100s_col_names = pd.read_csv(multiplexer, header=1, nrows=0, index_col=0)
-        # Read only the data
-        pt100s = pd.read_csv(multiplexer, header=None, skiprows=4, index_col=0,
-                             parse_dates=True, infer_datetime_format=True, sep=',')
-
-        # Tidy up the pt100 data
-        # Rename the columns
-        pt100s.columns = pt100s_col_names.columns
-        pt100s.index.names = ['time']
+    multi = [file for file in contents if 'multiplexer_data' in file]
+    
+    # The columns with multiple lines creates some problems for pandas, so read the column headers separately
+    # Read the PT100 column headers; they should be the same for each multiplexer file
+    
+    for multiplexer in multi:
+        pt100s_col_names = pd.read_csv(multi[0], header=1, nrows=0, index_col=0)
+        new_data = pd.read_csv(multiplexer, header=None, skiprows=4, index_col=0, parse_dates=True, infer_datetime_format=True, sep=',')
+        new_data.columns = pt100s_col_names.columns 
+        # Read only the data; load the first one, append the others
+        try:
+            pt100s
+        except NameError:
+            pt100s = new_data
+        else:
+            pt100s = pd.concat([pt100s, new_data], axis = 0)
+    
+    # Tidy up the pt100 data
+    # Rename the columns
+    pt100s.index.names = ['time']
 
     # Now extract each individual experiment
     for dtsf in dir_data:
@@ -169,9 +184,11 @@ if (os.path.isdir(external_data_folders)) and (config_user['flags']['ref_temp_fl
 
         if multiplexer:
             external_data[dtsf] = xr.Dataset()
-            # This is a line specific to the DarkMix wind tunnel
-            temp_pts = pt100s[(pt100s.experiment_flag_Max == -1)
+            if hasattr(pt100s, 'experiment_flag_Max'):
+                temp_pts = pt100s[(pt100s.experiment_flag_Max == -1) # This is a line specific to the DarkMix wind tunnel
                               & (pt100s.experiment_name == dtsf)]
+            else: # for data without experiment_flags
+                temp_pts = pt100s
             drop_columns = [cols for cols in temp_pts.columns
                             if cols not in probe1Cols
                             and cols not in probe2Cols]
@@ -255,7 +272,7 @@ for dtsf in dir_data:
                          },
                         coords={'time': dstemp.time,
                                 'LAF': LAF,
-                                'location': (['LAF'], dstemp['location'])})
+                                'location': (['LAF'], dstemp['loc_general'])})
 
     # Drop the unnecessary negative LAF indices
     dstemp = dstemp.sel(LAF=dstemp['LAF'] > 0)
@@ -268,13 +285,14 @@ for dtsf in dir_data:
 
 #%% Data output
     # Output the calibrated and then processed data
-
+    suffix_cal = '_calibrated_SS'
+    
     os.chdir(internal_config[dtsf]['directories']['dirProcessed'])
-    if not os.path.exists(dtsf + '_calibrated.nc'):
+    if not os.path.exists(dtsf + suffix_cal + '.nc'):
         # Save to a netcdf
-        tunnel_exp.to_netcdf(dtsf + '_calibrated.nc', engine="netcdf4")
+        tunnel_exp.to_netcdf(dtsf + suffix_cal + '.nc', engine="netcdf4")
     else:
-        print('A netCDF with the name ' + dtsf + '_calibrated.nc already exists. The file was not overwritten.')
+        print('A netCDF with the name ' + dtsf + suffix_cal + '.nc already exists. The file was not overwritten.')
 
     if not os.path.exists(dtsf + '_processed.nc'):
         ds.to_netcdf(dtsf + '_processed.nc', engine='netcdf4')
@@ -289,5 +307,9 @@ for dtsf in dir_data:
     with locations_file:
         writer = csv.writer(locations_file, delimiter=',')
         writer.writerow(header)
-        for key in config_user['locations']:
-            writer.writerow([key, np.min(config_user['locations'][key]), np.max(config_user['locations'][key])])
+        for key in config_user['loc_general']:
+            writer.writerow([key, np.min(config_user['loc_general'][key]), np.max(config_user['loc_general'][key])])
+        for key in config_user['loc_ms']:
+            writer.writerow([key, np.min(config_user['loc_ms'][key]), np.max(config_user['loc_ms'][key])])
+        for key in config_user['loc_ref_instr']:
+            writer.writerow([key, config_user['loc_ref_instr'][key], config_user['loc_ref_instr'][key]])
