@@ -33,7 +33,7 @@ warnings.simplefilter(action='ignore', category=RuntimeWarning)
 # root = tk.Tk()
 # root.withdraw() # to close this stupid root window that doesn't let itself be closed anymore AT ALL otherwise
 # filename_configfile = filedialog.askopenfilename()
-filename_configfile = '/Users/karllapo/gdrive/DarkMix/software/python/scripts/PyFOX/example_config.yml'
+filename_configfile = '/Users/karllapo/Desktop/proj/DarkMix_LEOPOLD/example_data/LEOPOLD_initial_config.yml'
 
 with open(filename_configfile, 'r') as stream:
     config_user = yaml.load(stream)
@@ -96,51 +96,20 @@ for dtsf in DTS_folders:
     if not os.path.exists(internal_config[dtsf]['archive']['targetPath']): # create the folder for the processed files if it doesn't already exist
         os.makedirs(internal_config[dtsf]['archive']['targetPath'])
 
-# archiving
-if config_user['flags']['archiving_flag']:
-    for dtsf in DTS_folders:
-        print('archiving ', dtsf)
-        btmm_process.archiver(internal_config[dtsf])
-
-# write raw netCDF
-if config_user['flags']['raw_read_flag']:
-    for dtsf in DTS_folders:
-        print('-------------')
-        print(dtsf)
-        print('-------------')
-        print('creating raw netcdf for experiment: ', dtsf)
-        btmm_process.archive_read(internal_config[dtsf])
-
-#%% Open the raw saved as netcdf
-# Create an empty dictionary to hold the DTS data
-allExperiments = {}
-labels_general = config_user['loc_general']
-labels_ms = config_user['loc_ms']
-labels_ref_instr = config_user['loc_ref_instr']
-
-print('-------------')
-print('Loading raw netcdf files for procesing.')
-print('-------------')
-for dtsf in dir_data:
+# Archive/read the raw xml files for each labeled experiment.
+for dtsf in DTS_folders:
+    print('-------------')
     print(dtsf)
+    print('-------------')
+    # archiving
+    if config_user['flags']['archiving_flag']:
+            print('archiving ', dtsf)
+            btmm_process.archiver(internal_config[dtsf])
 
-    # Find all the netcdfs in this directory, open the raw data netcdfs,
-    # and put into the dictionary.
-    os.chdir(internal_config[dtsf]['directories']['dirProcessed'])
-    contents = os.listdir()
-    ncfiles = [file for file in contents if '.nc' in file and 'raw' in file]
-
-    allExperiments[dtsf] = {}
-    ds = xr.open_mfdataset('*raw*.nc', concat_dim='time',
-                           chunks={'time': config_user['dataProperties']['chunkSize']})
-    ds = ds.sortby('time')
-    # Assigning to the experiments dictionary
-    ds = btmm_process.labelLoc_general(ds, labels_general)
-    ds = btmm_process.labelLoc_additional(ds, labels_ms, 'loc_ms')
-    ds = btmm_process.labelLoc_additional(ds, labels_ref_instr, 'loc_ref_instr')
-    allExperiments[dtsf] = ds
-
-print('')
+    # write raw netCDF
+    if config_user['flags']['raw_read_flag']:
+            print('creating raw netcdf for experiment: ', dtsf)
+            btmm_process.archive_read(internal_config[dtsf])
 
 #%% Deal with an external datastream
 # Go to the data logger directory and find the multiplexer files
@@ -230,8 +199,8 @@ if config_user['flags']['ref_temp_flag'] == 'external':
             external_data[dtsf] = xr.Dataset({probe1Name: ('time', probe1),
                                               probe2Name: ('time', probe2)},
                                              coords={'time': time.values})
-            external_data[dtsf] = external_data[dtsf].chunk({'time': config_user['dataProperties']['chunkSize']})
-            external_data[dtsf] = external_data[dtsf].resample(time=config_user['dataProperties']['resampling_time']).mean()
+            # external_data[dtsf] = external_data[dtsf].chunk({'time': config_user['dataProperties']['chunkSize']})
+            # external_data[dtsf] = external_data[dtsf].resample(time=config_user['dataProperties']['resampling_time']).mean()
 
             os.chdir(internal_config[dtsf]['directories']['dirProcessed'])
             external_data[dtsf].to_netcdf('external_data.' + dtsf + '.nc')
@@ -239,94 +208,106 @@ if config_user['flags']['ref_temp_flag'] == 'external':
 else:
     external_data_flag = False
 
-#%% Construct dataset with all experiments/over all the measurement duration
+#%% Open the raw saved as netcdf
+# Create an empty dictionary to hold the DTS data
+allExperiments = {}
+labels_general = config_user['loc_general']
+labels_ms = config_user['loc_ms']
+labels_ref_instr = config_user['loc_ref_instr']
+
+print('-------------')
+print('Calibrating and Processing DTS temperature data.')
+print('-------------')
 for dtsf in dir_data:
+    # Find all the netcdfs for this experiment, open the raw data netcdfs,
+    # append reference data (if applicable), calibrate (if applicable),
+    # Save the output one-at-a-time per experiment label.
 
-    # Initialize the tunnel_exp variable for each overarching experiment
-    tunnel_exp = None
-
-    # Provide a single message that no calibration will be performed.
+    # Provide a single message whether calibration will be performed.
     if not config_user['flags']['calibration_flag']:
         print('No calibration performed for: ' + dtsf)
-
-    # Extract the experiment from the containing dictionary
-    dstemp = allExperiments[dtsf]
-
-    # Resample to a common time stamp interval with the reference/bath instruments
-    # We need to make the resampling interval a variable from the configuration file (e.g., if we resample to 1 second for
-    # 1 minute averages we will get out a matrix of mostly NaNs)
-    dstemp = dstemp.resample(time=config_user['dataProperties']['resampling_time']).mean()
-
-    if external_data_flag:
-        # Reindex the DTS data to the averaged pt100 time data.
-        dstemp = dstemp.reindex_like(external_data[dtsf].time,
-                                     method='nearest',
-                                     tolerance=1)
-
-        # Assign the pt100s to the xarray datasets
-        dstemp[probe1Name] = external_data[dtsf][probe1Name]
-        dstemp[probe2Name] = external_data[dtsf][probe2Name]
-
-    # Calibrate the temperatures, if the bath pt100s and dts do not line up in time, do not calibrate
-    if (np.size(np.flatnonzero(~np.isnan(dstemp.temp.values))) > 0) and (config_user['flags']['calibration_flag']):
-        temp_array, _, _, _ = btmm_process.matrixInversion(dstemp, internal_config[dtsf])
-    elif not config_user['flags']['calibration_flag']:
-        # Just return some nans here, do not notify the user as they should expect this behavior.
-        temp_array = xr.Dataset({'manualTemp':
-                                (['time', 'LAF'],
-                                 np.ones_like(dstemp.temp.values)
-                                 * np.nan)},
-                                coords={'LAF': dstemp.LAF,
-                                        'time': dstemp.time})
     else:
-        # Just return some nans here and notify the user.
-        temp_array = xr.Dataset({'manualTemp':
-                                (['time', 'LAF'],
-                                 np.ones_like(dstemp.temp.values)
-                                 * np.nan)},
-                                coords={'LAF': dstemp.LAF,
-                                        'time': dstemp.time})
-        print('PT100 and DTS data do not line up in time for ' + dtsf)
-        print('The cal_temp field will contain NaNs.')
+        print('Calibrating: ' + dtsf)
 
-    # Now construct a new array to store this data
+    # Initialize the dts Dataset
+    temp_dts = None
 
-    # New coordinate for time that is time since beginning of experiment.
-    LAF = dstemp.LAF
+    # We are going to loop over each raw dts netcdf file, performing the
+    # calibration one-at-a-time.
+    os.chdir(internal_config[dtsf]['directories']['dirProcessed'])
+    contents = os.listdir()
+    ncfiles = [file for file in contents if '.nc' in file and 'raw' in file]
+    for raw_nc in ncfiles:
+        dstemp = xr.open_dataset(raw_nc)
 
-    # Construct a new dataset with time as a timedelta object
-    dstemp = xr.Dataset({'instr_temp': (['time', 'LAF'], dstemp.temp),
-                         'cal_temp': (['time', 'LAF'], temp_array.manualTemp),
-                         'warmProbe': (['time'], dstemp['warmProbe']),
-                         'coldProbe': (['time'], dstemp['coldProbe']),
-                         # 'location': (['LAF'], dstemp.location),
-                         },
-                        coords={'time': dstemp.time,
-                                'LAF': LAF,
-                                'location': (['LAF'], dstemp['loc_general'])})
+        # Assigning to the experiments dictionary
+        dstemp = btmm_process.labelLoc_general(dstemp, labels_general)
+        dstemp = btmm_process.labelLoc_additional(dstemp, labels_ms, 'loc_ms')
+        dstemp = btmm_process.labelLoc_additional(dstemp,
+                                                  labels_ref_instr,
+                                                  'loc_ref_instr')
 
-    # Drop the unnecessary negative LAF indices
-    dstemp = dstemp.sel(LAF=dstemp['LAF'] > 0)
-    # dstemp['location'] =  [0 if v is None else v for v in dstemp.location]
-    # Concatenate into a single dataset
-    if tunnel_exp:
-        tunnel_exp = xr.concat([tunnel_exp, dstemp], coords='all')
-    else:
-        tunnel_exp = xr.Dataset(dstemp)
+        # Drop the unnecessary negative LAF indices
+        dstemp = dstemp.sel(LAF=dstemp['LAF'] > 0)
+
+        # Resample to a common time stamp interval with the reference/bath
+        # instruments. However, if we resample to 1 second for 1 minute
+        # averages we will get out a matrix of mostly NaNs).
+        dstemp = dstemp.resample(time=config_user['dataProperties']['resampling_time']).mean()
+
+#%% Construct dataset with all experiments/over all the measurement duration
+        if external_data_flag:
+            # Let's get a deep copy of the reference data to work with.
+            ext_dat = copy.deepcopy(external_data[dtsf])
+            # Reindex the reference data to our chunk of DTS data.
+            ext_dat = ext_dat.reindex_like(dstemp.time,
+                                           method='nearest',
+                                           tolerance=1)
+
+            # Assign the pt100s to the xarray datasets
+            dstemp[probe1Name] = ext_dat[probe1Name]
+            dstemp[probe2Name] = ext_dat[probe2Name]
+
+        # Calibrate the temperatures, if the bath pt100s and dts do not line up in time, do not calibrate
+        if (np.size(np.flatnonzero(~np.isnan(dstemp.temp.values))) > 0) and (config_user['flags']['calibration_flag']):
+            temp_array, _, _, _ = btmm_process.matrixInversion(dstemp, internal_config[dtsf])
+        elif not config_user['flags']['calibration_flag']:
+            # Just return some nans here, do not notify the user as they should expect this behavior.
+            temp_array = xr.Dataset({'manualTemp':
+                                    (['time', 'LAF'],
+                                     np.ones_like(dstemp.temp.values)
+                                     * np.nan)},
+                                    coords={'LAF': dstemp.LAF,
+                                            'time': dstemp.time})
+        else:
+            # Just return some nans here and notify the user.
+            temp_array = xr.Dataset({'manualTemp':
+                                    (['time', 'LAF'],
+                                     np.ones_like(dstemp.temp.values)
+                                     * np.nan)},
+                                    coords={'LAF': dstemp.LAF,
+                                            'time': dstemp.time})
+            print('PT100 and DTS data do not line up in time for ' + dtsf)
+            print('The cal_temp field will contain NaNs.')
+
+        # Construct a new dataset with time as a timedelta object
+        dstemp['cal_temp'] =temp_array.manualTemp
+
+        # Concatenate into a single dataset
+        if temp_dts:
+            temp_dts = xr.concat([temp_dts, dstemp], dim='time')
+        else:
+            temp_dts = xr.Dataset(dstemp)
+
+    # Force time to be monotonically increasing
+    temp_dts = temp_dts.sortby('time')
 
 #%% Data output
     # Output the calibrated and then processed data
-    suffix_cal = '_calibrated_SS'
-
-    os.chdir(internal_config[dtsf]['directories']['dirProcessed'])
-    if not os.path.exists(dtsf + suffix_cal + '.nc'):
-        # Save to a netcdf
-        tunnel_exp.to_netcdf(dtsf + suffix_cal + '.nc', engine="netcdf4")
-    else:
-        print('A netCDF with the name ' + dtsf + suffix_cal + '.nc already exists. The file was not overwritten.')
+    suffix_cal = config_user['fileName']['fileSuffix']
 
     if not os.path.exists(dtsf + '_processed.nc'):
-        ds.to_netcdf(dtsf + '_processed.nc', engine='netcdf4')
+        temp_dts.to_netcdf(dtsf + '_processed.nc', engine='netcdf4')
     else:
         print('A netCDF with the name ' + dtsf + '_processed.nc already exists. The file was not overwritten.')
 
@@ -344,3 +325,5 @@ for dtsf in dir_data:
             writer.writerow([key, np.min(config_user['loc_ms'][key]), np.max(config_user['loc_ms'][key])])
         for key in config_user['loc_ref_instr']:
             writer.writerow([key, config_user['loc_ref_instr'][key], config_user['loc_ref_instr'][key]])
+
+    print('')
