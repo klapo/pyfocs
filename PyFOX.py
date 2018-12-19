@@ -33,7 +33,7 @@ warnings.simplefilter(action='ignore', category=RuntimeWarning)
 # root = tk.Tk()
 # root.withdraw() # to close this stupid root window that doesn't let itself be closed anymore AT ALL otherwise
 # filename_configfile = filedialog.askopenfilename()
-filename_configfile = '/Users/karllapo/gdrive/DarkMix/software/python/scripts/PyFOX/example_config_UBT_windtunnel.yml'
+filename_configfile = '/Users/karllapo/gdrive/DarkMix/software/python/scripts/PyFOX/example_config.yml'
 
 with open(filename_configfile, 'r') as stream:
     config_user = yaml.load(stream)
@@ -131,7 +131,8 @@ for dtsf in dir_data:
     ncfiles = [file for file in contents if '.nc' in file and 'raw' in file]
 
     allExperiments[dtsf] = {}
-    ds = xr.open_mfdataset('*raw*.nc', concat_dim='time')
+    ds = xr.open_mfdataset('*raw*.nc', concat_dim='time',
+                           chunks={'time': config_user['dataProperties']['chunkSize']})
     ds = ds.sortby('time')
     # Assigning to the experiments dictionary
     ds = btmm_process.labelLoc_general(ds, labels_general)
@@ -229,7 +230,11 @@ if config_user['flags']['ref_temp_flag'] == 'external':
             external_data[dtsf] = xr.Dataset({probe1Name: ('time', probe1),
                                               probe2Name: ('time', probe2)},
                                              coords={'time': time.values})
+            external_data[dtsf] = external_data[dtsf].chunk({'time': config_user['dataProperties']['chunkSize']})
             external_data[dtsf] = external_data[dtsf].resample(time=config_user['dataProperties']['resampling_time']).mean()
+
+            os.chdir(internal_config[dtsf]['directories']['dirProcessed'])
+            external_data[dtsf].to_netcdf('external_data.' + dtsf + '.nc')
 
 else:
     external_data_flag = False
