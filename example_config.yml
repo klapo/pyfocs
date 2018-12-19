@@ -30,9 +30,9 @@ calibration:
   refField2: coldProbe
   refField3: warmProbe
   # name of the calibration baths in the locations section
-  refLoc1: warmBathNear
-  refLoc2: coldBathNear
-  refLoc3: warmBathFar
+  refLoc1: warmBathNearPVC
+  refLoc2: coldBathNearPVC
+  refLoc3: warmBathFarPVC
 
 dataProperties:
   # Using standard (non-POSIX) notation, indicate the number of hours from UTC.
