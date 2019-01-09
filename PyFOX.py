@@ -278,11 +278,31 @@ for dtsf in dir_data:
 
         # Drop the unnecessary negative LAF indices
         dstemp = dstemp.sel(LAF=dstemp['LAF'] > 0)
+        dstemp.attrs['LAF_beg'] = dstemp.LAF.values[0]
 
         # Resample to a common time stamp interval with the reference/bath
-        # instruments. However, if we resample to 1 second for 1 minute
-        # averages we will get out a matrix of mostly NaNs).
-        dstemp = dstemp.resample(time=config_user['dataProperties']['resampling_time']).mean()
+        # instruments. Do this using a linear interpolation.
+
+        # Round to the nearest time interval
+        delta_t = config_user['dataProperties']['resampling_time']
+        dt_start = pd.Timestamp(dstemp.time.values[0]).round(delta_t)
+        dt_end = pd.Timestamp(dstemp.time.values[-1]).round(delta_t)
+
+        # Create a regular interval time stamp index
+        reg_time_pd = pd.date_range(start=dt_start, end=dt_end, freq=delta_t)
+        dstemp = dstemp.interp(time=reg_time_pd,
+                               kwargs={'fill_value': 'extrapolate'})
+
+        # Add a delta t attribute
+        dstemp.attrs['dt'] = config_user['dataProperties']['resampling_time']
+
+        # Step loss corrections
+        # splice_LAF = config_user['step_loss_LAF']
+        # step_loss_corrections = config_user['step_loss_correction']
+        # dstemp['logPsPas'] = np.log(dstemp.Ps / dstemp.Pas)
+        # for spl_num, spl_LAF in enumerate(splice_LAF):
+        #     dstemp['logPsPas'] = dstemp.logPsPas.where((dstemp.LAF < spl_LAF),
+        #                                                dstemp.logPsPas + step_loss_corrections[spl_num])
 
 #%% Construct dataset with all experiments/over all the measurement duration
         if external_data_flag:
@@ -299,37 +319,27 @@ for dtsf in dir_data:
 
         # Calibrate the temperatures, if the bath pt100s and dts do not line up in time, do not calibrate
         if (np.size(np.flatnonzero(~np.isnan(dstemp.temp.values))) > 0) and (config_user['flags']['calibration_flag']):
-            temp_array, _, _, _ = btmm_process.matrixInversion(dstemp, internal_config[dtsf])
+            dstemp, _, _, _ = btmm_process.matrixInversion(dstemp, internal_config[dtsf])
         elif not config_user['flags']['calibration_flag']:
-            # Just return some nans here, do not notify the user as they should expect this behavior.
-            temp_array = xr.Dataset({'manualTemp':
-                                    (['time', 'LAF'],
-                                     np.ones_like(dstemp.temp.values)
-                                     * np.nan)},
-                                    coords={'LAF': dstemp.LAF,
-                                            'time': dstemp.time})
+            # Just return some nans here and remind the user.
+            dstemp['cal_temp'] = (['time', 'LAF'],
+                                  np.ones_like(dstemp.temp.values) * np.nan)
+            print('No calibration required, returning NaN cal_temp array.')
         else:
             # Just return some nans here and notify the user.
-            temp_array = xr.Dataset({'manualTemp':
-                                    (['time', 'LAF'],
-                                     np.ones_like(dstemp.temp.values)
-                                     * np.nan)},
-                                    coords={'LAF': dstemp.LAF,
-                                            'time': dstemp.time})
+            dstemp['cal_temp'] = (['time', 'LAF'],
+                                  np.ones_like(dstemp.temp.values) * np.nan)
             print('PT100 and DTS data do not line up in time for ' + dtsf)
             print('The cal_temp field will contain NaNs.')
 
-        # Construct a new dataset
-        dstemp['cal_temp'] = temp_array.manualTemp
-
-        # Force time to be monotonically increasing
-        dstemp = dstemp.sortby('time')
+        # Rename the instrument reported temperature field
+        dstemp.rename({'temp': 'instr_temp'}, inplace=True)
 
         # Output the calibrated data
-        if not os.path.exists(outname):
-            dstemp.to_netcdf(outname, engine='netcdf4')
-        else:
-            print('A netCDF with the name ' + dtsf + '_processed.nc already exists. The file was not overwritten.')
+        # if not os.path.exists(outname):
+        dstemp.to_netcdf(outname, engine='netcdf4')
+        # else:
+            # print('A netCDF with the name ' + dtsf + '_processed.nc already exists. The file was not overwritten.')
 
         print('')
 
