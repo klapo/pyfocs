@@ -31,7 +31,8 @@ warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 #%% open the config file
 # root = tk.Tk()
-# root.withdraw() # to close this stupid root window that doesn't let itself be closed anymore AT ALL otherwise
+# to close this stupid root window that doesn't let itself be closed anymore AT ALL otherwise
+# root.withdraw()
 # filename_configfile = filedialog.askopenfilename()
 filename_configfile = '/Users/karllapo/Desktop/proj/DarkMix_LEOPOLD/example_data/LEOPOLD_initial_config.yml'
 
@@ -41,16 +42,24 @@ with open(filename_configfile, 'r') as stream:
 
 #%% create directories
 
-dir_original = os.path.join(config_user['directories']['dir_pre'], config_user['directories']['folder_raw_data'])
-if not os.path.exists(dir_original): # give an error if raw data folder can't be found
+dir_original = os.path.join(config_user['directories']['dir_pre'],
+                            config_user['directories']['folder_raw_data'])
+# give an error if raw data folder can't be found
+if not os.path.exists(dir_original):
     print('Raw data folder ' + dir_original + ' does not exist.')
 
-dir_graphics = os.path.join(config_user['directories']['dir_pre'], config_user['directories']['folder_graphics'], config_user['directories']['folder_raw_data'])
-if not os.path.exists(dir_graphics): # create the folder for the graphics if it doesn't already exist
+dir_graphics = os.path.join(config_user['directories']['dir_pre'],
+                            config_user['directories']['folder_graphics'],
+                            config_user['directories']['folder_raw_data'])
+# create the folder for the graphics if it doesn't already exist
+if not os.path.exists(dir_graphics):
     os.makedirs(dir_graphics)
 
-dir_processed = os.path.join(config_user['directories']['dir_pre'], config_user['directories']['folder_processed'], config_user['directories']['folder_raw_data'])
-if not os.path.exists(dir_processed): # create the super-folder for the processed files if it doesn't already exist
+dir_processed = os.path.join(config_user['directories']['dir_pre'],
+                             config_user['directories']['folder_processed'],
+                             config_user['directories']['folder_raw_data'])
+# create the super-folder for the processed files if it doesn't already exist
+if not os.path.exists(dir_processed):
     os.makedirs(dir_processed)
 
 # find all experiments to be processed and make a list of them
@@ -67,10 +76,12 @@ for c in external_data_content:
         temp_files = os.listdir(os.path.join(dir_ext, c))
     else:
         continue
+    # Check for the RBR solo PT100s
     if 'RBR' in c and not c[0] == '.':
         external_data_folders['RBR'] = [os.path.join(dir_ext, c, tf)
                                         for tf in temp_files
                                         if 'RBR' in tf and not c[0] == '.']
+    # Check for a datalogger file
     if 'Logger' in c and not c[0] == '.':
         external_data_folders['multiplexer'] = [os.path.join(dir_ext, c, tf)
                                                 for tf in temp_files
@@ -93,7 +104,8 @@ for dtsf in DTS_folders:
     internal_config[dtsf]['directories']['dirData'] = os.path.join(dir_processed, dtsf)
     internal_config[dtsf]['directories']['dirProcessed'] = os.path.join(dir_processed, dtsf)
     internal_config[dtsf]['fileName']['filePrefix'] = config_user['directories']['folder_raw_data'] + '_' + dtsf
-    if not os.path.exists(internal_config[dtsf]['archive']['targetPath']): # create the folder for the processed files if it doesn't already exist
+    # create the folder for the processed files if it doesn't already exist
+    if not os.path.exists(internal_config[dtsf]['archive']['targetPath']):
         os.makedirs(internal_config[dtsf]['archive']['targetPath'])
 
 # Archive/read the raw xml files for each labeled experiment.
@@ -114,6 +126,9 @@ for dtsf in DTS_folders:
 #%% Deal with an external datastream
 # Go to the data logger directory and find the multiplexer files
 if config_user['flags']['ref_temp_flag'] == 'external':
+    print('-------------')
+    print('Working on external data streams....')
+    print('-------------')
     external_data_flag = True
     external_data = {}
     pt100s = None
@@ -133,10 +148,10 @@ if config_user['flags']['ref_temp_flag'] == 'external':
     tz = 'Etc/GMT' + sign + str(offset)
 
     for extdat_source in external_data_folders:
-        print('-------------')
         print('Found external data stream: ' + extdat_source)
-        print('-------------')
         temp_extdata = external_data_folders[extdat_source]
+
+        # Add a datalogger external datastream check?
 
         # Deal with PT100s on a multiplexer
         if extdat_source == 'multiplexer':
@@ -180,10 +195,13 @@ if config_user['flags']['ref_temp_flag'] == 'external':
 
         if multiplexer:
             external_data[dtsf] = xr.Dataset()
+
+            # This is a line specific to the DarkMix wind tunnel
             if hasattr(pt100s, 'experiment_flag_Max'):
-                temp_pts = pt100s[(pt100s.experiment_flag_Max == -1) # This is a line specific to the DarkMix wind tunnel
+                temp_pts = pt100s[(pt100s.experiment_flag_Max == -1)
                               & (pt100s.experiment_name == dtsf)]
-            else: # for data without experiment_flags
+            # for data without experiment_flags (most other observations)
+            else:
                 temp_pts = pt100s
             drop_columns = [cols for cols in temp_pts.columns
                             if cols not in probe1Cols
@@ -216,7 +234,7 @@ labels_ms = config_user['loc_ms']
 labels_ref_instr = config_user['loc_ref_instr']
 
 print('-------------')
-print('Calibrating and Processing DTS temperature data.')
+print('Processing and Calibrating DTS temperature data.')
 print('-------------')
 for dtsf in dir_data:
     # Find all the netcdfs for this experiment, open the raw data netcdfs,
@@ -232,12 +250,23 @@ for dtsf in dir_data:
     # Initialize the dts Dataset
     temp_dts = None
 
-    # We are going to loop over each raw dts netcdf file, performing the
-    # calibration one-at-a-time.
+    # Find all 'raw' netcdfs within the processed directory,
+    # sort them (by date), and process each individually.
     os.chdir(internal_config[dtsf]['directories']['dirProcessed'])
     contents = os.listdir()
     ncfiles = [file for file in contents if '.nc' in file and 'raw' in file]
-    for raw_nc in ncfiles:
+    ncfiles.sort()
+    ntot = np.size(ncfiles)
+
+    for nraw, raw_nc in enumerate(ncfiles):
+        # Name of the output file for this archive chunk
+        outname_suffix = config_user['fileName']['fileSuffix']
+        outname_date = '_'.join(raw_nc.split('.')[0].split('_')[1:])
+        outname = dtsf + '_processed_' + outname_date + '.nc'
+        print('Processing ' + outname_date + ' (' + str(nraw + 1)
+              + ' of ' + str(ntot) + ')')
+
+        # Open up raw file for this interval.
         dstemp = xr.open_dataset(raw_nc)
 
         # Assigning to the experiments dictionary
@@ -290,40 +319,31 @@ for dtsf in dir_data:
             print('PT100 and DTS data do not line up in time for ' + dtsf)
             print('The cal_temp field will contain NaNs.')
 
-        # Construct a new dataset with time as a timedelta object
-        dstemp['cal_temp'] =temp_array.manualTemp
+        # Construct a new dataset
+        dstemp['cal_temp'] = temp_array.manualTemp
 
-        # Concatenate into a single dataset
-        if temp_dts:
-            temp_dts = xr.concat([temp_dts, dstemp], dim='time')
+        # Force time to be monotonically increasing
+        dstemp = dstemp.sortby('time')
+
+        # Output the calibrated data
+        if not os.path.exists(outname):
+            dstemp.to_netcdf(outname, engine='netcdf4')
         else:
-            temp_dts = xr.Dataset(dstemp)
+            print('A netCDF with the name ' + dtsf + '_processed.nc already exists. The file was not overwritten.')
 
-    # Force time to be monotonically increasing
-    temp_dts = temp_dts.sortby('time')
+        print('')
 
-#%% Data output
-    # Output the calibrated and then processed data
-    suffix_cal = config_user['fileName']['fileSuffix']
+# Write a csv of the locations because Matlab has problems reading them from the netcdf
+header = ['section_name', 'beginning (LAF)', 'end (LAF)']
 
-    if not os.path.exists(dtsf + '_processed.nc'):
-        temp_dts.to_netcdf(dtsf + '_processed.nc', engine='netcdf4')
-    else:
-        print('A netCDF with the name ' + dtsf + '_processed.nc already exists. The file was not overwritten.')
-
-    # Write a csv of the locations because Matlab has problems reading them from the netcdf
-    header = ['section_name', 'beginning (LAF)', 'end (LAF)']
-
-    filename_locations = os.path.join(dir_processed, dtsf, dtsf + '_locations.csv')
-    locations_file = open(filename_locations, 'w')
-    with locations_file:
-        writer = csv.writer(locations_file, delimiter=',')
-        writer.writerow(header)
-        for key in config_user['loc_general']:
-            writer.writerow([key, np.min(config_user['loc_general'][key]), np.max(config_user['loc_general'][key])])
-        for key in config_user['loc_ms']:
-            writer.writerow([key, np.min(config_user['loc_ms'][key]), np.max(config_user['loc_ms'][key])])
-        for key in config_user['loc_ref_instr']:
-            writer.writerow([key, config_user['loc_ref_instr'][key], config_user['loc_ref_instr'][key]])
-
-    print('')
+filename_locations = os.path.join(dir_processed, dtsf, dtsf + '_locations.csv')
+locations_file = open(filename_locations, 'w')
+with locations_file:
+    writer = csv.writer(locations_file, delimiter=',')
+    writer.writerow(header)
+    for key in config_user['loc_general']:
+        writer.writerow([key, np.min(config_user['loc_general'][key]), np.max(config_user['loc_general'][key])])
+    for key in config_user['loc_ms']:
+        writer.writerow([key, np.min(config_user['loc_ms'][key]), np.max(config_user['loc_ms'][key])])
+    for key in config_user['loc_ref_instr']:
+        writer.writerow([key, config_user['loc_ref_instr'][key], config_user['loc_ref_instr'][key]])
