@@ -262,7 +262,7 @@ for dtsf in dir_data:
         # Name of the output file for this archive chunk
         outname_suffix = config_user['fileName']['fileSuffix']
         outname_date = '_'.join(raw_nc.split('.')[0].split('_')[1:])
-        outname = dtsf + '_processed_' + outname_date + '.nc'
+        outname = dtsf + '_processed_' + outname_date + outname_suffix + '.nc'
         print('Processing ' + outname_date + ' (' + str(nraw + 1)
               + ' of ' + str(ntot) + ')')
 
@@ -297,12 +297,15 @@ for dtsf in dir_data:
         dstemp.attrs['dt'] = config_user['dataProperties']['resampling_time']
 
         # Step loss corrections
-        # splice_LAF = config_user['step_loss_LAF']
-        # step_loss_corrections = config_user['step_loss_correction']
-        # dstemp['logPsPas'] = np.log(dstemp.Ps / dstemp.Pas)
-        # for spl_num, spl_LAF in enumerate(splice_LAF):
-        #     dstemp['logPsPas'] = dstemp.logPsPas.where((dstemp.LAF < spl_LAF),
-        #                                                dstemp.logPsPas + step_loss_corrections[spl_num])
+        if 'step_loss_LAF' in config_user and 'step_loss_correction' in config_user:
+            splice_LAF = np.atleast_1d(config_user['step_loss_LAF'])
+            step_loss_corrections = np.atleast_1d(config_user['step_loss_correction'])
+        # Calculate the log power of the stokes/anti-stokes scattering
+        dstemp['logPsPas'] = np.log(dstemp.Ps / dstemp.Pas)
+        # Correct for any step-losses due to splicing.
+        for spl_num, spl_LAF in enumerate(splice_LAF):
+            dstemp['logPsPas'] = dstemp.logPsPas.where((dstemp.LAF < spl_LAF),
+                                                       dstemp.logPsPas + step_loss_corrections[spl_num])
 
 #%% Construct dataset with all experiments/over all the measurement duration
         if external_data_flag:
