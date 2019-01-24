@@ -43,7 +43,7 @@ def labelLoc_general(ds, location):
                                                    & (ds.LAF < LAF2)] = True
 
         # The label locations occur only once in the LAF domain.
-        else:
+        elif np.size(shape) == 1:
             if np.size(location[lc]) > 1:
                 LAF1 = min(location[lc])
                 LAF2 = max(location[lc])
@@ -55,10 +55,15 @@ def labelLoc_general(ds, location):
                 if not location[lc][0] > location[lc][-1]:
                     ds.coords['location_flip'].loc[(ds.LAF > LAF1)
                                                    & (ds.LAF < LAF2)] = True
-            else:
-                ds.coords['loc_general'].loc[(ds.LAF == location[lc])] = lc
+
+        # It is a single item element (i.e., a point) to label. Find the
+        # nearest point to label.
+        else:
+            LAF_single_loc = ds.sel(LAF=location[lc], method='nearest').LAF
+            ds.coords['loc_general'].loc[(ds.LAF == LAF_single_loc)] = lc
 
     return ds
+
 
 def labelLoc_additional(ds, location, loc_type):
     '''
@@ -97,9 +102,12 @@ def labelLoc_additional(ds, location, loc_type):
                 LAF1 = min(location[lc])
                 LAF2 = max(location[lc])
                 ds.coords[loc_type].loc[(ds.LAF > LAF1) & (ds.LAF < LAF2)] = lc
-            else:
-                LAF_single_loc = ds.sel(LAF=location[lc], method='nearest').LAF
-                ds.coords[loc_type].loc[(ds.LAF == LAF_single_loc)] = lc
+
+        # It is a single item element (i.e., a point) to label. Find the
+        # nearest point to label.
+        else:
+            LAF_single_loc = ds.sel(LAF=location[lc], method='nearest').LAF
+            ds.coords[loc_type].loc[(ds.LAF == LAF_single_loc)] = lc
 
     return ds
 
