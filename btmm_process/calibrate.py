@@ -127,7 +127,7 @@ def matrixInversion(dsCal, cfg):
         dsCal['LAF'] = np.flip(dsCal.LAF.values, 0)
 
     # Assign calibrated temperature to dataset
-    dsCal['manualTemp'] = (('time', 'LAF'), manualTemp - 273.15)
+    dsCal['cal_temp'] = (('time', 'LAF'), manualTemp - 273.15)
     print('')
     print('Calibration done...')
 

@@ -43,22 +43,27 @@ def labelLoc_general(ds, location):
                                                    & (ds.LAF < LAF2)] = True
 
         # The label locations occur only once in the LAF domain.
-        else:
+        elif np.size(shape) == 1:
             if np.size(location[lc]) > 1:
                 LAF1 = min(location[lc])
                 LAF2 = max(location[lc])
                 ds.coords['loc_general'].loc[(ds.LAF > LAF1) & (ds.LAF < LAF2)] = lc
-    
+
                 # For locations where the relative start is at a larger LAF than
                 # the relative end of the section, indicate that we need to
                 # flip the LAF.
                 if not location[lc][0] > location[lc][-1]:
                     ds.coords['location_flip'].loc[(ds.LAF > LAF1)
                                                    & (ds.LAF < LAF2)] = True
-            else:
-                ds.coords['loc_general'].loc[(ds.LAF == location[lc])] = lc 
-                
+
+        # It is a single item element (i.e., a point) to label. Find the
+        # nearest point to label.
+        else:
+            LAF_single_loc = ds.sel(LAF=location[lc], method='nearest').LAF
+            ds.coords['loc_general'].loc[(ds.LAF == LAF_single_loc)] = lc
+
     return ds
+
 
 def labelLoc_additional(ds, location, loc_type):
     '''
@@ -92,17 +97,23 @@ def labelLoc_additional(ds, location, loc_type):
                 ds.coords[loc_type].loc[(ds.LAF > LAF1) & (ds.LAF < LAF2)] = lc
 
         # The label locations occur only once in the LAF domain.
-        else:
+        elif np.size(shape) == 1:
             if np.size(location[lc]) > 1:
                 LAF1 = min(location[lc])
                 LAF2 = max(location[lc])
                 ds.coords[loc_type].loc[(ds.LAF > LAF1) & (ds.LAF < LAF2)] = lc
-            else:
-                ds.coords[loc_type].loc[(ds.LAF == location[lc])] = lc 
-                
+
+        # It is a single item element (i.e., a point) to label. Find the
+        # nearest point to label.
+        else:
+            LAF_single_loc = ds.sel(LAF=location[lc], method='nearest').LAF
+            ds.coords[loc_type].loc[(ds.LAF == LAF_single_loc)] = lc
+
     return ds
 
-def dtsPhysicalCoords(ds, location, coord_opt='relative', align='right'):
+
+def dtsPhysicalCoords(ds, location, loc_field='loc_general',
+                      coord_opt='relative', align='right'):
     '''
     Assign a physical coordinate to the xarray Dataset containing DTS data.
 
@@ -205,13 +216,13 @@ def dtsPhysicalCoords(ds, location, coord_opt='relative', align='right'):
 
             # Create the dimension we will concatenate along (don't worry,
             # section_num will disappear after swapping dimensions)
-            section.coords['loc_general'] = (('section_num'),
-                                          np.unique(section.location.values))
+            section.coords[loc_field] = (('section_num'),
+                                         np.unique(section[loc_field].values))
             all_sections[section_num] = section
 
         # Concatenate into a single xarray Dataset
         ds_out = xr.concat(all_sections, 'section_num')
-        ds_out = ds_out.swap_dims({'section_num': 'location'})
+        ds_out = ds_out.swap_dims({'section_num': loc_field})
 
         return ds_out
 
