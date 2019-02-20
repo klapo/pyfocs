@@ -252,7 +252,7 @@ def archiver(cfg):
             while xml_counts <= len(contents) - 1:
                 # Split the file name string into the datetime components
                 c = contents[xml_counts]
-                dt = dt_string_label
+                dt = dt_string_label(c)
 
                 if dt < dt2 and dt > dt1:
                     interval_contents.append(os.path.join(sourcePath, ch, c))
