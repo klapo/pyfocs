@@ -191,90 +191,89 @@ def archiver(cfg):
         channelPath = os.path.join(sourcePath, ch)
 
         ########
-        # Archive: To archive previously aquired data.
-        elif mode == 'archiving':
-            # Check if the channel directory exists.
-            if os.path.isdir(channelPath):
-                contents = os.listdir(channelPath)
-            # If it doesn't, move on to the next channel
-            else:
-                print('Did not find ' + ch)
-                continue
-            # Only select xml files
-            contents = [c for c in contents if '.xml' in c]
-            # Sort the file list alphabetically.
-            contents.sort()
+        # Archive data to .tar.gz files.
+        # Check if the channel directory exists.
+        if os.path.isdir(channelPath):
+            contents = os.listdir(channelPath)
+        # If it doesn't, move on to the next channel
+        else:
+            print('Did not find ' + ch)
+            continue
+        # Only select xml files
+        contents = [c for c in contents if '.xml' in c]
+        # Sort the file list alphabetically.
+        contents.sort()
 
-            # First datetime of the raw data
-            t = contents[0]
-            dtInit = dt_string_label(t)
+        # First datetime of the raw data
+        t = contents[0]
+        dtInit = dt_string_label(t)
 
-            # Last datetime of the raw data
-            t = contents[-1]
-            dtFinal = dt_string_label(t)
+        # Last datetime of the raw data
+        t = contents[-1]
+        dtFinal = dt_string_label(t)
 
-            # First time step interval
-            dt1 = round_dt(dtInit, delta_minutes, type='floor')
-            dt2 = round_dt(dtInit, delta_minutes, type='ceil')
+        # First time step interval
+        dt1 = round_dt(dtInit, delta_minutes, type='floor')
+        dt2 = round_dt(dtInit, delta_minutes, type='ceil')
 
-            # Round up to the nearest interval for the end
-            dtFinal = round_dt(dtFinal, delta_minutes, type='ceil')
-            # Empty container for the files in this interval
-            interval_contents = []
-            xml_counts = 0
-            # Iterate through the (date) sorted list of raw xml files
-            while xml_counts <= len(contents) - 1:
-                # Split the file name string into the datetime components
-                c = contents[xml_counts]
-                dt = dt_string_label(c)
+        # Round up to the nearest interval for the end
+        dtFinal = round_dt(dtFinal, delta_minutes, type='ceil')
+        # Empty container for the files in this interval
+        interval_contents = []
+        xml_counts = 0
+        # Iterate through the (date) sorted list of raw xml files
+        while xml_counts <= len(contents) - 1:
+            # Split the file name string into the datetime components
+            c = contents[xml_counts]
+            dt = dt_string_label(c)
 
-                if dt < dt2 and dt > dt1:
-                    interval_contents.append(os.path.join(sourcePath, ch, c))
-                    xml_counts = xml_counts + 1
+            if dt < dt2 and dt > dt1:
+                interval_contents.append(os.path.join(sourcePath, ch, c))
+                xml_counts = xml_counts + 1
 
-                # We have spanned this interval, save the data and move on
-                elif dt > dt2:
-                    # Create file names for this hour
-                    year, month, day, hour, minute, _, _ = dt_strip(dt1, str_convert=True)
+            # We have spanned this interval, save the data and move on
+            elif dt > dt2:
+                # Create file names for this hour
+                year, month, day, hour, minute, _, _ = dt_strip(dt1, str_convert=True)
 
-                    dateFileName = '_' + year + month + day + '-' + hour + minute
-                    outFile = os.path.join(targetPath, ch + dateFileName + '.tar.gz')
+                dateFileName = '_' + year + month + day + '-' + hour + minute
+                outFile = os.path.join(targetPath, ch + dateFileName + '.tar.gz')
 
-                    # Check if any files fall within the interval
-                    if len(interval_contents) == 0:
-                        print('No xml files in the interval: ' + str(dt1))
-                    else:
-                        make_tarfile(outFile, interval_contents)
-                    dt1 = dt2
-                    dt2 = dt2 + datetime.timedelta(minutes=delta_minutes)
+                # Check if any files fall within the interval
+                if len(interval_contents) == 0:
+                    print('No xml files in the interval: ' + str(dt1))
+                else:
+                    make_tarfile(outFile, interval_contents)
+                dt1 = dt2
+                dt2 = dt2 + datetime.timedelta(minutes=delta_minutes)
 
-                    # Determine if the xml files should be removed
-                    if cleanup_flag:
-                        print('Cleaning up the raw xml files...')
-                        for f in sourceFile:
-                            os.remove(f)
+                # Determine if the xml files should be removed
+                if cleanup_flag:
+                    print('Cleaning up the raw xml files...')
+                    for f in sourceFile:
+                        os.remove(f)
 
-                    interval_contents = []
+                interval_contents = []
 
-                # We reached the end of the file list, save and exit.
-                if xml_counts == len(contents) - 1:
-                    # Create file names for this hour
-                    year, month, day, hour, minute, _, _ = dt_strip(dt1, str_convert=True)
+            # We reached the end of the file list, save and exit.
+            if xml_counts == len(contents) - 1:
+                # Create file names for this hour
+                year, month, day, hour, minute, _, _ = dt_strip(dt1, str_convert=True)
 
-                    dateFileName = '_' + year + month + day + '-' + hour + minute
-                    outFile = os.path.join(targetPath, ch + dateFileName + '.tar.gz')
-                    sourceFile = interval_contents
-                    make_tarfile(outFile, sourceFile)
+                dateFileName = '_' + year + month + day + '-' + hour + minute
+                outFile = os.path.join(targetPath, ch + dateFileName + '.tar.gz')
+                sourceFile = interval_contents
+                make_tarfile(outFile, sourceFile)
 
-                    # Determine if the xml files should be removed
-                    if cleanup_flag:
-                        print('Cleaning up the raw xml files...')
-                        for f in sourceFile:
-                            os.remove(f)
+                # Determine if the xml files should be removed
+                if cleanup_flag:
+                    print('Cleaning up the raw xml files...')
+                    for f in sourceFile:
+                        os.remove(f)
 
-                    print('Done with ' + ch + '.')
-                    xml_counts = xml_counts + 1
-                    break
+                print('Done with ' + ch + '.')
+                xml_counts = xml_counts + 1
+                break
 
     ########
     # Back up to the external drive if specified.
