@@ -173,6 +173,7 @@ def archiver(cfg):
             externalBackUp = True
             logfile = cfg['archive']['logfile']
         else:
+            print('No backup directory provided.')
             externalBackUp = False
             logfile = []
     except KeyError:
@@ -188,33 +189,6 @@ def archiver(cfg):
 
     for ch in channels:
         channelPath = os.path.join(sourcePath, ch)
-
-        ########
-        # Active: Meant to be run with a cron job and uses the current time.
-        if mode == 'active':
-            print('WARNING: active mode has not been tested!'
-                  + ' It will probably crash. Sorry :(')
-            now = datetime.datetime.now()
-            yyyy = now.year
-            mm = now.month
-            dd = now.dd
-
-            # Hours require special attention
-            hh = now.hour
-            if hh < 10:
-                hh = '0' + str(hh)
-
-            # Date to zip and archive
-            dateFileName = '_' + yyyy + mm + dd + '-' + hh
-
-            # Define file names using current time
-            outFile = os.path.join(targetPath, ch + '_'
-                                   + dateFileName + '.tar.gz')
-            sourceFile = os.path.join(sourcePath, ch, ch + '_'
-                                      + dateFileName + '*')
-
-            # zip the data and move to archive
-            make_tarfile(outFile, sourceFile)
 
         ########
         # Archive: To archive previously aquired data.
