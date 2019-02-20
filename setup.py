@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 setup(
     name='btmm_process',
-    author=u"Karl Lapo",
+    author="Karl Lapo and Anita Freundorfer",
     author_email='karl-lapo@uni-bayreuth.de',
     description='Processing of meteorological data.',
     packages=find_packages(exclude=['ez_setup', 'examples', 'tests']),
