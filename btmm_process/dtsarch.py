@@ -257,19 +257,26 @@ def archiver(cfg):
 
             # We reached the end of the file list, save and exit.
             if xml_counts == len(contents) - 1:
-                # Create file names for this hour
-                year, month, day, hour, minute, _, _ = dt_strip(dt1, str_convert=True)
 
-                dateFileName = '_' + year + month + day + '-' + hour + minute
-                outFile = os.path.join(targetPath, ch + dateFileName + '.tar.gz')
-                sourceFile = interval_contents
-                make_tarfile(outFile, sourceFile)
+                if mode == 'archiving':
+                    # Create file names for this hour
+                    year, month, day, hour, minute, _, _ = dt_strip(dt1, str_convert=True)
 
-                # Determine if the xml files should be removed
-                if cleanup_flag:
-                    print('Cleaning up the raw xml files...')
-                    for f in sourceFile:
-                        os.remove(f)
+                    dateFileName = '_' + year + month + day + '-' + hour + minute
+                    outFile = os.path.join(targetPath, ch + dateFileName + '.tar.gz')
+                    sourceFile = interval_contents
+                    make_tarfile(outFile, sourceFile)
+
+                    # Determine if the xml files should be removed
+                    if cleanup_flag:
+                        print('Cleaning up the raw xml files...')
+                        for f in sourceFile:
+                            os.remove(f)
+
+                    # If the archiving mode is active, do not process
+                    # incomplete archiving intervals. Instead exit out and let
+                    # the next scheduled call to the archiver deal with this
+                    # time interval. This step just requires no action here.
 
                 print('Done with ' + ch + '.')
                 xml_counts = xml_counts + 1
