@@ -20,6 +20,10 @@ def labelLoc_general(ds, location):
                     the 'location' and 'location_flip' coordinates.
     '''
 
+    # If no location is passed, return the file to the user and notify.
+    if location is None:
+        return ds
+
     # Pre-alloate the new coordinates that are to be assigned.
     ds.coords['loc_general'] = (('LAF'), [None] * ds.LAF.size)
     ds.coords['location_flip'] = (('LAF'), [False] * ds.LAF.size)
@@ -80,6 +84,9 @@ def labelLoc_additional(ds, location, loc_type):
         ds       -  the same xarray that was passed to the function, but with
                     the new 'loc_type'.
     '''
+
+    if location is None:
+        return ds
 
     # Pre-alloate the new coordinates that are to be assigned.
     ds.coords[loc_type] = (('LAF'), [None] * ds.LAF.size)
