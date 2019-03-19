@@ -4,45 +4,6 @@ import numpy as np
 import sys
 
 
-def prepCalibrate(cfg):
-    '''
-    Prep the data for being calibrated!
-    '''
-    ####
-    # Unpack the config file
-    dirProcessed = cfg['directories']['dirProcessed']
-    filePrefix = cfg['fileName']['filePrefix']
-    fileSuffix = cfg['fileName']['fileSuffix']
-
-    ####
-    # Prep the data for calibration
-    os.chdir(dirProcessed)
-
-    # Find all netcdf files that match the experiment suffix and prefix.
-    # Load them into a xarray Dataset.
-    ncFiles = [nc for nc in os.listdir() if filePrefix in nc
-               and fileSuffix in nc and '.nc' in nc]
-    ncFiles.sort()
-    ds = xr.open_mfdataset(ncFiles, chunks=cfg['dataProperties']['chunkSize'])
-
-    # Call the matrix solver function.
-    ds = matrixInversion(ds, cfg)
-
-    os.chdir(dirProcessed)
-
-    # Strip out any unnecessary underscores
-    if fileSuffix[0] == '_':
-        fileSuffix = fileSuffix[1:]
-    if filePrefix[-1] == '_':
-        filePrefix = filePrefix[0:-1]
-
-    # Write to netcdf
-    ds.to_netcdf(filePrefix + '_calibrated_' + fileSuffix + '.nc', 'w')
-
-    # Return the dataset
-    return ds
-
-
 def matrixInversion(dsCal, cfg):
     refField1 = cfg['calibration']['refField1']
     refField2 = cfg['calibration']['refField2']
