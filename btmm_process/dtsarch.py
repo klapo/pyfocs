@@ -119,8 +119,10 @@ def dt_string_label(t):
         to an actual python datetime.
     '''
     if 'UTC' not in t:
-        t = t.split('_')[-2:]
-        t = t.split('.')[0:2]
+        # This is assumed to be an XT file if it lacks 'UTC'.
+        # The format looks like: channel 1_20171109203321986.xml
+        t = t.split('_')[-1]
+        t = t.split('.')[0]
         year = t[0:4]
         month = t[4:6]
         day = t[6:8]
@@ -227,6 +229,7 @@ def archiver(cfg):
             c = contents[xml_counts]
             dt = dt_string_label(c)
 
+            # Determine if we are still within this interval.
             if dt < dt2 and dt > dt1:
                 interval_contents.append(os.path.join(sourcePath, ch, c))
                 xml_counts = xml_counts + 1
