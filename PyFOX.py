@@ -30,15 +30,19 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 #%% open the config file
-# root = tk.Tk()
+root = tk.Tk()
 # to close this stupid root window that doesn't let itself be closed anymore AT ALL otherwise
-# root.withdraw()
-# filename_configfile = filedialog.askopenfilename()
-filename_configfile = '/Users/karllapo/Desktop/proj/DarkMix_LEOPOLD/example_data/LEOPOLD_initial_config.yml'
+root.withdraw()
+# Allowed file types for the configuration file. Any file type is allowed as
+# long as it is a yaml .yml file.
+ftypes = [
+    ('yaml configuration file', '*.yml'),
+]
+filename_configfile = filedialog.askopenfilename(filetypes=ftypes)
+# filename_configfile = '/Users/karllapo/Desktop/proj/DarkMix_LEOPOLD/example_data/LEOPOLD_initial_config.yml'
 
 with open(filename_configfile, 'r') as stream:
     config_user = yaml.load(stream)
-
 
 #%% create directories
 
@@ -52,8 +56,8 @@ dir_graphics = os.path.join(config_user['directories']['dir_pre'],
                             config_user['directories']['folder_graphics'],
                             config_user['directories']['folder_raw_data'])
 # create the folder for the graphics if it doesn't already exist
-if not os.path.exists(dir_graphics):
-    os.makedirs(dir_graphics)
+# if not os.path.exists(dir_graphics):
+#     os.makedirs(dir_graphics)
 
 dir_processed = os.path.join(config_user['directories']['dir_pre'],
                              config_user['directories']['folder_processed'],
@@ -296,16 +300,19 @@ for dtsf in dir_data:
         # Add a delta t attribute
         dstemp.attrs['dt'] = config_user['dataProperties']['resampling_time']
 
-        # Step loss corrections
+        # Step loss corrections if they are provided.
         if 'step_loss_LAF' in config_user and 'step_loss_correction' in config_user:
             splice_LAF = np.atleast_1d(config_user['step_loss_LAF'])
             step_loss_corrections = np.atleast_1d(config_user['step_loss_correction'])
-        # Calculate the log power of the stokes/anti-stokes scattering
-        dstemp['logPsPas'] = np.log(dstemp.Ps / dstemp.Pas)
-        # Correct for any step-losses due to splicing.
-        for spl_num, spl_LAF in enumerate(splice_LAF):
-            dstemp['logPsPas'] = dstemp.logPsPas.where((dstemp.LAF < spl_LAF),
-                                                       dstemp.logPsPas + step_loss_corrections[spl_num])
+
+            # Make sure these are not NaNs
+            if splice_LAF and step_loss_corrections:
+                # Calculate the log power of the stokes/anti-stokes scattering
+                dstemp['logPsPas'] = np.log(dstemp.Ps / dstemp.Pas)
+                # Correct for any step-losses due to splicing.
+                for spl_num, spl_LAF in enumerate(splice_LAF):
+                    dstemp['logPsPas'] = dstemp.logPsPas.where((dstemp.LAF < spl_LAF),
+                                                               dstemp.logPsPas + step_loss_corrections[spl_num])
 
 #%% Construct dataset with all experiments/over all the measurement duration
         if external_data_flag:
@@ -349,14 +356,17 @@ for dtsf in dir_data:
 # Write a csv of the locations because Matlab has problems reading them from the netcdf
 header = ['section_name', 'beginning (LAF)', 'end (LAF)']
 
-filename_locations = os.path.join(dir_processed, dtsf, dtsf + '_locations.csv')
-locations_file = open(filename_locations, 'w')
-with locations_file:
-    writer = csv.writer(locations_file, delimiter=',')
-    writer.writerow(header)
-    for key in config_user['loc_general']:
-        writer.writerow([key, np.min(config_user['loc_general'][key]), np.max(config_user['loc_general'][key])])
-    for key in config_user['loc_ms']:
-        writer.writerow([key, np.min(config_user['loc_ms'][key]), np.max(config_user['loc_ms'][key])])
-    for key in config_user['loc_ref_instr']:
-        writer.writerow([key, config_user['loc_ref_instr'][key], config_user['loc_ref_instr'][key]])
+if ((config_user['loc_general'] is not None) and
+        (config_user['loc_ms'] is not None) and
+        (config_user['loc_ref_instr'] is not None)):
+    filename_locations = os.path.join(dir_processed, dtsf, dtsf + '_locations.csv')
+    locations_file = open(filename_locations, 'w')
+    with locations_file:
+        writer = csv.writer(locations_file, delimiter=',')
+        writer.writerow(header)
+        for key in config_user['loc_general']:
+            writer.writerow([key, np.min(config_user['loc_general'][key]), np.max(config_user['loc_general'][key])])
+        for key in config_user['loc_ms']:
+            writer.writerow([key, np.min(config_user['loc_ms'][key]), np.max(config_user['loc_ms'][key])])
+        for key in config_user['loc_ref_instr']:
+            writer.writerow([key, config_user['loc_ref_instr'][key], config_user['loc_ref_instr'][key]])
