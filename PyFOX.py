@@ -80,17 +80,17 @@ for c in external_data_content:
         temp_files = os.listdir(os.path.join(dir_ext, c))
     else:
         continue
+    # Look for key phrases used in indicating an external data file.
     # Check for the RBR solo PT100s
     if 'RBR' in c and not c[0] == '.':
         external_data_folders['RBR'] = [os.path.join(dir_ext, c, tf)
                                         for tf in temp_files
                                         if 'RBR' in tf and not c[0] == '.']
-    # Check for a datalogger file
-    if 'Logger' in c and not c[0] == '.':
-        external_data_folders['multiplexer'] = [os.path.join(dir_ext, c, tf)
-                                                for tf in temp_files
-                                                if 'multiplexer_data' in tf
-                                                and not c[0] == '.']
+    # Check for a datalogger or multiplexer TOA5 file.
+    if ('Logger' in c or 'ts_data' in c) and not c[0] == '.' and '.dat' in c:
+        external_data_folders['logger'] = [os.path.join(dir_ext, c, tf)
+                                           for tf in temp_files
+                                           if not c[0] == '.']
 
 # Loop through all of the DTS data directories
 # assemble internal config for each dts folder within the experiment folder
@@ -103,6 +103,7 @@ for dtsf in DTS_folders:
 for dtsf in DTS_folders:
     internal_config[dtsf] = {}
     internal_config[dtsf] = copy.deepcopy(config_user)
+    internal_config[dtsf]['archive']['channelName'] = config_user['directories']['channelName']
     internal_config[dtsf]['archive']['sourcePath'] = dir_data[dtsf]
     internal_config[dtsf]['archive']['targetPath'] = os.path.join(dir_processed, dtsf)
     internal_config[dtsf]['directories']['dirData'] = os.path.join(dir_processed, dtsf)
@@ -140,6 +141,7 @@ if config_user['flags']['ref_temp_flag'] == 'external':
     probe2Cols = config_user['dataProperties']['probe2_value']
     probe1Name = config_user['dataProperties']['probe1Temperature']
     probe2Name = config_user['dataProperties']['probe2Temperature']
+    other_cols = config_user['dataProperties']['other_cols']
 
     # Construct the time zone argument
     offset = config_user['dataProperties']['UTC_offset']
@@ -152,64 +154,88 @@ if config_user['flags']['ref_temp_flag'] == 'external':
     tz = 'Etc/GMT' + sign + str(offset)
 
     for extdat_source in external_data_folders:
+        # The external data sources are grouped according to type:
+        # self-contained RBRs and data loggers. These data streams are dealt
+        # with separately (indicated by extdat_source)
         print('Found external data stream: ' + extdat_source)
         temp_extdata = external_data_folders[extdat_source]
 
-        # Add a datalogger external datastream check?
+        # Read the PT100 data from the TOA5/csv file. These files have 4
+        # header lines and quotation marks on every line.
+        # Columns spread over multiple lines creates problems for pandas,
+        # so read the column headers separately; they should be the same
+        # for each TOA5 file.
+        logger_col_names = pd.read_csv(temp_extdata[0], header=1,
+                                       nrows=0, index_col=0)
+        # Empty dictionary for the pandas Dataframe objects.
+        pt100s = {}
 
-        # Deal with PT100s on a multiplexer
-        if extdat_source == 'multiplexer':
-            # Read the PT100 data from the multiplexer file
-            # The columns with multiple lines creates some problems for pandas,
-            # so read the column headers separately; they should be the same
-            # for each multiplexer file.
-            for multiplexer in temp_extdata:
-                pt100s_col_names = pd.read_csv(temp_extdata[0], header=1,
-                                               nrows=0, index_col=0)
-                new_data = pd.read_csv(multiplexer, header=None, skiprows=4,
+        # Loop over every TOA5 file found, load, format, resample, and concat
+        for dat in temp_extdata:
+            # Deal with PT100s on a multiplexer
+            if extdat_source == 'logger':
+                new_data = pd.read_csv(logdat, header=None, skiprows=4,
                                        index_col=0, parse_dates=True,
                                        infer_datetime_format=True, sep=',')
-                new_data.columns = pt100s_col_names.columns
-                new_data.index.names = ['time']
-                new_data = new_data.resample(config_user['dataProperties']['resampling_time']).mean()
-                # Read only the data; load the first one, append the others
-                if pt100s is not None:
-                    pt100s = pd.concat([pt100s, new_data], axis='columns')
-                else:
-                    pt100s = new_data
-
-        # Deal with any RBRs
-        if extdat_source == 'RBR':
-            for solo in temp_extdata:
+                new_data.columns = logger_col_names.columns
+            # Deal with any RBRs
+            elif extdat_source == 'RBR':
                 new_data = pd.read_csv(solo, header=0,
                                        index_col=0, parse_dates=True,
                                        infer_datetime_format=True, sep=',')
                 new_data.columns = [os.path.split(solo)[1].split('.')[0]]
-                new_data = new_data.resample(config_user['dataProperties']['resampling_time']).mean()
-                new_data.index.names = ['time']
-                if pt100s is not None:
-                    pt100s = pd.concat([pt100s, new_data], axis='columns')
-                else:
-                    pt100s = new_data
 
-    # Now extract each individual experiment
-    for dtsf in dir_data:
-        print('Constructing external data stream for ' + dtsf)
-        print('')
+            # Resample to the desired frequency.
+            new_data.index.names = ['time']
+            new_data = new_data.resample(config_user['dataProperties']['resampling_time']).mean()
+            # Add the external data stream to a dictionary.
+            pt100s[dat] = new_data
+            # Concatenate all of the external data files into a DataFrame
+        pt100s = pd.concat([pt100s], axis='columns')
 
-        if multiplexer:
-            external_data[dtsf] = xr.Dataset()
+        # This check is specific to the DarkMix wind tunnel experiments.
+        if hasattr(pt100s, 'experiment_flag_Max'):
+            # Use this flag to determine if we have one-off experiments.
+            experiment_flag = True
+            for dtsf in dir_data:
+                print('Constructing external data stream for ' + dtsf)
+                print('')
 
-            # This is a line specific to the DarkMix wind tunnel
-            if hasattr(pt100s, 'experiment_flag_Max'):
+                external_data[dtsf] = xr.Dataset()
+
+                # Match DTS configure names to data logger experiment names.
                 temp_pts = pt100s[(pt100s.experiment_flag_Max == -1)
                               & (pt100s.experiment_name == dtsf)]
-            # for data without experiment_flags (most other observations)
-            else:
-                temp_pts = pt100s
+
+                # Drop unneeded columns.
+                drop_columns = [cols for cols in temp_pts.columns
+                                if cols not in probe1Cols
+                                and cols not in probe2Cols
+                                and cols not in other_cols]
+                temp_pts = temp_pts.drop(drop_columns, axis=1)
+
+                # Conver the datetime to UTC
+                time = temp_pts.index.tz_localize(tz).tz_convert('UTC')
+
+                # Create a warm and cold bath average
+                probe1 = xr.DataArray.from_series(temp_pts[probe1Cols].mean(axis=1))
+                probe2 = xr.DataArray.from_series(temp_pts[probe2Cols].mean(axis=1))
+                external_data[dtsf] = xr.Dataset({probe1Name: ('time', probe1),
+                                                  probe2Name: ('time', probe2)},
+                                                 coords={'time': time.values})
+
+                os.chdir(internal_config[dtsf]['directories']['dirProcessed'])
+                external_data[dtsf].to_netcdf('external_data.' + dtsf + '.nc')
+
+        # External data streams when we do not have experiment_flags
+        # (most other observations).
+        else:
+            experiment_flag = False
+            temp_pts = pt100s
             drop_columns = [cols for cols in temp_pts.columns
                             if cols not in probe1Cols
-                            and cols not in probe2Cols]
+                            and cols not in probe2Cols
+                            and cols not in other_cols]
             temp_pts = temp_pts.drop(drop_columns, axis=1)
 
             # Conver the datetime to UTC
@@ -218,15 +244,11 @@ if config_user['flags']['ref_temp_flag'] == 'external':
             # Create a warm and cold bath average
             probe1 = xr.DataArray.from_series(temp_pts[probe1Cols].mean(axis=1))
             probe2 = xr.DataArray.from_series(temp_pts[probe2Cols].mean(axis=1))
-            external_data[dtsf] = xr.Dataset({probe1Name: ('time', probe1),
-                                              probe2Name: ('time', probe2)},
-                                             coords={'time': time.values})
-            # external_data[dtsf] = external_data[dtsf].chunk({'time': config_user['dataProperties']['chunkSize']})
-            # external_data[dtsf] = external_data[dtsf].resample(time=config_user['dataProperties']['resampling_time']).mean()
-
-            os.chdir(internal_config[dtsf]['directories']['dirProcessed'])
-            external_data[dtsf].to_netcdf('external_data.' + dtsf + '.nc')
-
+            others = xr.Dataset.from_dataframe(temp_pts[other_cols])
+            external_data = xr.Dataset({probe1Name: ('time', probe1),
+                                        probe2Name: ('time', probe2)},
+                                        coords={'time': time.values})
+            external_data = xr.concat([others, external_data])
 else:
     external_data_flag = False
 
@@ -323,11 +345,12 @@ for dtsf in dir_data:
                                            method='nearest',
                                            tolerance=1)
 
-            # Assign the pt100s to the xarray datasets
+            # Assign the reference pt100s to the xarray Dataset
             dstemp[probe1Name] = ext_dat[probe1Name]
             dstemp[probe2Name] = ext_dat[probe2Name]
 
-        # Calibrate the temperatures, if the bath pt100s and dts do not line up in time, do not calibrate
+        # Calibrate the temperatures. If the bath pt100s and dts do not line up
+        # in time, do not calibrate.
         if (np.size(np.flatnonzero(~np.isnan(dstemp.temp.values))) > 0) and (config_user['flags']['calibration_flag']):
             dstemp, _, _, _ = btmm_process.matrixInversion(dstemp, internal_config[dtsf])
         elif not config_user['flags']['calibration_flag']:
