@@ -1,6 +1,5 @@
 import os
 import datetime
-import glob
 import tarfile
 import dirsync
 
@@ -162,8 +161,7 @@ def archiver(cfg):
 
     # Read the configure file for the archiver arguments
     mode = cfg['archive']['mode']
-    for ch in cfg['archive']:
-        channels = cfg['archive']['channelName']
+    channels = cfg['archive']['channelName']
     sourcePath = cfg['archive']['sourcePath']
     targetPath = cfg['archive']['targetPath']
     delta_minutes = cfg['archive']['archiveInterval']
@@ -252,6 +250,7 @@ def archiver(cfg):
 
                 # Determine if the xml files should be removed
                 if cleanup_flag:
+                    sourceFile = interval_contents
                     print('Cleaning up the raw xml files...')
                     for f in sourceFile:
                         os.remove(f)

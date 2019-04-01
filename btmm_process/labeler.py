@@ -4,6 +4,7 @@ import numpy as np
 import xarray as xr
 
 
+# ------------------------------------------------------------------------------
 def labelLoc_general(ds, location):
     '''
     Assign location tags to an xarray Dataset containing DTS data.
@@ -119,6 +120,7 @@ def labelLoc_additional(ds, location, loc_type):
     return ds
 
 
+# ------------------------------------------------------------------------------
 def dtsPhysicalCoords(ds, location, loc_field='loc_general',
                       coord_opt='relative', align='right'):
     '''
@@ -234,7 +236,25 @@ def dtsPhysicalCoords(ds, location, loc_field='loc_general',
         return ds_out
 
 
+# ------------------------------------------------------------------------------
 def yamlDict(yamlPath):
+    '''
+    Reads the .yml label location file and returns the location dictionary
+    for labeling the DTS array.
+    INPUT:
+        yamlPath - path to the .yml file to read
+    OUTPUT:
+        locationLabels - python dictionary of the locations/LAF pairs.
+    '''
+    if not os.path.exists(yamlPath):
+        raise IOError('Could not find yml file at ' + yamlPath)
+
+    with open(yamlPath, 'r') as ymlfile:
+        locationLabels = yaml.load(ymlfile)
+    return locationLabels
+
+# ------------------------------------------------------------------------------
+def yamlWrite(yamlPath):
     '''
     Reads the .yml label location file and returns the location dictionary
     for labeling the DTS array.
