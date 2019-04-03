@@ -99,15 +99,21 @@ def archive_read(cfg, prevNumChunk = 0):
     dirDataOriginal = cfg['archive']['targetPath']
     dirProcessed = cfg['archive']['targetPath']
     channelNames = cfg['directories']['channelName']
-    filePrefix = cfg['directories']['fileName']['prefix']
-    fileSuffix = cfg['directories']['fileName']['suffix']
 
     # Deal with the underscores for creating sensible names
-    if fileSuffix:
+    try:
+        filePrefix = cfg['directories']['fileName']['prefix']
+        if not filePrefix[-1] == '_':
+            filePrefix = filePrefix + '_'
+    except KeyError:
+        filePrefix = ''
+
+    try:
+        fileSuffix = cfg['directories']['fileName']['suffix']
         if not fileSuffix[0] == '_':
             fileSuffix = '_' + fileSuffix
-    if not filePrefix[-1] == '_':
-        filePrefix = filePrefix + '_'
+    except KeyError:
+        fileSuffix = ''
 
     # Read label configuration files
     labels = cfg['loc_general']
@@ -184,7 +190,7 @@ def archive_read(cfg, prevNumChunk = 0):
             ds.attrs = {'LAF_beg': meta['LAF_beg'],
                         'LAF_end': meta['LAF_end'],
                         'dLAF': meta['dLAF']}
-            ds = labelLoc_general(ds, labels)
+            # ds = labelLoc_general(ds, labels)
 
             # Label the Ultima PT100 data. These names are used in
             # calibration and must match the 'refField' variables.
