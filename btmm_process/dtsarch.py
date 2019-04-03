@@ -1,6 +1,5 @@
 import os
 import datetime
-import glob
 import tarfile
 import dirsync
 
@@ -65,7 +64,7 @@ def round_dt(dt, delta, type='floor'):
 
 
 # ------------------------------------------------------------------------------
-# Formats a datetime object into its components pieces or a string
+# Formats a datetime object into its components pieces
 def dt_strip(dt, str_convert=False):
     year = dt.year
     month = dt.month
@@ -111,6 +110,45 @@ def dt_strip(dt, str_convert=False):
     return(year, month, day, hour, minute, sec, msec)
 # ------------------------------------------------------------------------------
 
+# ------------------------------------------------------------------------------
+# Formats a datetime object into its components pieces or a string
+def dt_string_label(t):
+    '''
+    t - string of dts filename (with a date/time indicated) to be converted
+        to an actual python datetime.
+    '''
+    if 'UTC' not in t:
+        # This is assumed to be an XT file if it lacks 'UTC'.
+        # The format looks like: channel 1_20171109203321986.xml
+        t = t.split('_')[-1]
+        t = t.split('.')[0]
+        year = t[0:4]
+        month = t[4:6]
+        day = t[6:8]
+        hour = t[8:10]
+        minute = t[10:12]
+        sec = t[12:14]
+        if len(t) > 14:
+            msec = t[14:16]
+    else:
+        t = t.split('_')[-2:]
+        t_ymd = t[0]
+        t = t[-1].split('.')[0:2]
+        t_hms = t[0]
+        t_us = t[1]
+        year = t_ymd[0:4]
+        month = t_ymd[4:6]
+        day = t_ymd[6:8]
+        hour = t_hms[0:2]
+        minute = t_hms[2:4]
+        sec = t_hms[4:6]
+        msec = t_us
+    out_dt = datetime.datetime(int(year), int(month),
+                               int(day), int(hour),
+                               int(minute), int(sec),
+                               int(msec) * 1000)
+    return(out_dt)
+# ------------------------------------------------------------------------------
 
 # ------------------------------------------------------------------------------
 # Archive data
@@ -123,8 +161,7 @@ def archiver(cfg):
 
     # Read the configure file for the archiver arguments
     mode = cfg['archive']['mode']
-    for ch in cfg['archive']:
-        channels = cfg['archive']['channelName']
+    channels = cfg['archive']['channelName']
     sourcePath = cfg['archive']['sourcePath']
     targetPath = cfg['archive']['targetPath']
     delta_minutes = cfg['archive']['archiveInterval']
@@ -136,6 +173,7 @@ def archiver(cfg):
             externalBackUp = True
             logfile = cfg['archive']['logfile']
         else:
+            print('No backup directory provided.')
             externalBackUp = False
             logfile = []
     except KeyError:
@@ -153,185 +191,76 @@ def archiver(cfg):
         channelPath = os.path.join(sourcePath, ch)
 
         ########
-        # Active: Meant to be run with a cron job and uses the current time.
-        if mode == 'active':
-            print('WARNING: active mode has not been tested!'
-                  + ' It will probably crash. Sorry :(')
-            now = datetime.datetime.now()
-            yyyy = now.year
-            mm = now.month
-            dd = now.dd
+        # Archive data to .tar.gz files.
+        # Check if the channel directory exists.
+        if os.path.isdir(channelPath):
+            contents = os.listdir(channelPath)
+        # If it doesn't, move on to the next channel
+        else:
+            print('Did not find ' + ch)
+            continue
+        # Only select xml files
+        contents = [c for c in contents if '.xml' in c]
+        # Sort the file list alphabetically.
+        contents.sort()
 
-            # Hours require special attention
-            hh = now.hour
-            if hh < 10:
-                hh = '0' + str(hh)
+        # First datetime of the raw data
+        t = contents[0]
+        dtInit = dt_string_label(t)
 
-            # Date to zip and archive
-            dateFileName = '_' + yyyy + mm + dd + '-' + hh
+        # Last datetime of the raw data
+        t = contents[-1]
+        dtFinal = dt_string_label(t)
 
-            # Define file names using current time
-            outFile = os.path.join(targetPath, ch + '_'
-                                   + dateFileName + '.tar.gz')
-            sourceFile = os.path.join(sourcePath, ch, ch + '_'
-                                      + dateFileName + '*')
+        # First time step interval
+        dt1 = round_dt(dtInit, delta_minutes, type='floor')
+        dt2 = round_dt(dtInit, delta_minutes, type='ceil')
 
-            # zip the data and move to archive
-            make_tarfile(outFile, sourceFile)
+        # Round up to the nearest interval for the end
+        dtFinal = round_dt(dtFinal, delta_minutes, type='ceil')
+        # Empty container for the files in this interval
+        interval_contents = []
+        xml_counts = 0
+        # Iterate through the (date) sorted list of raw xml files
+        while xml_counts <= len(contents) - 1:
+            # Split the file name string into the datetime components
+            c = contents[xml_counts]
+            dt = dt_string_label(c)
 
-        ########
-        # Archive: To archive previously aquired data.
-        elif mode == 'archiving':
-            # Check if the channel directory exists.
-            if os.path.isdir(channelPath):
-                contents = os.listdir(channelPath)
-            # If it doesn't, move on to the next channel
-            else:
-                print('Did not find ' + ch)
-                continue
-            # Only select xml files
-            contents = [c for c in contents if '.xml' in c]
-            # Sort the file list alphabetically.
-            contents.sort()
+            # Determine if we are still within this interval.
+            if dt < dt2 and dt > dt1:
+                interval_contents.append(os.path.join(sourcePath, ch, c))
+                xml_counts = xml_counts + 1
 
-            # First datetime of the raw data
-            t = contents[0]
-            if 'UTC' not in t:
-                t = t.split('_')[-2:]
-                t = t.split('.')[0:2]
-                year = t[0:4]
-                month = t[4:6]
-                day = t[6:8]
-                hour = t[8:10]
-                minute = t[10:12]
-                sec = t[12:14]
-                msec = t[14:16]
-            else:
-                t = t.split('_')[-2:]
-                t_ymd = t[0]
-                t = t[-1].split('.')[0:2]
-                t_hms = t[0]
-                t_us = t[1]
-                year = t_ymd[0:4]
-                month = t_ymd[4:6]
-                day = t_ymd[6:8]
-                hour = t_hms[0:2]
-                minute = t_hms[2:4]
-                sec = t_hms[4:6]
-                msec = t_us
-            dtInit = datetime.datetime(int(year), int(month),
-                                       int(day), int(hour),
-                                       int(minute), int(sec),
-                                       int(msec) * 1000)
+            # We have spanned this interval, save the data and move on
+            elif dt > dt2:
+                # Create file names for this hour
+                year, month, day, hour, minute, _, _ = dt_strip(dt1, str_convert=True)
 
-            # Last datetime of the raw data
-            t = contents[-1]
-            if 'UTC' not in t:
-                t = t.split('_')[-2:]
-                t = t.split('.')[0:2]
-                year = t[0:4]
-                month = t[4:6]
-                day = t[6:8]
-                hour = t[8:10]
-                minute = t[10:12]
-                sec = t[12:14]
-                msec = t[14:16]
-            else:
-                t = t.split('_')[-2:]
-                t_ymd = t[0]
-                t = t[-1].split('.')[0:2]
-                t_hms = t[0]
-                t_us = t[1]
-                year = t_ymd[0:4]
-                month = t_ymd[4:6]
-                day = t_ymd[6:8]
-                hour = t_hms[0:2]
-                minute = t_hms[2:4]
-                sec = t_hms[4:6]
-                msec = t_us
-            dtFinal = datetime.datetime(int(year), int(month),
-                                        int(day), int(hour),
-                                        int(minute), int(sec),
-                                        int(msec) * 1000)
+                dateFileName = '_' + year + month + day + '-' + hour + minute
+                outFile = os.path.join(targetPath, ch + dateFileName + '.tar.gz')
 
-            # First time step interval
-            dt1 = round_dt(dtInit, delta_minutes, type='floor')
-            dt2 = round_dt(dtInit, delta_minutes, type='ceil')
-
-            # Round up to the nearest interval for the end
-            dtFinal = round_dt(dtFinal, delta_minutes, type='ceil')
-            # Empty container for the files in this interval
-            interval_contents = []
-            xml_counts = 0
-            # Iterate through the (date) sorted list of raw xml files
-            while xml_counts <= len(contents) - 1:
-                # Split the file name string into the datetime components
-                c = contents[xml_counts]
-
-                if 'UTC' not in c:
-                    t = c.split('_')[-2:]
-                    t = t.split('.')[0:2]
-                    year = t[0:4]
-                    month = t[4:6]
-                    day = t[6:8]
-                    hour = t[8:10]
-                    minute = t[10:12]
-                    sec = t[12:14]
-                    if len(t) > 14:
-                        msec = t[14:16]
-                    else:
-                        msec = 0
-
+                # Check if any files fall within the interval
+                if len(interval_contents) == 0:
+                    print('No xml files in the interval: ' + str(dt1))
                 else:
-                    t = c.split('_')[-2:]
-                    t_ymd = t[0]
-                    t = t[-1].split('.')[0:2]
-                    t_hms = t[0]
-                    t_us = t[1]
-                    year = t_ymd[0:4]
-                    month = t_ymd[4:6]
-                    day = t_ymd[6:8]
-                    hour = t_hms[0:2]
-                    minute = t_hms[2:4]
-                    sec = t_hms[4:6]
-                    msec = t_us
+                    make_tarfile(outFile, interval_contents)
+                dt1 = dt2
+                dt2 = dt2 + datetime.timedelta(minutes=delta_minutes)
 
-                # Convert the file name into a datetime object
-                dt = datetime.datetime(int(year), int(month),
-                                       int(day), int(hour),
-                                       int(minute), int(sec),
-                                       int(msec))
+                # Determine if the xml files should be removed
+                if cleanup_flag:
+                    sourceFile = interval_contents
+                    print('Cleaning up the raw xml files...')
+                    for f in sourceFile:
+                        os.remove(f)
 
-                if dt < dt2 and dt > dt1:
-                    interval_contents.append(os.path.join(sourcePath, ch, c))
-                    xml_counts = xml_counts + 1
+                interval_contents = []
 
-                # We have spanned this interval, save the data and move on
-                elif dt > dt2:
-                    # Create file names for this hour
-                    year, month, day, hour, minute, _, _ = dt_strip(dt1, str_convert=True)
+            # We reached the end of the file list, save and exit.
+            if xml_counts == len(contents) - 1:
 
-                    dateFileName = '_' + year + month + day + '-' + hour + minute
-                    outFile = os.path.join(targetPath, ch + dateFileName + '.tar.gz')
-
-                    # Check if any files fall within the interval
-                    if len(interval_contents) == 0:
-                        print('No xml files in the interval: ' + str(dt1))
-                    else:
-                        make_tarfile(outFile, interval_contents)
-                    dt1 = dt2
-                    dt2 = dt2 + datetime.timedelta(minutes=delta_minutes)
-
-                    # Determine if the xml files should be removed
-                    if cleanup_flag:
-                        print('Cleaning up the raw xml files...')
-                        for f in sourceFile:
-                            os.remove(f)
-
-                    interval_contents = []
-
-                # We reached the end of the file list, save and exit.
-                if xml_counts == len(contents) - 1:
+                if mode == 'archiving':
                     # Create file names for this hour
                     year, month, day, hour, minute, _, _ = dt_strip(dt1, str_convert=True)
 
@@ -346,9 +275,14 @@ def archiver(cfg):
                         for f in sourceFile:
                             os.remove(f)
 
-                    print('Done with ' + ch + '.')
-                    xml_counts = xml_counts + 1
-                    break
+                    # If the archiving mode is active, do not process
+                    # incomplete archiving intervals. Instead exit out and let
+                    # the next scheduled call to the archiver deal with this
+                    # time interval. This step just requires no action here.
+
+                print('Done with ' + ch + '.')
+                xml_counts = xml_counts + 1
+                break
 
     ########
     # Back up to the external drive if specified.

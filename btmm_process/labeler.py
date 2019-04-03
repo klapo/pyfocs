@@ -4,6 +4,7 @@ import numpy as np
 import xarray as xr
 
 
+# ------------------------------------------------------------------------------
 def labelLoc_general(ds, location):
     '''
     Assign location tags to an xarray Dataset containing DTS data.
@@ -19,6 +20,10 @@ def labelLoc_general(ds, location):
         ds       -  the same xarray that was passed to the function, but with
                     the 'location' and 'location_flip' coordinates.
     '''
+
+    # If no location is passed, return the file to the user and notify.
+    if location is None:
+        return ds
 
     # Pre-alloate the new coordinates that are to be assigned.
     ds.coords['loc_general'] = (('LAF'), [None] * ds.LAF.size)
@@ -43,22 +48,27 @@ def labelLoc_general(ds, location):
                                                    & (ds.LAF < LAF2)] = True
 
         # The label locations occur only once in the LAF domain.
-        else:
+        elif np.size(shape) == 1:
             if np.size(location[lc]) > 1:
                 LAF1 = min(location[lc])
                 LAF2 = max(location[lc])
                 ds.coords['loc_general'].loc[(ds.LAF > LAF1) & (ds.LAF < LAF2)] = lc
-    
+
                 # For locations where the relative start is at a larger LAF than
                 # the relative end of the section, indicate that we need to
                 # flip the LAF.
                 if not location[lc][0] > location[lc][-1]:
                     ds.coords['location_flip'].loc[(ds.LAF > LAF1)
                                                    & (ds.LAF < LAF2)] = True
-            else:
-                ds.coords['loc_general'].loc[(ds.LAF == location[lc])] = lc 
-                
+
+        # It is a single item element (i.e., a point) to label. Find the
+        # nearest point to label.
+        else:
+            LAF_single_loc = ds.sel(LAF=location[lc], method='nearest').LAF
+            ds.coords['loc_general'].loc[(ds.LAF == LAF_single_loc)] = lc
+
     return ds
+
 
 def labelLoc_additional(ds, location, loc_type):
     '''
@@ -76,6 +86,9 @@ def labelLoc_additional(ds, location, loc_type):
                     the new 'loc_type'.
     '''
 
+    if location is None:
+        return ds
+
     # Pre-alloate the new coordinates that are to be assigned.
     ds.coords[loc_type] = (('LAF'), [None] * ds.LAF.size)
     ds.attrs[loc_type] = ';'.join(list(location.keys()))
@@ -92,17 +105,24 @@ def labelLoc_additional(ds, location, loc_type):
                 ds.coords[loc_type].loc[(ds.LAF > LAF1) & (ds.LAF < LAF2)] = lc
 
         # The label locations occur only once in the LAF domain.
-        else:
+        elif np.size(shape) == 1:
             if np.size(location[lc]) > 1:
                 LAF1 = min(location[lc])
                 LAF2 = max(location[lc])
                 ds.coords[loc_type].loc[(ds.LAF > LAF1) & (ds.LAF < LAF2)] = lc
-            else:
-                ds.coords[loc_type].loc[(ds.LAF == location[lc])] = lc 
-                
+
+        # It is a single item element (i.e., a point) to label. Find the
+        # nearest point to label.
+        else:
+            LAF_single_loc = ds.sel(LAF=location[lc], method='nearest').LAF
+            ds.coords[loc_type].loc[(ds.LAF == LAF_single_loc)] = lc
+
     return ds
 
-def dtsPhysicalCoords(ds, location, coord_opt='relative', align='right'):
+
+# ------------------------------------------------------------------------------
+def dtsPhysicalCoords(ds, location, loc_field='loc_general',
+                      coord_opt='relative', align='right'):
     '''
     Assign a physical coordinate to the xarray Dataset containing DTS data.
 
@@ -205,18 +225,36 @@ def dtsPhysicalCoords(ds, location, coord_opt='relative', align='right'):
 
             # Create the dimension we will concatenate along (don't worry,
             # section_num will disappear after swapping dimensions)
-            section.coords['loc_general'] = (('section_num'),
-                                          np.unique(section.location.values))
+            section.coords[loc_field] = (('section_num'),
+                                         np.unique(section[loc_field].values))
             all_sections[section_num] = section
 
         # Concatenate into a single xarray Dataset
         ds_out = xr.concat(all_sections, 'section_num')
-        ds_out = ds_out.swap_dims({'section_num': 'location'})
+        ds_out = ds_out.swap_dims({'section_num': loc_field})
 
         return ds_out
 
 
+# ------------------------------------------------------------------------------
 def yamlDict(yamlPath):
+    '''
+    Reads the .yml label location file and returns the location dictionary
+    for labeling the DTS array.
+    INPUT:
+        yamlPath - path to the .yml file to read
+    OUTPUT:
+        locationLabels - python dictionary of the locations/LAF pairs.
+    '''
+    if not os.path.exists(yamlPath):
+        raise IOError('Could not find yml file at ' + yamlPath)
+
+    with open(yamlPath, 'r') as ymlfile:
+        locationLabels = yaml.load(ymlfile)
+    return locationLabels
+
+# ------------------------------------------------------------------------------
+def yamlWrite(yamlPath):
     '''
     Reads the .yml label location file and returns the location dictionary
     for labeling the DTS array.

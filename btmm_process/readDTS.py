@@ -99,22 +99,24 @@ def archive_read(cfg, prevNumChunk = 0):
     dirDataOriginal = cfg['archive']['targetPath']
     dirProcessed = cfg['archive']['targetPath']
     channelNames = cfg['directories']['channelName']
-    filePrefix = cfg['fileName']['filePrefix']
-    fileSuffix = cfg['fileName']['fileSuffix']
-    chunkSize = cfg['dataProperties']['chunkSize']
 
     # Deal with the underscores for creating sensible names
-    if fileSuffix:
+    try:
+        filePrefix = cfg['directories']['fileName']['prefix']
+        if not filePrefix[-1] == '_':
+            filePrefix = filePrefix + '_'
+    except KeyError:
+        filePrefix = ''
+
+    try:
+        fileSuffix = cfg['directories']['fileName']['suffix']
         if not fileSuffix[0] == '_':
             fileSuffix = '_' + fileSuffix
-    if not filePrefix[-1] == '_':
-        filePrefix = filePrefix + '_'
+    except KeyError:
+        fileSuffix = ''
 
     # Read label configuration files
     labels = cfg['loc_general']
-
-    # Start keeping track of chunks
-    numChunk = 0
 
     # Loop through each channel provided
     for chan in np.atleast_1d(channelNames):
@@ -142,6 +144,7 @@ def archive_read(cfg, prevNumChunk = 0):
             dirConXML.sort()
             nTotal = np.size(dirConXML)
             ds = None
+            ds_list = []
 
             # Read each xml file, assign to an xarray Dataset, concatenate
             # along the time dimension, and output data with a given chunk size
@@ -171,52 +174,53 @@ def archive_read(cfg, prevNumChunk = 0):
                     temp_Dataset['probe1Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe1_value']
                     temp_Dataset['probe2Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe2_value']
 
+                # If the flag is 'external' than no probe temperature field is
+                # returned as the external data stream must be handled
+                # separately.
 
-                if cfg['flags']['ref_temp_flag'] == 'external':
-                    temp_Dataset['probe1Temperature'] = np.ones_like(temp_Dataset.LAF.size) * -9999
-                    temp_Dataset['probe2Temperature'] = np.ones_like(temp_Dataset.LAF.size) * -9999
+                # Create a list of xarray Datasets
+                ds_list.append(temp_Dataset)
+            print('\n Concatenating netcdfs within archive...')
+            ds = xr.concat(ds_list, dim='time')
 
+            # Create a raw netcdf file for each archive interval. This means
+            # that the archive interval dicates the speed/efficiency of the
+            # later calibration step.
+            os.chdir(dirProcessed)
+            ds.attrs = {'LAF_beg': meta['LAF_beg'],
+                        'LAF_end': meta['LAF_end'],
+                        'dLAF': meta['dLAF']}
+            # ds = labelLoc_general(ds, labels)
 
-                if ds:
-                    ds = xr.concat([ds, temp_Dataset], dim='time')
-                else:
-                    ds = temp_Dataset
+            # Label the Ultima PT100 data. These names are used in
+            # calibration and must match the 'refField' variables.
+            try:
+                ds.rename({'probe1Temperature': cfg['dataProperties']['probe1Temperature'],
+                           'probe2Temperature': cfg['dataProperties']['probe2Temperature']},
+                          inplace=True)
+            except KeyError:
+                # If no names are supplied, drop the PT100s. This is
+                # excpected behavior when working with an external
+                # datastream for the reference PT100s
+                ds = ds.drop(['probe1Temperature', 'probe2Temperature'])
+            except ValueError:
+                # Passing no values for the probe names causes a ValueError
+                # since both will be `None`. In that case, skip over the
+                # probe naming.
+                print('No PT100 field names were passed.')
 
-                # Chunking/saving to avoid memory errors
-                if np.mod(nDumb + 1, chunkSize) == 0 or nDumb == nTotal - 1:
-                    os.chdir(dirProcessed)
-                    numChunk = np.floor_divide(nDumb, chunkSize) + prevNumChunk
-                    ds.attrs = {'LAF_beg': meta['LAF_beg'],
-                                'LAF_end': meta['LAF_end'],
-                                'dLAF': meta['dLAF']}
-                    ds = labelLoc_general(ds, labels)
+            # Save to netcdf
+            nc_out_name = 'raw_' + tFile.split('.')[0]
+            ds.to_netcdf(nc_out_name + '.nc', 'w')
 
-                    # Label the Ultima PT100 data. These names are used in
-                    # calibration and must match the 'refField' variables.
-                    try:
-                        ds.rename({'probe1Temperature': cfg['dataProperties']['probe1Temperature'],
-                                   'probe2Temperature': cfg['dataProperties']['probe2Temperature']},
-                                  inplace=True)
-                    except KeyError:
-                        # If no names are supplied, drop the PT100s. This is
-                        # excpected behavior when working with an external
-                        # datastream for the reference PT100s
-                        ds = ds.drop(['probe1Temperature', 'probe2Temperature'])
+            # Close the netcdf and release the memory.
+            ds.close()
+            ds = None
 
-                    # Save to netcdf
-                    ds.to_netcdf(filePrefix + 'raw' + str(numChunk)
-                                 + fileSuffix + '.nc', 'w')
-
-                    # Close the netcdf and release the memory.
-                    ds.close()
-                    ds = None
-
-                    os.chdir(dirData)
+            os.chdir(dirData)
             print('')
             # Remove the extracted xml files
             subprocess.Popen(['rm'] + glob.glob('*.xml'))
-            # Preserve the chunk count across tar files
-            prevNumChunk = numChunk + 1
 
 
 def dir_read(cfg, prevNumChunk=0):
@@ -291,10 +295,8 @@ def dir_read(cfg, prevNumChunk=0):
                 temp_Dataset['probe1Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe1_value']
                 temp_Dataset['probe2Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe2_value']
 
-
-            if cfg['flags']['ref_temp_flag'] == 'external':
-                temp_Dataset['probe1Temperature'] = np.ones_like(temp_Dataset.LAF.size) * -9999
-                temp_Dataset['probe2Temperature'] = np.ones_like(temp_Dataset.LAF.size) * -9999
+            # If the flag is 'external' than no probe temperature field is
+            # returned as the external data stream must be handled separately.
 
             if ds:
                 ds = xr.concat([ds, temp_Dataset], dim='time')
@@ -318,7 +320,7 @@ def dir_read(cfg, prevNumChunk=0):
                               inplace=True)
                 except KeyError:
                     # If no names are supplied, drop the PT100s. This is
-                    # excpected behavior when working with an external
+                    # expected behavior when working with an external
                     # datastream for the reference PT100s
                     ds = ds.drop(['probe1Temperature', 'probe2Temperature'])
 
