@@ -29,7 +29,7 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
-filename_configfile = '/Users/karllapo/Desktop/proj/DarkMix_SOPHABS/data/SOPHABS_config.yml'
+filename_configfile = '/Users/karllapo/Desktop/proj/DarkMix_Voitsumra/simba_development/data/test_config_file.yml'
 
 with open(filename_configfile, 'r') as stream:
     config_user = yaml.load(stream)
@@ -43,15 +43,13 @@ if not os.path.exists(dir_original):
     print('Raw data folder ' + dir_original + ' does not exist.')
 
 dir_graphics = os.path.join(config_user['directories']['dir_pre'],
-                            config_user['directories']['folder_graphics'],
-                            config_user['directories']['folder_raw_data'])
+                            config_user['directories']['folder_graphics'])
 # create the folder for the graphics if it doesn't already exist
 # if not os.path.exists(dir_graphics):
 #     os.makedirs(dir_graphics)
 
 dir_processed = os.path.join(config_user['directories']['dir_pre'],
-                             config_user['directories']['folder_processed'],
-                             config_user['directories']['folder_raw_data'])
+                             config_user['directories']['folder_processed'])
 # create the super-folder for the processed files if it doesn't already exist
 if not os.path.exists(dir_processed):
     os.makedirs(dir_processed)
@@ -101,7 +99,14 @@ for dtsf in DTS_folders:
     internal_config[dtsf]['archive']['targetPath'] = os.path.join(dir_processed, dtsf)
     internal_config[dtsf]['directories']['dirData'] = os.path.join(dir_processed, dtsf)
     internal_config[dtsf]['directories']['dirProcessed'] = os.path.join(dir_processed, dtsf)
-    internal_config[dtsf]['directories']['fileName']['prefix'] = config_user['directories']['folder_raw_data'] + '_' + dtsf
+
+    # Make sure the prefix/suffix fields exist
+    try:
+        internal_config[dtsf]['directories']['fileName']['prefix'] = config_user['directories']['folder_raw_data'] + '_' + dtsf
+    except KeyError:
+        internal_config[dtsf]['directories']['fileName'] = {}
+        internal_config[dtsf]['directories']['fileName']['prefix'] = config_user['directories']['folder_raw_data'] + '_' + dtsf
+
     # create the folder for the processed files if it doesn't already exist
     if not os.path.exists(internal_config[dtsf]['archive']['targetPath']):
         os.makedirs(internal_config[dtsf]['archive']['targetPath'])
@@ -113,13 +118,13 @@ for dtsf in DTS_folders:
     print('-------------')
     # archiving
     if config_user['flags']['archiving_flag']:
-            print('archiving ', dtsf)
-            btmm_process.archiver(internal_config[dtsf])
+        print('archiving ', dtsf)
+        btmm_process.archiver(internal_config[dtsf])
 
     # write raw netCDF
     if config_user['flags']['raw_read_flag']:
-            print('creating raw netcdf for experiment: ', dtsf)
-            btmm_process.archive_read(internal_config[dtsf])
+        print('creating raw netcdf for experiment: ', dtsf)
+        btmm_process.archive_read(internal_config[dtsf])
 
 #%% Deal with an external datastream
 # Go to the data logger directory and find the multiplexer files
@@ -134,7 +139,10 @@ if config_user['flags']['ref_temp_flag'] == 'external':
     probe2Cols = config_user['dataProperties']['probe2_value']
     probe1Name = config_user['dataProperties']['probe1Temperature']
     probe2Name = config_user['dataProperties']['probe2Temperature']
-    other_cols = config_user['dataProperties']['other_cols']
+    try:
+        other_cols = config_user['dataProperties']['other_cols']
+    except KeyError:
+        other_cols = None
 
     # Construct the time zone argument
     offset = config_user['dataProperties']['UTC_offset']
@@ -235,7 +243,9 @@ if config_user['flags']['ref_temp_flag'] == 'external':
             time = pt100s.index.tz_localize(tz).tz_convert('UTC')
 
             # Create a warm and cold bath average
-            if ((probe1Cols and probe1Cols in pt100s) and (probe2Cols and probe2Cols in pt100s)):
+            if ((probe1Cols and probe2Cols) and
+                    any(elem in pt100s for elem in probe1Cols) and
+                    any(elem in pt100s for elem in probe1Cols)):
                 probe1 = xr.DataArray.from_series(pt100s[probe1Cols].mean(axis=1))
                 probe2 = xr.DataArray.from_series(pt100s[probe2Cols].mean(axis=1))
                 external_data = xr.Dataset({probe1Name: ('time', probe1),
@@ -245,7 +255,7 @@ if config_user['flags']['ref_temp_flag'] == 'external':
                 # No reference PT100 columns were found
                 external_data = None
 
-            if any(set(other_cols).intersection(set(pt100s))):
+            if other_cols and any(elem in pt100s for elem in other_cols):
                 # Search for the other data columns specified by the user
                 others = []
                 for oc in other_cols:
@@ -263,12 +273,13 @@ if config_user['flags']['ref_temp_flag'] == 'external':
             # Sort by date to create a monotonic Dataset
             external_data = external_data.sortby(external_data.time)
             # Create a regular interval time stamp index
+            delta_t = config_user['dataProperties']['resampling_time']
             reg_time_pd = pd.date_range(start=pd.to_datetime(external_data.time.values[0]),
                                         end=pd.to_datetime(external_data.time.values[0]),
                                         freq=delta_t)
             external_data = external_data.interp(time=reg_time_pd,
                                                  kwargs={'fill_value': 'extrapolate'})
-            external_data = external_data.resample(config_user['dataProperties']['resampling_time']).mean()
+            # external_data = external_data.resample(time=config_user['dataProperties']['resampling_time']).mean()
 
 else:
     external_data_flag = False
@@ -313,7 +324,10 @@ for dtsf in dir_data:
 
     for nraw, raw_nc in enumerate(ncfiles):
         # Name of the output file for this archive chunk
-        outname_suffix = config_user['directories']['fileName']['suffix']
+        try:
+            outname_suffix = config_user['directories']['fileName']['suffix']
+        except KeyError:
+            outname_suffix = ''
         outname_date = '_'.join(raw_nc.split('.')[0].split('_')[1:])
         outname = dtsf + '_processed_' + outname_date + outname_suffix + '.nc'
         print('Processing ' + outname_date + ' (' + str(nraw + 1)
