@@ -2,6 +2,7 @@ import os
 import yaml
 import numpy as np
 import xarray as xr
+import pandas as pd
 
 
 # ------------------------------------------------------------------------------
@@ -235,6 +236,90 @@ def dtsPhysicalCoords(ds, location, loc_field='loc_general',
 
         return ds_out
 
+
+# ------------------------------------------------------------------------------
+def dtsPhysicalCoords_3d(ds, location, loc_field='loc_general'):
+    '''
+    Assign 3D physical coordinates to the xarray Dataset containing DTS data
+    converting the 1d LAF dimension into a 3D location.
+
+    Input:
+        ds            -  xarray dataset with DTS data. Expects to find a
+                         dimension labeled 'LAF'
+        location_list -  Dictionary containing location labels for converting
+                         LAF to a physical coordinate. Must contain the fields
+                         'x_coord', 'y_coord', 'z_coord', each containing a
+                         list or numpy array with two numbers, and 'LAF' with
+                         two elements specifying the LAF value corresponding to
+                         the two elements in each coord field.
+    Output:
+        ds            -  xarray Dataset formatted to include just the
+                         physically labeled coordinate system.
+    '''
+
+    all_sections = []
+
+    # Extract out just the relative distance section.
+    # Assumed that the first LAF section refers to the start of the
+    # relative section and the last one is the end of the relative
+    # distance section.
+    for l in location:
+
+        # Get the xyz coordinates for this section.
+        x = location[l]['x_coord']
+        y = location[l]['y_coord']
+        z = location[l]['z_coord']
+
+        # Determine the LAF for this section.
+        LAF = location[l]['LAF']
+        LAF1 = min(LAF)
+        LAF2 = max(LAF)
+        dLAF, _ = stats.mode(np.diff(ds.LAF.values))
+
+        # Extract out just the section in question
+        section = ds.loc[dict(LAF=(ds.LAF > LAF1) & (ds.LAF < LAF2))]
+        num_LAF = np.size(section.LAF.values)
+
+        # Interpolate each coordinate into a line
+        (x_int, dx) = np.linspace(x[0], x[1], num=num_LAF, retstep=True)
+        (y_int, dy) = np.linspace(y[0], y[1], num=num_LAF, retstep=True)
+        (z_int, dz) = np.linspace(z[0], z[1], num=num_LAF, retstep=True)
+
+        # Crude check for the mapping's consistency.
+        d = (dx**2 + dy**2 + dz**2)**(0.5)
+        if np.abs(d - dLAF) > 0.5 * dLAF:
+            delta_str = ('\ndx = ' + str(dx) + '\n' + 'dy = '
+                         + str(dy) + '\n' + 'dz = ' + str(dz)
+                         + '\n' + 'dLAF = ' + str(dLAF[0]))
+            raise ValueError('Mapping problem detected for '
+                             + location[l]['long name']
+                             + '. Inferred data spacing is '
+                             + delta_str)
+
+        # Determine the orientation of the fiber. If
+        # LAF decreases with distance along the section
+        # flip the array.
+        if not LAF1 > LAF2:
+            section['LAF'] = np.flip(section.LAF.values, 0)
+
+        # Assign the physical coordinates using a pandas multiindex
+        midx = pd.MultiIndex.from_arrays([x_int, y_int, z_int],
+                                         names=('x', 'y', 'z'))
+        section.coords['xyz'] = ('LAF', midx)
+        section = section.swap_dims({'LAF': 'xyz'})
+        section = section.drop('LAF')
+        all_sections.append(section)
+
+    # Concatenate along the physical coordinate MultiIndex
+    ds_out = xr.concat(all_sections, 'xyz')
+    # xarray does not yet support writing a MultiIndex to netcdf format.
+    ds_out = ds_out.reset_index('xyz')
+
+    # Here is how to recreate the MultiIndex after resetting it like above.
+    # midx = pd.MultiIndex.from_arrays([ds_out.x, ds_out.y, ds_out.z], names=('x', 'y', 'z'))
+    # ds_out = ds_out.drop(['x', 'y', 'z'])
+    # ds_out = ds_out.assign_coords(xyz = midx)
+    return ds_out
 
 # ------------------------------------------------------------------------------
 def yamlDict(yamlPath):
