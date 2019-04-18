@@ -161,7 +161,6 @@ def archive_read(cfg, prevNumChunk = 0):
                 # Create a temporary xarray Dataset
                 temp_Dataset = xr.Dataset.from_dataframe(df)
                 temp_Dataset.coords['time'] = meta['dt_start']
-                temp_Dataset['fiberStatus'] = meta['fiberOK']
 
                 # Determine how to handle the reference probes
                 # Default behavior is to use the instrument reported reference temperatures.
