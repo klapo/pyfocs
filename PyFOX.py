@@ -25,19 +25,23 @@ warnings.simplefilter(action='ignore', category=RuntimeWarning)
 # -----------------------------------------------------------------------------
 # Quick fix for us to do local debugging.
 try:
-    filename_configfile_KL = '/Users/karllapo/Desktop/proj/DarkMix_Voitsumra/love_dts/outer_array_flyfox_190722.yml'
+    # filename_configfile_KL = '/Users/karllapo/Desktop/proj/DarkMix_Voitsumra/love_dts/outer_array_flyfox_190722.yml'
     if os.path.exists(filename_configfile_KL):
         filename_configfile = filename_configfile_KL
     elif os.path.exists(filename_configfile_AF):
         filename_configfile = filename_configfile_AF
     else:
         print('config file not found.')
+
+# Expected, non-debugging behavior.
 except NameError:
+
     # Test if a file was provided to the script from the terminal.
     try:
-        filename_config = sys.argv[1]
+        filename_configfile = sys.argv[1]
         if not os.path.exists(filename_configfile):
             print('Config file' + sys.argv[1] + 'not found.')
+
     # Prompt the user for the config file.
     except IndexError:
         # Open the config file
@@ -63,6 +67,7 @@ except KeyError:
 # -----------------------------------------------------------------------------
 #%% loop through the experiment_names
 experiment_names = config_user['directories']['experiment_names']
+internal_config = {}
 for exp_name in experiment_names:
     #%% Get paths for the directories of the different processing steps.
     # Create directories if they don't exist and errors if needed data aren't
@@ -203,17 +208,7 @@ for exp_name in experiment_names:
         dir_graphics = os.path.join(config_user['directories']['local']['dir_pre'],
                                     exp_name, config_user['directories']['graphics'])
 
-    # find all experiments to be processed/calibrated and make a list of them
-    #try:
-    #    os.chdir(dir_original)
-    #except FileNotFoundError:
-    #    os.chdir(dir_processed)
-
-    #contents = os.listdir()
-    #DTS_folders = [c for c in contents if 'external' not in c and not c[0] == '.']
-
     # assemble internal config for each dts folder within the experiment folder
-    internal_config = {}
     internal_config[exp_name] = {}
     internal_config[exp_name] = copy.deepcopy(config_user)
     internal_config[exp_name]['archive']['channelName'] = config_user['directories']['channelName']
