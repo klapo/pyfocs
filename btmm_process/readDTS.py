@@ -84,7 +84,7 @@ def xml_read(dumbXMLFile):
     return(actualData, metaData)
 
 
-def archive_read(cfg, prevNumChunk = 0):
+def archive_read(cfg, prevNumChunk=0):
     '''
     Reads all archived xml files in the provided directory
     and turns them into netcdfs.
@@ -96,8 +96,8 @@ def archive_read(cfg, prevNumChunk = 0):
     '''
 
     # Assign values
-    dirDataOriginal = cfg['archive']['targetPath']
-    dirProcessed = cfg['archive']['targetPath']
+    dirDataOriginal = cfg['directories']['dirArchive']
+    dirProcessed = cfg['directories']['dirRawNetcdf']
     channelNames = cfg['directories']['channelName']
 
     # Deal with the underscores for creating sensible names
@@ -114,9 +114,6 @@ def archive_read(cfg, prevNumChunk = 0):
             fileSuffix = '_' + fileSuffix
     except KeyError:
         fileSuffix = ''
-
-    # Read label configuration files
-    labels = cfg['loc_general']
 
     # Loop through each channel provided
     for chan in np.atleast_1d(channelNames):
@@ -164,12 +161,12 @@ def archive_read(cfg, prevNumChunk = 0):
 
                 # Determine how to handle the reference probes
                 # Default behavior is to use the instrument reported reference temperatures.
-                if cfg['flags']['ref_temp_flag'] == 'default':
+                if cfg['flags']['ref_temp_option'] == 'default':
                     temp_Dataset['probe1Temperature'] = meta['probe1Temperature']
                     temp_Dataset['probe2Temperature'] = meta['probe2Temperature']
 
                 # Use constant temperatures provided by the user.
-                if cfg['flags']['ref_temp_flag'] == 'constant':
+                if cfg['flags']['ref_temp_option'] == 'constant':
                     temp_Dataset['probe1Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe1_value']
                     temp_Dataset['probe2Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe2_value']
 
@@ -285,12 +282,12 @@ def dir_read(cfg, prevNumChunk=0):
 
             # Determine how to handle the reference probes
             # Default behavior is to use the instrument reported reference temperatures.
-            if cfg['flags']['ref_temp_flag'] == 'default':
+            if cfg['flags']['ref_temp_option'] == 'default':
                 temp_Dataset['probe1Temperature'] = meta['probe1Temperature']
                 temp_Dataset['probe2Temperature'] = meta['probe2Temperature']
 
             # Use constant temperatures provided by the user.
-            if cfg['flags']['ref_temp_flag'] == 'constant':
+            if cfg['flags']['ref_temp_option'] == 'constant':
                 temp_Dataset['probe1Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe1_value']
                 temp_Dataset['probe2Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe2_value']
 
