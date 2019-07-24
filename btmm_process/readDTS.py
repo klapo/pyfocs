@@ -13,10 +13,13 @@ def xml_read(dumbXMLFile):
     '''
     Opens the given xml file and reads the dts data contained within.
     '''
-
-    with open(dumbXMLFile) as dumb:
-        doc = xmltodict.parse(dumb.read())
-
+    try:
+        with open(dumbXMLFile) as dumb:
+            doc = xmltodict.parse(dumb.read())
+    except Exception as e:
+        # The exception in the xmltodict code is poorly formatted. So we do a
+        # general catch here and hope for the best.
+        print(dumbXMLFile + '  is poorly formatted. It will be skipped.')
     # Remove all of the bullshit
     doc = doc['logs']['log']
 
