@@ -2,7 +2,7 @@ import os
 import datetime
 import tarfile
 import dirsync
-
+import numpy as np
 
 # ------------------------------------------------------------------------------
 # make_tarfile -- actually zips and archives data
@@ -161,7 +161,7 @@ def archiver(cfg):
 
     # Read the configure file for the archiver arguments
     mode = cfg['archive']['mode']
-    channels = cfg['archive']['channelName']
+    channels = np.atleast_1d(cfg['archive']['channelName'])
     sourcePath = cfg['archive']['sourcePath']
     targetPath = cfg['archive']['targetPath']
     delta_minutes = cfg['archive']['archiveInterval']
@@ -189,6 +189,7 @@ def archiver(cfg):
 
     for ch in channels:
         channelPath = os.path.join(sourcePath, ch)
+        print(channelPath)
 
         ########
         # Archive data to .tar.gz files.
