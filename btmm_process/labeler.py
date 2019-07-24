@@ -3,6 +3,7 @@ import yaml
 import numpy as np
 import xarray as xr
 import pandas as pd
+from scipy import stats
 
 
 # ------------------------------------------------------------------------------
@@ -238,7 +239,7 @@ def dtsPhysicalCoords(ds, location, loc_field='loc_general',
 
 
 # ------------------------------------------------------------------------------
-def dtsPhysicalCoords_3d(ds, location, loc_field='loc_general'):
+def dtsPhysicalCoords_3d(ds, location):
     '''
     Assign 3D physical coordinates to the xarray Dataset containing DTS data
     converting the 1d LAF dimension into a 3D location.
@@ -320,6 +321,7 @@ def dtsPhysicalCoords_3d(ds, location, loc_field='loc_general'):
     # ds_out = ds_out.drop(['x', 'y', 'z'])
     # ds_out = ds_out.assign_coords(xyz = midx)
     return ds_out
+
 
 # ------------------------------------------------------------------------------
 def yamlDict(yamlPath):
