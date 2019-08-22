@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 .previously_needed
 .ipynb_checkpoints
 .DS_Store
@@ -5,3 +6,7 @@ channel*
 HHarp2011_archive
 btmm_process/__pycache__/
 *.pyc
+=======
+example_data
+Untitled*
+>>>>>>> PyFOX/dev
