@@ -25,7 +25,8 @@ warnings.simplefilter(action='ignore', category=RuntimeWarning)
 # -----------------------------------------------------------------------------
 # Quick fix for us to do local debugging.
 try:
-    # filename_configfile_KL = '/Users/karllapo/Desktop/proj/DarkMix_Voitsumra/love_dts/outer_array_flyfox_190722.yml'
+    filename_configfile_KL = '/Users/karllapo/Desktop/proj/DarkMix_Voitsumra/love_dts/outer_array_flyfox_190722.yml'
+    filename_configfile_AF = '/home/anita/Schreibtisch/python_programme/config_files/LOVE/rim_unheated_190711_all.yml'
     if os.path.exists(filename_configfile_KL):
         filename_configfile = filename_configfile_KL
     elif os.path.exists(filename_configfile_AF):
