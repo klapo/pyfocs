@@ -9,6 +9,19 @@ import numpy as np
 from .labeler import labelLoc_general, labelLoc_additional, yamlDict
 
 
+# Error classes
+class Error(Exception):
+    """Base class for exceptions in this module."""
+    pass
+
+
+class CorruptedXMLError(Error):
+    """Exception raised for errors in the input.
+
+    Attributes:
+    """
+
+
 def xml_read(dumbXMLFile):
     '''
     Opens the given xml file and reads the dts data contained within.
@@ -19,7 +32,8 @@ def xml_read(dumbXMLFile):
     except Exception as e:
         # The exception in the xmltodict code is poorly formatted. So we do a
         # general catch here and hope for the best.
-        print(dumbXMLFile + '  is poorly formatted. It will be skipped.')
+        # Raising this error allows us to catch corrupted files.
+        raise CorruptedXMLError
     # Remove all of the bullshit
     doc = doc['logs']['log']
 
@@ -118,6 +132,10 @@ def archive_read(cfg, prevNumChunk=0):
     except KeyError:
         fileSuffix = ''
 
+    # If corrupt files are found we need to keep track of them (and skip them).
+    corrupt_file_count = 0
+    corrupt_file_list = []
+
     # Loop through each channel provided
     for chan in np.atleast_1d(channelNames):
         # Check directories
@@ -156,7 +174,12 @@ def archive_read(cfg, prevNumChunk=0):
                       + str(nTotal), end="")
 
                 # Read the file
-                df, meta = xml_read(someDumbFiles)
+                try:
+                    df, meta = xml_read(someDumbFiles)
+                except CorruptedXMLError:
+                    corrupt_file_count = corrupt_file_count + 1
+                    corrupt_file_list.append(someDumbFiles)
+                    continue
 
                 # Create a temporary xarray Dataset
                 temp_Dataset = xr.Dataset.from_dataframe(df)
@@ -220,6 +243,11 @@ def archive_read(cfg, prevNumChunk=0):
             print('')
             # Remove the extracted xml files
             subprocess.Popen(['rm'] + glob.glob('*.xml'))
+
+        # Notify the user if corrupt data are found.
+        if corrupt_file_count > 0:
+            print('Corrupt files: ' + str(corrupt_file_count))
+            print(*corrupt_file_list, sep='\n')
 
 
 def dir_read(cfg, prevNumChunk=0):
