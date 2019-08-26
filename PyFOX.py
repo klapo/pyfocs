@@ -240,9 +240,22 @@ for exp_name in experiment_names:
         loc_type = config_user['dataProperties']['all_locs']
     except KeyError:
         loc_type = []
-        for l in config_user['location_library']:
-            loc_type.append(config_user['location_library'][l]['loc_type'])
-        loc_type = np.unique(loc_type).tolist()
+        try:
+            for l in config_user['location_library']:
+                loc_type.append(config_user['location_library'][l]['loc_type'])
+            loc_type = np.unique(loc_type).tolist()
+        except KeyError:
+            print('No location library found, all steps after creating raw' +
+                  ' netcdfs have been disabled.')
+            config_user['flags']['calibrate_flag'] = False
+            config_user['flags']['processed_flag'] = False
+            config_user['flags']['final_flag'] = False
+        except TypeError:
+            print('No location library found, all steps after creating raw' +
+                  ' netcdfs have been disabled.')
+            config_user['flags']['calibrate_flag'] = False
+            config_user['flags']['processed_flag'] = False
+            config_user['flags']['final_flag'] = False
 
 # -----------------------------------------------------------------------------
 # Archive and create raw netcdfs
