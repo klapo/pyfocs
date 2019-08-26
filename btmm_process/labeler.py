@@ -131,8 +131,8 @@ def dtsPhysicalCoords(ds, location, loc_field='loc_general',
     Input:
         ds            -  xarray dataset with DTS data. Expects to find a
                          dimension labeled 'LAF'
-        location_list -  List containing location labels for convertitn LAF
-                         to a physically coordinate
+        location_list -  List containing location labels for converting LAF
+                         to a physical coordinate
     Output:
         ds            -  xarray Dataset formatted to include just the
                          physically labeled coordinate system.
