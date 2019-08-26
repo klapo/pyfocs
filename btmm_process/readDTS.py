@@ -26,6 +26,10 @@ def xml_read(dumbXMLFile):
     '''
     Opens the given xml file and reads the dts data contained within.
     '''
+    # The Ultimas/XT return incomplete files at times, which must be discarded.
+    if 'incomplete' in dumbXMLFile:
+        raise CorruptedXMLError
+    # Continue to try and read the file.
     try:
         with open(dumbXMLFile) as dumb:
             doc = xmltodict.parse(dumb.read())
@@ -241,8 +245,9 @@ def archive_read(cfg, prevNumChunk=0):
 
             os.chdir(dirData)
             print('')
-            # Remove the extracted xml files
-            subprocess.Popen(['rm'] + glob.glob('*.xml'))
+            # Remove the extracted xml files. The second wildcard character
+            # catches the 'incomplete' xml files that occur with power outages.
+            subprocess.Popen(['rm'] + glob.glob('*.xml*'))
 
         # Notify the user if corrupt data are found.
         if corrupt_file_count > 0:
