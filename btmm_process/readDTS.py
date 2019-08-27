@@ -249,10 +249,10 @@ def archive_read(cfg, prevNumChunk=0):
             # catches the 'incomplete' xml files that occur with power outages.
             subprocess.Popen(['rm'] + glob.glob('*.xml*'))
 
-        # Notify the user if corrupt data are found.
-        if corrupt_file_count > 0:
-            print('Corrupt files: ' + str(corrupt_file_count))
-            print(*corrupt_file_list, sep='\n')
+    # Notify the user if corrupt data are found.
+    if corrupt_file_count > 0:
+        print('Corrupt files: ' + str(corrupt_file_count))
+        print(*corrupt_file_list, sep='\n')
 
 
 def dir_read(cfg, prevNumChunk=0):
