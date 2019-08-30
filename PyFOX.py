@@ -375,7 +375,6 @@ for exp_name in experiment_names:
 
                 # The calibrated file exists, do not process and calibrate.
                 if skip_flag:
-
                     continue
             # Either the file does not exist or it is to be overwritten.
             print('Processing ' + outname_date + ' (' + str(nraw + 1)
@@ -400,7 +399,6 @@ for exp_name in experiment_names:
 
             # Add a delta t attribute
             dstemp.attrs['dt'] = config_user['dataProperties']['resampling_time']
-
 
             # Add in external reference data here
             if internal_config[exp_name]['flags']['ref_temp_option'] == 'external':
@@ -437,6 +435,7 @@ for exp_name in experiment_names:
             # Split up multicore data
             if coretype == 'multicore':
                 for c in cores:
+                    print(c)
                     dstemp_core = dstemp
 
                     # Drop the unnecessary negative LAF indices
