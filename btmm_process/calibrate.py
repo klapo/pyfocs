@@ -24,23 +24,23 @@ def matrixInversion(dsCal, cfg):
     if direction == 'reverse':
         dsCal['LAF'] = np.flip(dsCal.LAF.values, 0)
 
-    section1 = dsCal.swap_dims({'LAF': 'loc_general'}).sel(loc_general=refLoc1)
-    section2 = dsCal.swap_dims({'LAF': 'loc_general'}).sel(loc_general=refLoc2)
-    section3 = dsCal.swap_dims({'LAF': 'loc_general'}).sel(loc_general=refLoc3)
+    section1 = dsCal.swap_dims({'LAF': 'calibration'}).sel(calibration=refLoc1)
+    section2 = dsCal.swap_dims({'LAF': 'calibration'}).sel(calibration=refLoc2)
+    section3 = dsCal.swap_dims({'LAF': 'calibration'}).sel(calibration=refLoc3)
 
-    ref_z1 = section1.LAF.mean(dim='loc_general')
-    ref_z2 = section2.LAF.mean(dim='loc_general')
-    ref_z3 = section3.LAF.mean(dim='loc_general')
+    ref_z1 = section1.LAF.mean(dim='calibration')
+    ref_z2 = section2.LAF.mean(dim='calibration')
+    ref_z3 = section3.LAF.mean(dim='calibration')
 
     # Amplitudes of stokes/anti-stokes
     if 'logPsPas' in dsCal:
-        stokesRatio1 = section1.logPsPas.mean(dim='loc_general')
-        stokesRatio2 = section2.logPsPas.mean(dim='loc_general')
-        stokesRatio3 = section3.logPsPas.mean(dim='loc_general')
+        stokesRatio1 = section1.logPsPas.mean(dim='calibration')
+        stokesRatio2 = section2.logPsPas.mean(dim='calibration')
+        stokesRatio3 = section3.logPsPas.mean(dim='calibration')
     else:
-        stokesRatio1 = np.log(section1.Ps / section1.Pas).mean(dim='loc_general')
-        stokesRatio2 = np.log(section2.Ps / section2.Pas).mean(dim='loc_general')
-        stokesRatio3 = np.log(section3.Ps / section3.Pas).mean(dim='loc_general')
+        stokesRatio1 = np.log(section1.Ps / section1.Pas).mean(dim='calibration')
+        stokesRatio2 = np.log(section2.Ps / section2.Pas).mean(dim='calibration')
+        stokesRatio3 = np.log(section3.Ps / section3.Pas).mean(dim='calibration')
 
     # Allocate the calibration variables and manual temperature
     gamma = np.ones(np.shape(dsCal.time.values)) * -9999.
