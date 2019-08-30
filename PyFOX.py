@@ -235,27 +235,35 @@ for exp_name in experiment_names:
     else:
         cores = None
 
-    # Determine the list of location types
+# Determine the list of location types
+try:
+    loc_type = config_user['dataProperties']['all_locs']
+except KeyError:
+    loc_type = []
     try:
-        loc_type = config_user['dataProperties']['all_locs']
+        for l in config_user['location_library']:
+            loc_type.append(config_user['location_library'][l]['loc_type'])
+        loc_type = np.unique(loc_type).tolist()
     except KeyError:
-        loc_type = []
-        try:
-            for l in config_user['location_library']:
-                loc_type.append(config_user['location_library'][l]['loc_type'])
-            loc_type = np.unique(loc_type).tolist()
-        except KeyError:
-            print('No location library found, all steps after creating raw' +
-                  ' netcdfs have been disabled.')
-            config_user['flags']['calibrate_flag'] = False
-            config_user['flags']['processed_flag'] = False
-            config_user['flags']['final_flag'] = False
-        except TypeError:
-            print('No location library found, all steps after creating raw' +
-                  ' netcdfs have been disabled.')
-            config_user['flags']['calibrate_flag'] = False
-            config_user['flags']['processed_flag'] = False
-            config_user['flags']['final_flag'] = False
+        print('No location library found, all steps after creating raw' +
+              ' netcdfs have been disabled.')
+        config_user['flags']['calibrate_flag'] = False
+        config_user['flags']['processed_flag'] = False
+        config_user['flags']['final_flag'] = False
+    except TypeError:
+        print('No location library found, all steps after creating raw' +
+              ' netcdfs have been disabled.')
+        config_user['flags']['calibrate_flag'] = False
+        config_user['flags']['processed_flag'] = False
+        config_user['flags']['final_flag'] = False
+
+# Determine write mode:
+try:
+    write_mode = internal_config[exp_name]['flags']['write_mode']
+except KeyError:
+    write_mode = 'overwrite'
+
+print(write_mode)
 
 # -----------------------------------------------------------------------------
 # Archive and create raw netcdfs
@@ -282,16 +290,11 @@ for exp_name in experiment_names:
         print('creating raw netcdf for experiment: ', exp_name)
         btmm_process.archive_read(internal_config[exp_name])
 
-# -----------------------------------------------------------------------------
-# Process DTS files
-# -----------------------------------------------------------------------------
 for exp_name in experiment_names:
-
-    if config_user['flags']['processed_flag']:
-        #%% Open the raw saved as netcdf
-        print('-------------')
-        print('Processing DTS data: labeling, cleaning, separating cores, adding external reference data.')
-        print(' ')
+    # --------------------------------------------------------------------------
+    # Process DTS files
+    # --------------------------------------------------------------------------
+    if config_user['flags']['calibrate_flag']:
 
         # Get the external data to add if we are not using the instrument PT100s
         if internal_config[exp_name]['flags']['ref_temp_option'] == 'external':
@@ -305,31 +308,81 @@ for exp_name in experiment_names:
             probe1_cols = np.atleast_1d(internal_config[exp_name]['dataProperties']['probe1_value'])
             probe2_cols = np.atleast_1d(internal_config[exp_name]['dataProperties']['probe2_value'])
 
-            probe1 = xr.DataArray.from_series(ref_data_df[probe1_cols].mean(axis=1))
-            probe2 = xr.DataArray.from_series(ref_data_df[probe2_cols].mean(axis=1))
+            probe1 = ref_data[probe1_cols]
+            probe2 = ref_data[probe2_cols]
 
 
         # Find all 'raw' netcdfs within the processed directory,
         # sort them (by date), and process each individually.
         os.chdir(internal_config[exp_name]['directories']['dirRawNetcdf'])
         contents = os.listdir()
-        ncfiles = [file for file in contents if '.nc' in file and 'raw' in file]
+        ncfiles = [file for file in contents
+                   if '.nc' in file and 'raw' in file]
         ncfiles.sort()
         ntot = np.size(ncfiles)
-
         for nraw, raw_nc in enumerate(ncfiles):
-            os.chdir(internal_config[exp_name]['directories']['dirRawNetcdf'])
-
             # Name of the output file for this archive chunk
             try:
                 outname_suffix = config_user['directories']['fileName']['suffix']
             except KeyError:
                 outname_suffix = ''
-            outname_date = '_'.join(raw_nc.split('.')[0].split('_')[1:])
+            outname_channel = raw_nc.split('.')[0].split('_')[-2]
+            outname_date = raw_nc.split('.')[0].split('_')[-1]
+
+            # Check of the files to create and determine if we are overwriting.
+            if write_mode == 'preserve':
+                dir_cal = internal_config[exp_name]['directories']['dirCalibrated']
+                # Output file name creation.
+                if coretype == 'multicore':
+                    for c in cores:
+                        outname_core = c
+                        outname = '_'.join(filter(None, [exp_name, 'cal',
+                                                         outname_channel,
+                                                         outname_date,
+                                                         outname_suffix,
+                                                         outname_core])) + '.nc'
+                        # If the file exists indicate that we are to skip
+                        # this file.
+                        if os.path.exists(os.path.join(dir_cal, outname)):
+                            skip_flag = True
+                            # Determine if we are preserving or overwriting the
+                            # existing files.
+                            print('Preserving existing netcdf ' + outname
+                                  + ' (' + str(nraw + 1)
+                                  + ' of ' + str(ntot) + ')')
+                        # If one of the core files does not exist exit the
+                        # loop and continue.
+                        else:
+                            skip_flag = False
+                            continue
+
+                elif coretype == 'singlecore':
+                    outname_core = None
+                    outname = '_'.join(filter(None, [exp_name, 'cal',
+                                                     outname_channel,
+                                                     outname_date,
+                                                     outname_suffix,
+                                                     outname_core])) + '.nc'
+                    if os.path.exists(os.path.join(dir_cal, outname)):
+                        skip_flag = True
+                        # Determine if we are preserving or overwriting the
+                        # existing files.
+                        print('Preserving existing netcdf ' + outname
+                              + ' (' + str(nraw + 1)
+                              + ' of ' + str(ntot) + ')')
+                    else:
+                        skip_flag = False
+
+                # The calibrated file exists, do not process and calibrate.
+                if skip_flag:
+
+                    continue
+            # Either the file does not exist or it is to be overwritten.
             print('Processing ' + outname_date + ' (' + str(nraw + 1)
                   + ' of ' + str(ntot) + ')')
 
             # Open up raw file for this interval.
+            os.chdir(internal_config[exp_name]['directories']['dirRawNetcdf'])
             dstemp = xr.open_dataset(raw_nc)
 
             # Resample to a common time stamp interval with the reference/bath
@@ -361,8 +414,26 @@ for exp_name in experiment_names:
                 dstemp[probe1_name] = probe1_temp
                 dstemp[probe2_name] = probe2_temp
 
-            # Finish processing the fiber by labeling it and splitting up multicore fibers
-            os.chdir(internal_config[exp_name]['directories']['dirProcessed'])
+                # If the bath pt100s and dts do not line up in time,
+                # notify the user.
+                if not (np.size(np.flatnonzero(~np.isnan(dstemp.temp.values))) > 0):
+                    # N.
+                    print('PT100 and DTS data do not line up in time for ' + raw_nc)
+
+            # Step loss corrections if they are provided.
+            if 'step_loss_LAF' in config_user['dataProperties'] and 'step_loss_correction' in config_user['dataProperties']:
+                splice_LAF = np.atleast_1d(config_user['dataProperties']['step_loss_LAF'])
+                step_loss_corrections = np.atleast_1d(config_user['dataProperties']['step_loss_correction'])
+
+                # Make sure these are not NaNs
+                if splice_LAF and step_loss_corrections:
+                    # Calculate the log power of the stokes/anti-stokes scattering
+                    dstemp['logPsPas'] = np.log(dstemp.Ps / dstemp.Pas)
+                    # Correct for any step-losses due to splicing.
+                    for spl_num, spl_LAF in enumerate(splice_LAF):
+                        dstemp['logPsPas'] = dstemp.logPsPas.where((dstemp.LAF < spl_LAF),
+                                                                   dstemp.logPsPas + step_loss_corrections[spl_num])
+
             # Split up multicore data
             if coretype == 'multicore':
                 for c in cores:
@@ -388,11 +459,22 @@ for exp_name in experiment_names:
                     # Converting to a netcdf ruins this step unfortunately.
                     # dstemp_core.attrs['loc_general_long'] = dict((l, config_user['loc_general'][l]['long name'])
 
-                    # Label the core
+                    # Calibrate the temperatures
+                    dstemp_core, _, _, _ = btmm_process.matrixInversion(dstemp_core, internal_config[exp_name])
+
+                    # Rename the instrument reported temperature field
+                    dstemp_core = dstemp_core.rename({'temp': 'instr_temp'})
                     dstemp_core.coords['core'] = c
-                    # Output this core
-                    outname = exp_name + '_proc_' + outname_date + outname_suffix + '_' + c + '.nc'
-                    dstemp_core.to_netcdf(outname)
+
+                    # Output the calibrated dataset
+                    outname_core = c
+                    outname = '_'.join(filter(None, [exp_name, 'cal',
+                                                     outname_channel,
+                                                     outname_date,
+                                                     outname_suffix,
+                                                     outname_core])) + '.nc'
+                    os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
+                    dstemp_core.to_netcdf(outname, engine='netcdf4')
 
             elif coretype == 'singlecore':
                 # Drop the unnecessary negative LAF indices
@@ -405,82 +487,25 @@ for exp_name in experiment_names:
                     for l in config_user['location_library']:
                         if loc_type_cur == config_user['location_library'][l]['loc_type']:
                             location[l] = config_user['location_library'][l]['LAF']
-                    dstemp_core = btmm_process.labelLoc_additional(dstemp,
-                                                                   location,
-                                                                   loc_type_cur)
+                    dstemp = btmm_process.labelLoc_additional(dstemp,
+                                                              location,
+                                                              loc_type_cur)
 
-                outname = exp_name + '_proc_' + outname_date + outname_suffix + '.nc'
-                dstemp.to_netcdf(outname)
-
-# -----------------------------------------------------------------------------
-# Calibrate the temperature data
-# -----------------------------------------------------------------------------
-#%% Construct dataset with all experiments/over all the measurement duration
-if config_user['flags']['calibrate_flag']:
-    print('-------------')
-    print('Calibrating DTS data: full matrix inversion.')
-    print(' ')
-    for exp_name in experiment_names:
-        # Find all 'processed' netcdfs within the processed directory,
-        # sort them by date and core name, and process each individually.
-        os.chdir(internal_config[exp_name]['directories']['dirProcessed'])
-        contents = os.listdir()
-        ncfiles = [file for file in contents if '.nc' in file and 'proc' in file]
-        ncfiles.sort()
-        ntot = np.size(ncfiles)
-        for nproc, proc_nc in enumerate(ncfiles):
-            # Name of the output file for this archive chunk
-            try:
-                outname_suffix = config_user['directories']['fileName']['suffix']
-            except KeyError:
-                outname_suffix = ''
-            outname_date = '_'.join(proc_nc.split('.')[0].split('_')[1:])
-
-            print('Calibrating ' + proc_nc + ' (' + str(nproc + 1)
-                  + ' of ' + str(ntot) + ')')
-
-            os.chdir(internal_config[exp_name]['directories']['dirProcessed'])
-            dstemp = xr.open_dataset(proc_nc)
-
-            # Step loss corrections if they are provided.
-            if 'step_loss_LAF' in config_user['dataProperties'] and 'step_loss_correction' in config_user['dataProperties']:
-                splice_LAF = np.atleast_1d(config_user['dataProperties']['step_loss_LAF'])
-                step_loss_corrections = np.atleast_1d(config_user['dataProperties']['step_loss_correction'])
-
-                # Make sure these are not NaNs
-                if splice_LAF and step_loss_corrections:
-                    # Calculate the log power of the stokes/anti-stokes scattering
-                    dstemp['logPsPas'] = np.log(dstemp.Ps / dstemp.Pas)
-                    # Correct for any step-losses due to splicing.
-                    for spl_num, spl_LAF in enumerate(splice_LAF):
-                        dstemp['logPsPas'] = dstemp.logPsPas.where((dstemp.LAF < spl_LAF),
-                                                                   dstemp.logPsPas + step_loss_corrections[spl_num])
-
-           # Calibrate the temperatures. If the bath pt100s and dts do not line up
-            # in time, do not calibrate.
-            if (np.size(np.flatnonzero(~np.isnan(dstemp.temp.values))) > 0):
+                # Calibrate the temperatures.
                 dstemp, _, _, _ = btmm_process.matrixInversion(dstemp, internal_config[exp_name])
-            else:
-                # Notify the user.
-                print('PT100 and DTS data do not line up in time for ' + exp_name)
-                print('The cal_temp field will not be returned.')
+                dstemp = dstemp.rename({'temp': 'instr_temp'})
 
-            # Rename the instrument reported temperature field
-            dstemp = dstemp.rename({'temp': 'instr_temp'})
+                # Output the calibrated dataset
+                outname_core = None
+                outname = '_'.join(filter(None, [exp_name, 'cal',
+                                                 outname_channel,
+                                                 outname_date,
+                                                 outname_suffix,
+                                                 outname_core])) + '.nc'
 
-            # Output the calibrated data'
-            if coretype == 'multicore':
-                core = proc_nc.split('_')[-1].split('.')[0]
-                dstemp.coords['core'] = core
-            else:
-                core = None
-            outname_channel = proc_nc.split('.')[0].split('_')[-3]
-            outname_date = proc_nc.split('.')[0].split('_')[-2]
-            outname_core = proc_nc.split('.')[0].split('_')[-1]
-            outname = '_'.join(filter(None, [exp_name, 'cal', outname_channel, outname_date, outname_suffix, outname_core])) + '.nc'
 
-            os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
-            dstemp.to_netcdf(outname, engine='netcdf4')
+                os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
+                dstemp.to_netcdf(outname, engine='netcdf4')
 
             print('')
 
