@@ -223,10 +223,14 @@ for exp_name in experiment_names:
 
     # Make sure the prefix/suffix fields exist
     try:
-        internal_config[exp_name]['directories']['fileName']['prefix'] = config_user['directories']['raw_xml'] + '_' + exp_name
+        outname_prefix = config_user['directories']['prefix']
     except KeyError:
-        internal_config[exp_name]['directories']['fileName'] = {}
-        internal_config[exp_name]['directories']['fileName']['prefix'] = config_user['directories']['raw_xml'] + '_' + exp_name
+        outname_prefix = None
+
+    try:
+        outname_suffix = config_user['directories']['suffix']
+    except KeyError:
+        outname_suffix = None
 
    # Determine fiber type
     coretype = internal_config[exp_name]['dataProperties']['fiber_type']
@@ -263,7 +267,11 @@ try:
 except KeyError:
     write_mode = 'overwrite'
 
-print(write_mode)
+# Determine calibration mode:
+try:
+    cal_mode = internal_config[exp_name]['flags']['cal_mode']
+except KeyError:
+    cal_mode = 'instantaneous'
 
 # -----------------------------------------------------------------------------
 # Archive and create raw netcdfs
@@ -321,11 +329,6 @@ for exp_name in experiment_names:
         ncfiles.sort()
         ntot = np.size(ncfiles)
         for nraw, raw_nc in enumerate(ncfiles):
-            # Name of the output file for this archive chunk
-            try:
-                outname_suffix = config_user['directories']['fileName']['suffix']
-            except KeyError:
-                outname_suffix = ''
             outname_channel = raw_nc.split('.')[0].split('_')[-2]
             outname_date = raw_nc.split('.')[0].split('_')[-1]
 
@@ -336,7 +339,8 @@ for exp_name in experiment_names:
                 if coretype == 'multicore':
                     for c in cores:
                         outname_core = c
-                        outname = '_'.join(filter(None, [exp_name, 'cal',
+                        outname = '_'.join(filter(None, [outname_prefix,
+                                                         exp_name, 'cal',
                                                          outname_channel,
                                                          outname_date,
                                                          outname_suffix,
@@ -350,7 +354,7 @@ for exp_name in experiment_names:
                             print('Preserving existing netcdf ' + outname
                                   + ' (' + str(nraw + 1)
                                   + ' of ' + str(ntot) + ')')
-                        # If one of the core files does not exist exit the
+                        # If one of the core files does not exist, exit the
                         # loop and continue.
                         else:
                             skip_flag = False
@@ -358,7 +362,8 @@ for exp_name in experiment_names:
 
                 elif coretype == 'singlecore':
                     outname_core = None
-                    outname = '_'.join(filter(None, [exp_name, 'cal',
+                    outname = '_'.join(filter(None, [outname_prefix,
+                                                     exp_name, 'cal',
                                                      outname_channel,
                                                      outname_date,
                                                      outname_suffix,
@@ -459,7 +464,10 @@ for exp_name in experiment_names:
                     # dstemp_core.attrs['loc_general_long'] = dict((l, config_user['loc_general'][l]['long name'])
 
                     # Calibrate the temperatures
-                    dstemp_core, _, _, _ = btmm_process.matrixInversion(dstemp_core, internal_config[exp_name])
+                    if cal_mode == 'smooth':
+                        dstemp_core = btmm_process.timeAvgCalibrate(dstemp_core, internal_config[exp_name])
+                    else:
+                        dstemp_core, _, _, _ = btmm_process.matrixInversion(dstemp_core, internal_config[exp_name])
 
                     # Rename the instrument reported temperature field
                     dstemp_core = dstemp_core.rename({'temp': 'instr_temp'})
@@ -467,7 +475,8 @@ for exp_name in experiment_names:
 
                     # Output the calibrated dataset
                     outname_core = c
-                    outname = '_'.join(filter(None, [exp_name, 'cal',
+                    outname = '_'.join(filter(None, [outname_prefix,
+                                                     exp_name, 'cal',
                                                      outname_channel,
                                                      outname_date,
                                                      outname_suffix,
@@ -496,12 +505,12 @@ for exp_name in experiment_names:
 
                 # Output the calibrated dataset
                 outname_core = None
-                outname = '_'.join(filter(None, [exp_name, 'cal',
+                outname = '_'.join(filter(None, [outname_prefix,
+                                                 exp_name, 'cal',
                                                  outname_channel,
                                                  outname_date,
                                                  outname_suffix,
                                                  outname_core])) + '.nc'
-
 
                 os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
                 dstemp.to_netcdf(outname, engine='netcdf4')
