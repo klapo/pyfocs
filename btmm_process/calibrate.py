@@ -38,6 +38,7 @@ def matrixInversion(dsCal, cfg):
         stokesRatio2 = section2.logPsPas.mean(dim='calibration')
         stokesRatio3 = section3.logPsPas.mean(dim='calibration')
     else:
+        dsCal['logPsPas'] = np.log(dsCal.Ps / dsCal.Pas)
         stokesRatio1 = np.log(section1.Ps / section1.Pas).mean(dim='calibration')
         stokesRatio2 = np.log(section2.Ps / section2.Pas).mean(dim='calibration')
         stokesRatio3 = np.log(section3.Ps / section3.Pas).mean(dim='calibration')
@@ -79,8 +80,7 @@ def matrixInversion(dsCal, cfg):
         delta_alpha[n] = x[2]
 
         # Recalculate temperature for this time step
-        manualTemp[n] = gamma[n] / (np.log(dsCal.Ps.sel(time=t)
-                                    / dsCal.Pas.sel(time=t))
+        manualTemp[n] = gamma[n] / (dsCal.logPsPas.sel(time=t)
                                     + C[n] - delta_alpha[n] * dsCal.LAF)
 
     # For double ended calibration, the reverse pulse needs to have LAF flipped
@@ -111,9 +111,10 @@ def timeAvgCalibrate(ds_fine, cfg):
     ds_cal_smooth['delta_alpha'] = (('time'), delta_alpha)
 
     # Interpolate to the fine time step -- is this necessary?
-    gamma = ds_cal_smooth['gamma'].interp(time=ds_fine.time, kwargs={'fill_value': 'extrapolate'})
-    C = ds_cal_smooth['C'].interp(time=ds_fine.time, kwargs={'fill_value': 'extrapolate'})
-    delta_alpha = ds_cal_smooth['delta_alpha'].interp(time=ds_fine.time, kwargs={'fill_value': 'extrapolate'})
+    if np.size(gamma) > 1 and np.size(C) > 1 and np.size(delta_alpha) > 1:
+        gamma = ds_cal_smooth['gamma'].interp(time=ds_fine.time, kwargs={'fill_value': 'extrapolate'})
+        C = ds_cal_smooth['C'].interp(time=ds_fine.time, kwargs={'fill_value': 'extrapolate'})
+        delta_alpha = ds_cal_smooth['delta_alpha'].interp(time=ds_fine.time, kwargs={'fill_value': 'extrapolate'})
 
     # Recalculate temperature at the fine time step
     for n, t in enumerate(ds_fine.time):
