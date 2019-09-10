@@ -101,6 +101,9 @@ dataProperties:
   phys_locs:
   - south_simba
 
+  #if other external data should be included
+  external_fields: 
+
 flags:
   # True - raw .xml data compressed into archives of length 'archiveInterval'
   # False - if archives already exist

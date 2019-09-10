@@ -393,8 +393,9 @@ for exp_name in experiment_names:
                 dstemp[probe2_name] = ref_data[probe2_name]
 
                 # Add additional external data for this data stream.
-                for ext_dat in internal_config[exp_name]['dataProperties']['external_fields']:
-                    dstemp[ext_dat] = ref_data[ext_dat]
+                if internal_config[exp_name]['dataProperties']['external_fields']:
+                    for ext_dat in internal_config[exp_name]['dataProperties']['external_fields']:
+                        dstemp[ext_dat] = ref_data[ext_dat]
 
                 # If the bath pt100s and dts do not line up in time,
                 # notify the user.
