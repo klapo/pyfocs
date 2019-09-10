@@ -25,8 +25,8 @@ warnings.simplefilter(action='ignore', category=RuntimeWarning)
 # -----------------------------------------------------------------------------
 # Quick fix for us to do local debugging.
 try:
-    # filename_configfile_KL = ''
-    # filename_configfile_AF = '/home/anita/Schreibtisch/python_programme/config_files/LOVE/rim_unheated_190711_all.yml'
+    filename_configfile_KL = 'bla'
+    filename_configfile_AF = '/home/anita/Schreibtisch/python_programs/config_files/LOVE/LOVE_Simba_south_190711_config.yml'
     if os.path.exists(filename_configfile_KL):
         filename_configfile = filename_configfile_KL
     elif os.path.exists(filename_configfile_AF):
@@ -290,7 +290,7 @@ for exp_name in experiment_names:
         if internal_config[exp_name]['flags']['ref_temp_option'] == 'external':
             # Get the metdata
             os.chdir(dir_ext)
-            ref_data = xr.open_mfdataset('*.nc')
+            ref_data = xr.open_dataset(config_user['directories']['filename_external'])
 
             probe1_name = internal_config[exp_name]['dataProperties']['probe1Temperature']
             probe2_name = internal_config[exp_name]['dataProperties']['probe2Temperature']
