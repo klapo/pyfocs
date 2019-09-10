@@ -55,8 +55,9 @@ except NameError:
             ]
         filename_configfile = filedialog.askopenfilename(filetypes=ftypes)
 
+# This yaml syntax requires pyyaml v5.1
 with open(filename_configfile, 'r') as stream:
-    config_user = yaml.load(stream)
+    config_user = yaml.load(stream, Loader=yaml.FullLoader)
 
 try:
     remote_dir = config_user['directories']['remote']['remote_directories']
@@ -136,32 +137,8 @@ for exp_name in experiment_names:
             os.makedirs(dir_raw_netcdf)
             print('Calibrated directory not found. Created a new one at ' + dir_raw_netcdf)
         # throw error if raw netcdf files are needed but neither found nor created
-        elif config_user['flags']['processed_flag']:
-            raise FileNotFoundError('Raw netcdf data directory not found')
-
-    #%%
-    # --------
-    # Processed netcdfs (labeling, initial data cleanup and
-    # prep for calibration)
-    if 'processed' in remote_dir:
-        dir_processed = os.path.join(config_user['directories']['remote']['dir_pre'],
-                                     exp_name, config_user['directories']['processed'])
-    else:
-        dir_processed = os.path.join(config_user['directories']['local']['dir_pre'],
-                                     exp_name, config_user['directories']['processed'])
-
-    if not os.path.exists(dir_processed):
-        # Create the folder for the processed files if it doesn't already
-        # exist and processed files will be created.
-        if config_user['flags']['processed_flag']:
-            os.makedirs(dir_processed)
-            print('Processed directory not found. Created a new one at '
-                  + dir_processed)
-        # Throw error if processed files are needed but neither
-        # found nor created.
         elif config_user['flags']['calibrate_flag']:
-            raise FileNotFoundError('Processed data directory not found')
-
+            raise FileNotFoundError('Raw netcdf data directory not found')
 
     #%%
     # --------
@@ -217,7 +194,6 @@ for exp_name in experiment_names:
     internal_config[exp_name]['archive']['targetPath'] = dir_archive
     internal_config[exp_name]['directories']['dirArchive'] = dir_archive
     internal_config[exp_name]['directories']['dirRawNetcdf'] = dir_raw_netcdf
-    internal_config[exp_name]['directories']['dirProcessed'] = dir_processed
     internal_config[exp_name]['directories']['dirCalibrated'] = dir_cal
     internal_config[exp_name]['directories']['dirFinal'] = dir_final
 
@@ -239,6 +215,7 @@ for exp_name in experiment_names:
     else:
         cores = None
 
+#
 # Determine the list of location types
 try:
     loc_type = config_user['dataProperties']['all_locs']
@@ -260,6 +237,11 @@ except KeyError:
         config_user['flags']['calibrate_flag'] = False
         config_user['flags']['processed_flag'] = False
         config_user['flags']['final_flag'] = False
+
+# Step loss corrections
+if ('step_loss_LAF' in config_user['dataProperties']
+        and 'step_loss_correction' in config_user['dataProperties']):
+    step_loss_flag = True
 
 # Determine write mode:
 try:
@@ -308,17 +290,13 @@ for exp_name in experiment_names:
         if internal_config[exp_name]['flags']['ref_temp_option'] == 'external':
             # Get the metdata
             os.chdir(dir_ext)
-            ref_data = xr.open_mfdataset('*.nc').to_dataframe()
+            ref_data = xr.open_mfdataset('*.nc')
 
             probe1_name = internal_config[exp_name]['dataProperties']['probe1Temperature']
             probe2_name = internal_config[exp_name]['dataProperties']['probe2Temperature']
 
-            probe1_cols = np.atleast_1d(internal_config[exp_name]['dataProperties']['probe1_value'])
-            probe2_cols = np.atleast_1d(internal_config[exp_name]['dataProperties']['probe2_value'])
-
-            probe1 = ref_data[probe1_cols]
-            probe2 = ref_data[probe2_cols]
-
+            # probe1 = ref_data[probe1_name]
+            # probe2 = ref_data[probe2_name]
 
         # Find all 'raw' netcdfs within the processed directory,
         # sort them (by date), and process each individually.
@@ -407,15 +385,16 @@ for exp_name in experiment_names:
 
             # Add in external reference data here
             if internal_config[exp_name]['flags']['ref_temp_option'] == 'external':
-                probe1_temp = probe1.reindex_like(dstemp.time,
-                                                  method='nearest',
-                                                  tolerance=1)
+                ref_data.reindex_like(dstemp.time,
+                                      method='nearest',
+                                      tolerance=1)
 
-                probe2_temp = probe2.reindex_like(dstemp.time,
-                                                  method='nearest',
-                                                  tolerance=1)
-                dstemp[probe1_name] = probe1_temp
-                dstemp[probe2_name] = probe2_temp
+                dstemp[probe1_name] = ref_data[probe1_name]
+                dstemp[probe2_name] = ref_data[probe2_name]
+
+                # Add additional external data for this data stream.
+                for ext_dat in internal_config[exp_name]['dataProperties']['external_fields']:
+                    dstemp[ext_dat] = ref_data[ext_dat]
 
                 # If the bath pt100s and dts do not line up in time,
                 # notify the user.
@@ -424,7 +403,7 @@ for exp_name in experiment_names:
                     print('PT100 and DTS data do not line up in time for ' + raw_nc)
 
             # Step loss corrections if they are provided.
-            if 'step_loss_LAF' in config_user['dataProperties'] and 'step_loss_correction' in config_user['dataProperties']:
+            if step_loss_flag:
                 splice_LAF = np.atleast_1d(config_user['dataProperties']['step_loss_LAF'])
                 step_loss_corrections = np.atleast_1d(config_user['dataProperties']['step_loss_correction'])
 
