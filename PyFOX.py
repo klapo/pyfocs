@@ -242,9 +242,9 @@ except KeyError:
 if ('step_loss_LAF' in config_user['dataProperties']
         and 'step_loss_correction' in config_user['dataProperties']):
     step_loss_flag = True
-else: 
+else:
     step_loss_flag = False
-    
+
 # Determine write mode:
 try:
     write_mode = internal_config[exp_name]['flags']['write_mode']
@@ -294,7 +294,7 @@ for exp_name in experiment_names:
             os.chdir(dir_ext)
             ref_data = xr.open_dataset(config_user['directories']['filename_external'])
             ref_data = ref_data.resample(time = config_user['dataProperties']['resampling_time']).interpolate('linear')
-                
+
             probe1_name = internal_config[exp_name]['dataProperties']['probe1Temperature']
             probe2_name = internal_config[exp_name]['dataProperties']['probe2Temperature']
 
@@ -389,27 +389,16 @@ for exp_name in experiment_names:
             # Add in external reference data here
             if internal_config[exp_name]['flags']['ref_temp_option'] == 'external':
                 temp_ref_data = ref_data.reindex_like(dstemp.time,
-<<<<<<< HEAD
                                                       method='nearest',
                                                       tolerance=1)
 
-=======
-                                      method='nearest',
-                                      tolerance=1)
-                
->>>>>>> 6f065ad8b49a4890008ebd4da5f667d5768ec7f7
                 dstemp[probe1_name] = temp_ref_data[probe1_name]
                 dstemp[probe2_name] = temp_ref_data[probe2_name]
 
                 # Add additional external data for this data stream.
-<<<<<<< HEAD
-                for ext_dat in internal_config[exp_name]['dataProperties']['external_fields']:
-                    dstemp[ext_dat] = temp_ref_data[ext_dat]
-=======
                 if internal_config[exp_name]['dataProperties']['external_fields']:
                     for ext_dat in internal_config[exp_name]['dataProperties']['external_fields']:
                         dstemp[ext_dat] = temp_ref_data[ext_dat]
->>>>>>> 6f065ad8b49a4890008ebd4da5f667d5768ec7f7
 
                 # If the bath pt100s and dts do not line up in time,
                 # notify the user.
