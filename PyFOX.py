@@ -385,21 +385,20 @@ for exp_name in experiment_names:
 
             # Add in external reference data here
             if internal_config[exp_name]['flags']['ref_temp_option'] == 'external':
-                ref_data.reindex_like(dstemp.time,
-                                      method='nearest',
-                                      tolerance=1)
+                temp_ref_data = ref_data.reindex_like(dstemp.time,
+                                                      method='nearest',
+                                                      tolerance=1)
 
-                dstemp[probe1_name] = ref_data[probe1_name]
-                dstemp[probe2_name] = ref_data[probe2_name]
+                dstemp[probe1_name] = temp_ref_data[probe1_name]
+                dstemp[probe2_name] = temp_ref_data[probe2_name]
 
                 # Add additional external data for this data stream.
                 for ext_dat in internal_config[exp_name]['dataProperties']['external_fields']:
-                    dstemp[ext_dat] = ref_data[ext_dat]
+                    dstemp[ext_dat] = temp_ref_data[ext_dat]
 
                 # If the bath pt100s and dts do not line up in time,
                 # notify the user.
                 if not (np.size(np.flatnonzero(~np.isnan(dstemp.temp.values))) > 0):
-                    # N.
                     print('PT100 and DTS data do not line up in time for ' + raw_nc)
 
             # Step loss corrections if they are provided.
