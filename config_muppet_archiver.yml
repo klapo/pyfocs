@@ -1,0 +1,34 @@
+directories:
+  # afp-volume:host=DarkMix-server.local,user=anitafreundorfer,volume=darkmix_archive
+  # path to where all the experiment data is located
+  dir_pre: 'C:\UltimaData\temperature\'
+  dir_archive: 'C:\UltimaData\archived_temperature\'
+  # name of the folder where the experiments data is located
+  dir_exps: LEOPOLD_red_fiber_run1
+  # this is where graphics go
+  folder_graphics: graphics
+  # Name of the channels to process (Only one channel was tested)
+  channelName: channel 1
+  # this is where the netCDF files go (raw + calibrated)
+  folder_processed: processed
+
+archive:
+  channelName:
+  # Searches for data to archive following the pattern sourcePath/channelName/*.xml
+  - channel 1
+  # Delete the raw xml files after creating the archive?
+  cleanup_flag: True
+  # Unused at the moment but can't be deleted
+  mode: archiving
+  # Interval (in minutes) over which to archive the raw xml files.
+  archiveInterval: 5
+  dirBackUp: ''
+
+dataProperties:
+  # Using standard (non-POSIX) notation, indicate the number of hours from UTC.
+  # If the DTS specifies a timezone, this is only used to align the external
+  # data stream with the DTS. +1 = CET, -5 = East Coast USA
+  UTC_offset: +1
+
+fileName:
+  fileSuffix: ''

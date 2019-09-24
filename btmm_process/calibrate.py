@@ -24,23 +24,24 @@ def matrixInversion(dsCal, cfg):
     if direction == 'reverse':
         dsCal['LAF'] = np.flip(dsCal.LAF.values, 0)
 
-    section1 = dsCal.swap_dims({'LAF': 'loc_general'}).sel(loc_general=refLoc1)
-    section2 = dsCal.swap_dims({'LAF': 'loc_general'}).sel(loc_general=refLoc2)
-    section3 = dsCal.swap_dims({'LAF': 'loc_general'}).sel(loc_general=refLoc3)
+    section1 = dsCal.swap_dims({'LAF': 'calibration'}).sel(calibration=refLoc1)
+    section2 = dsCal.swap_dims({'LAF': 'calibration'}).sel(calibration=refLoc2)
+    section3 = dsCal.swap_dims({'LAF': 'calibration'}).sel(calibration=refLoc3)
 
-    ref_z1 = section1.LAF.mean(dim='loc_general')
-    ref_z2 = section2.LAF.mean(dim='loc_general')
-    ref_z3 = section3.LAF.mean(dim='loc_general')
+    ref_z1 = section1.LAF.mean(dim='calibration')
+    ref_z2 = section2.LAF.mean(dim='calibration')
+    ref_z3 = section3.LAF.mean(dim='calibration')
 
     # Amplitudes of stokes/anti-stokes
     if 'logPsPas' in dsCal:
-        stokesRatio1 = section1.logPsPas.mean(dim='loc_general')
-        stokesRatio2 = section2.logPsPas.mean(dim='loc_general')
-        stokesRatio3 = section3.logPsPas.mean(dim='loc_general')
+        stokesRatio1 = section1.logPsPas.mean(dim='calibration')
+        stokesRatio2 = section2.logPsPas.mean(dim='calibration')
+        stokesRatio3 = section3.logPsPas.mean(dim='calibration')
     else:
-        stokesRatio1 = np.log(section1.Ps / section1.Pas).mean(dim='loc_general')
-        stokesRatio2 = np.log(section2.Ps / section2.Pas).mean(dim='loc_general')
-        stokesRatio3 = np.log(section3.Ps / section3.Pas).mean(dim='loc_general')
+        dsCal['logPsPas'] = np.log(dsCal.Ps / dsCal.Pas)
+        stokesRatio1 = np.log(section1.Ps / section1.Pas).mean(dim='calibration')
+        stokesRatio2 = np.log(section2.Ps / section2.Pas).mean(dim='calibration')
+        stokesRatio3 = np.log(section3.Ps / section3.Pas).mean(dim='calibration')
 
     # Allocate the calibration variables and manual temperature
     gamma = np.ones(np.shape(dsCal.time.values)) * -9999.
@@ -79,8 +80,7 @@ def matrixInversion(dsCal, cfg):
         delta_alpha[n] = x[2]
 
         # Recalculate temperature for this time step
-        manualTemp[n] = gamma[n] / (np.log(dsCal.Ps.sel(time=t)
-                                    / dsCal.Pas.sel(time=t))
+        manualTemp[n] = gamma[n] / (dsCal.logPsPas.sel(time=t)
                                     + C[n] - delta_alpha[n] * dsCal.LAF)
 
     # For double ended calibration, the reverse pulse needs to have LAF flipped
@@ -93,3 +93,32 @@ def matrixInversion(dsCal, cfg):
     print('Calibration done...')
 
     return(dsCal, gamma, C, delta_alpha)
+
+
+def timeAvgCalibrate(ds_fine, cfg):
+
+    # Assumed to be in seconds
+    avg_interval = str(cfg['calibration']['averaging_interval'])
+    # Amplitudes of stokes/anti-stokes
+    if 'logPsPas' not in ds_fine:
+        ds_fine['logPsPas'] = np.log(ds_fine.Ps / ds_fine.Pas)
+
+    ds_cal_smooth = ds_fine.resample(time=avg_interval + 's').mean()
+
+    ds_cal_smooth, gamma, C, delta_alpha = matrixInversion(ds_cal_smooth, cfg)
+    ds_cal_smooth['gamma'] = (('time'), gamma)
+    ds_cal_smooth['C'] = (('time'), C)
+    ds_cal_smooth['delta_alpha'] = (('time'), delta_alpha)
+
+    # Interpolate to the fine time step -- is this necessary?
+    if np.size(gamma) > 1 and np.size(C) > 1 and np.size(delta_alpha) > 1:
+        gamma = ds_cal_smooth['gamma'].interp(time=ds_fine.time, kwargs={'fill_value': 'extrapolate'})
+        C = ds_cal_smooth['C'].interp(time=ds_fine.time, kwargs={'fill_value': 'extrapolate'})
+        delta_alpha = ds_cal_smooth['delta_alpha'].interp(time=ds_fine.time, kwargs={'fill_value': 'extrapolate'})
+
+    # Recalculate temperature at the fine time step
+    for n, t in enumerate(ds_fine.time):
+        manualTemp = gamma / (ds_fine['logPsPas'] + C
+                              - delta_alpha * ds_fine.LAF)
+    ds_fine['cal_temp'] = (('time', 'LAF'), manualTemp - 273.15)
+    return ds_fine

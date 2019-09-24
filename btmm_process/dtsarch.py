@@ -2,7 +2,7 @@ import os
 import datetime
 import tarfile
 import dirsync
-
+import numpy as np
 
 # ------------------------------------------------------------------------------
 # make_tarfile -- actually zips and archives data
@@ -161,7 +161,7 @@ def archiver(cfg):
 
     # Read the configure file for the archiver arguments
     mode = cfg['archive']['mode']
-    channels = cfg['archive']['channelName']
+    channels = np.atleast_1d(cfg['archive']['channelName'])
     sourcePath = cfg['archive']['sourcePath']
     targetPath = cfg['archive']['targetPath']
     delta_minutes = cfg['archive']['archiveInterval']
@@ -189,6 +189,7 @@ def archiver(cfg):
 
     for ch in channels:
         channelPath = os.path.join(sourcePath, ch)
+        print(channelPath)
 
         ########
         # Archive data to .tar.gz files.
@@ -203,6 +204,11 @@ def archiver(cfg):
         contents = [c for c in contents if '.xml' in c]
         # Sort the file list alphabetically.
         contents.sort()
+
+        # Verify that xml files exist before proceeding.
+        if len(contents) == 0:
+            print('No xml files found in ' + channelPath)
+            break
 
         # First datetime of the raw data
         t = contents[0]
@@ -222,18 +228,18 @@ def archiver(cfg):
         interval_contents = []
         xml_counts = 0
         # Iterate through the (date) sorted list of raw xml files
-        while xml_counts <= len(contents) - 1:
+        while xml_counts <= len(contents):
             # Split the file name string into the datetime components
             c = contents[xml_counts]
             dt = dt_string_label(c)
 
             # Determine if we are still within this interval.
-            if dt < dt2 and dt > dt1:
+            if dt < dt2 and dt >= dt1:
                 interval_contents.append(os.path.join(sourcePath, ch, c))
                 xml_counts = xml_counts + 1
 
             # We have spanned this interval, save the data and move on
-            elif dt > dt2:
+            elif dt >= dt2:
                 # Create file names for this hour
                 year, month, day, hour, minute, _, _ = dt_strip(dt1, str_convert=True)
 
@@ -258,7 +264,7 @@ def archiver(cfg):
                 interval_contents = []
 
             # We reached the end of the file list, save and exit.
-            if xml_counts == len(contents) - 1:
+            if xml_counts == len(contents):
 
                 if mode == 'archiving':
                     # Create file names for this hour

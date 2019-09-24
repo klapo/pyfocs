@@ -9,14 +9,35 @@ import numpy as np
 from .labeler import labelLoc_general, labelLoc_additional, yamlDict
 
 
+# Error classes
+class Error(Exception):
+    """Base class for exceptions in this module."""
+    pass
+
+
+class CorruptedXMLError(Error):
+    """Exception raised for errors in the input.
+
+    Attributes:
+    """
+
+
 def xml_read(dumbXMLFile):
     '''
     Opens the given xml file and reads the dts data contained within.
     '''
-
-    with open(dumbXMLFile) as dumb:
-        doc = xmltodict.parse(dumb.read())
-
+    # The Ultimas/XT return incomplete files at times, which must be discarded.
+    if 'incomplete' in dumbXMLFile:
+        raise CorruptedXMLError
+    # Continue to try and read the file.
+    try:
+        with open(dumbXMLFile) as dumb:
+            doc = xmltodict.parse(dumb.read())
+    except Exception as e:
+        # The exception in the xmltodict code is poorly formatted. So we do a
+        # general catch here and hope for the best.
+        # Raising this error allows us to catch corrupted files.
+        raise CorruptedXMLError
     # Remove all of the bullshit
     doc = doc['logs']['log']
 
@@ -84,39 +105,31 @@ def xml_read(dumbXMLFile):
     return(actualData, metaData)
 
 
-def archive_read(cfg, prevNumChunk = 0):
+def archive_read(cfg, write_mode='preserve', prevNumChunk=0):
     '''
     Reads all archived xml files in the provided directory
     and turns them into netcdfs.
 
     Optional arguments:
+    write_mode    -  Determines if the function peaks to see if the file it
+                     would create exists.
+                        write_mode == 'overwrite', no peaking, creates new
+                                      file.
+                        write_mode == 'preserve', peaks, does not process files
+                                      that already exist.
     prevNumChunk  -  The chunk number to assign the output netcdf name. When
                      running across multiple experiments/directories it can be
                      useful to specify your own value.
     '''
 
     # Assign values
-    dirDataOriginal = cfg['archive']['targetPath']
-    dirProcessed = cfg['archive']['targetPath']
+    dirDataOriginal = cfg['directories']['dirArchive']
+    dirProcessed = cfg['directories']['dirRawNetcdf']
     channelNames = cfg['directories']['channelName']
 
-    # Deal with the underscores for creating sensible names
-    try:
-        filePrefix = cfg['directories']['fileName']['prefix']
-        if not filePrefix[-1] == '_':
-            filePrefix = filePrefix + '_'
-    except KeyError:
-        filePrefix = ''
-
-    try:
-        fileSuffix = cfg['directories']['fileName']['suffix']
-        if not fileSuffix[0] == '_':
-            fileSuffix = '_' + fileSuffix
-    except KeyError:
-        fileSuffix = ''
-
-    # Read label configuration files
-    labels = cfg['loc_general']
+    # If corrupt files are found we need to keep track of them (and skip them).
+    corrupt_file_count = 0
+    corrupt_file_list = []
 
     # Loop through each channel provided
     for chan in np.atleast_1d(channelNames):
@@ -134,6 +147,18 @@ def archive_read(cfg, prevNumChunk = 0):
         # Untar files
         for tFile in dirConTar:
             print(tFile)
+
+            # Name of the resulting netcdf
+            nc_out_name = 'raw_' + tFile.split('.')[0] + '.nc'
+
+            # Skip this archive if the netCDF already exists and we are
+            # not overwriting.
+            if write_mode == 'preserve':
+                if os.path.isfile(os.path.join(dirProcessed, nc_out_name)):
+                    print('... exists. No overwriting.')
+                    continue
+
+            # Extract the archive
             t = tarfile.open(tFile)
             t.extractall()
             t.close
@@ -156,21 +181,26 @@ def archive_read(cfg, prevNumChunk = 0):
                       + str(nTotal), end="")
 
                 # Read the file
-                df, meta = xml_read(someDumbFiles)
+                try:
+                    df, meta = xml_read(someDumbFiles)
+                except CorruptedXMLError:
+                    corrupt_file_count = corrupt_file_count + 1
+                    corrupt_file_list.append(someDumbFiles)
+                    continue
 
                 # Create a temporary xarray Dataset
                 temp_Dataset = xr.Dataset.from_dataframe(df)
                 temp_Dataset.coords['time'] = meta['dt_start']
-                temp_Dataset['fiberStatus'] = meta['fiberOK']
 
                 # Determine how to handle the reference probes
-                # Default behavior is to use the instrument reported reference temperatures.
-                if cfg['flags']['ref_temp_flag'] == 'default':
+                # Default behavior is to use the instrument reported reference
+                # temperatures.
+                if cfg['flags']['ref_temp_option'] == 'default':
                     temp_Dataset['probe1Temperature'] = meta['probe1Temperature']
                     temp_Dataset['probe2Temperature'] = meta['probe2Temperature']
 
                 # Use constant temperatures provided by the user.
-                if cfg['flags']['ref_temp_flag'] == 'constant':
+                if cfg['flags']['ref_temp_option'] == 'constant':
                     temp_Dataset['probe1Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe1_value']
                     temp_Dataset['probe2Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe2_value']
 
@@ -181,12 +211,14 @@ def archive_read(cfg, prevNumChunk = 0):
                 # Create a list of xarray Datasets
                 ds_list.append(temp_Dataset)
             print('\n Concatenating netcdfs within archive...')
-            ds = xr.concat(ds_list, dim='time')
+            try:
+                ds = xr.concat(ds_list, dim='time')
+            except ValueError:
+                raise ValueError('No xml files were found within: ' + tFile)
 
             # Create a raw netcdf file for each archive interval. This means
             # that the archive interval dicates the speed/efficiency of the
             # later calibration step.
-            os.chdir(dirProcessed)
             ds.attrs = {'LAF_beg': meta['LAF_beg'],
                         'LAF_end': meta['LAF_end'],
                         'dLAF': meta['dLAF']}
@@ -210,8 +242,8 @@ def archive_read(cfg, prevNumChunk = 0):
                 print('No PT100 field names were passed.')
 
             # Save to netcdf
-            nc_out_name = 'raw_' + tFile.split('.')[0]
-            ds.to_netcdf(nc_out_name + '.nc', 'w')
+            os.chdir(dirProcessed)
+            ds.to_netcdf(nc_out_name, 'w')
 
             # Close the netcdf and release the memory.
             ds.close()
@@ -219,120 +251,11 @@ def archive_read(cfg, prevNumChunk = 0):
 
             os.chdir(dirData)
             print('')
-            # Remove the extracted xml files
-            subprocess.Popen(['rm'] + glob.glob('*.xml'))
+            # Remove the extracted xml files. The second wildcard character
+            # catches the 'incomplete' xml files that occur with power outages.
+            subprocess.Popen(['rm'] + glob.glob('*.xml*'))
 
-
-def dir_read(cfg, prevNumChunk=0):
-    '''
-    Reads all (non-archived) xml files in the provided directory
-    and turns them into netcdfs.
-
-    Optional arguments:
-    prevNumChunk  -  The chunk number to assign the output netcdf name. When
-                     running across multiple experiments/directories it can be
-                     useful to specify your own value.
-    '''
-
-    # Assign values
-    dirDataOriginal = cfg['directories']['dirData']
-    dirProcessed = cfg['directories']['dirProcessed']
-    channelNames = cfg['directories']['channelName']
-    filePrefix = cfg['fileName']['filePrefix']
-    fileSuffix = cfg['fileName']['fileSuffix']
-    chunkSize = cfg['dataProperties']['chunkSize']
-
-    # Deal with the underscores for creating sensible names
-    if fileSuffix:
-        if not fileSuffix[0] == '_':
-            fileSuffix = '_' + fileSuffix
-    if not filePrefix[-1] == '_':
-        filePrefix = filePrefix + '_'
-
-    # Read label configuration files
-    labels = cfg['loc_general']
-
-    # Start keeping track of chunks
-    numChunk = 0
-
-    # Loop through each channel provided
-    for chan in np.atleast_1d(channelNames):
-        # Check directories
-        dirData = os.path.join(dirDataOriginal, chan)
-        if not os.path.isdir(dirData):
-            raise IOError('Data directory was not found at ' + dirData)
-        os.chdir(dirData)
-
-        # List of files to iterate over
-        dirConXML = [dC for dC in os.listdir() if chan in dC
-                     and '.xml' in dC]
-        dirConXML.sort()
-        nTotal = np.size(dirConXML)
-        ds = None
-
-        for nDumb, someDumbFiles in enumerate(dirConXML):
-            if '.xml' not in someDumbFiles:
-                continue
-            print("\r", someDumbFiles + 'File ' + str(nDumb + 1) + ' of '
-                  + str(nTotal), end="")
-
-            # Read the file
-            df, meta = xml_read(someDumbFiles)
-
-            # Create a temporary xarray Dataset
-            temp_Dataset = xr.Dataset.from_dataframe(df)
-            temp_Dataset.coords['time'] = meta['dt_start']
-            temp_Dataset['fiberStatus'] = meta['fiberOK']
-
-            # Determine how to handle the reference probes
-            # Default behavior is to use the instrument reported reference temperatures.
-            if cfg['flags']['ref_temp_flag'] == 'default':
-                temp_Dataset['probe1Temperature'] = meta['probe1Temperature']
-                temp_Dataset['probe2Temperature'] = meta['probe2Temperature']
-
-            # Use constant temperatures provided by the user.
-            if cfg['flags']['ref_temp_flag'] == 'constant':
-                temp_Dataset['probe1Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe1_value']
-                temp_Dataset['probe2Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe2_value']
-
-            # If the flag is 'external' than no probe temperature field is
-            # returned as the external data stream must be handled separately.
-
-            if ds:
-                ds = xr.concat([ds, temp_Dataset], dim='time')
-            else:
-                ds = temp_Dataset
-
-            # Chunking/saving to avoid memory errors
-            if np.mod(nDumb + 1, chunkSize) == 0 or nDumb == nTotal - 1:
-                os.chdir(dirProcessed)
-                numChunk = np.floor_divide(nDumb, chunkSize) + prevNumChunk
-                ds.attrs = {'LAF_beg': meta['LAF_beg'],
-                            'LAF_end': meta['LAF_end'],
-                            'dLAF': meta['dLAF']}
-                ds = labelLoc_general(ds, labels)
-
-                # Label the Ultima PT100 data. These names are used in
-                # calibration and must match the 'refField' variables.
-                try:
-                    ds.rename({'probe1Temperature': cfg['dataProperties']['probe1Temperature'],
-                               'probe2Temperature': cfg['dataProperties']['probe2Temperature']},
-                              inplace=True)
-                except KeyError:
-                    # If no names are supplied, drop the PT100s. This is
-                    # expected behavior when working with an external
-                    # datastream for the reference PT100s
-                    ds = ds.drop(['probe1Temperature', 'probe2Temperature'])
-
-                # Save to netcdf
-                ds.to_netcdf(filePrefix + 'raw' + str(numChunk)
-                             + fileSuffix + '.nc', 'w')
-
-                # Close the netcdf and release the memory.
-                ds.close()
-                ds = None
-
-                os.chdir(dirData)
-        print('')
-        prevNumChunk = numChunk + 1
-        return(None)
+    # Notify the user if corrupt data are found.
+    if corrupt_file_count > 0:
+        print('Corrupt files: ' + str(corrupt_file_count))
+        print(*corrupt_file_list, sep='\n')
