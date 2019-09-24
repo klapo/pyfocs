@@ -99,7 +99,7 @@ for exp_name in experiment_names:
 
     # Throw an error if raw files should be read but directory isn't found
     if (not os.path.exists(dir_raw_xml)) and (config_user['flags']['archiving_flag']):
-        raise FileNotFoundError('Raw data directory not found')
+        raise FileNotFoundError('Raw data directory not found: ' + dir_raw_xml)
 
     #%%
     # --------
@@ -247,13 +247,13 @@ else:
 
 # Determine write mode:
 try:
-    write_mode = internal_config[exp_name]['flags']['write_mode']
+    write_mode = config_user['flags']['write_mode']
 except KeyError:
     write_mode = 'overwrite'
 
 # Determine calibration mode:
 try:
-    cal_mode = internal_config[exp_name]['flags']['cal_mode']
+    cal_mode = config_user['flags']['cal_mode']
 except KeyError:
     cal_mode = 'instantaneous'
 
@@ -280,7 +280,9 @@ for exp_name in experiment_names:
         print('Writing netcdfs from raw xml files.')
         print(' ')
         print('creating raw netcdf for experiment: ', exp_name)
-        btmm_process.archive_read(internal_config[exp_name])
+        print(write_mode)
+        btmm_process.archive_read(internal_config[exp_name],
+                                  write_mode=write_mode)
 
 for exp_name in experiment_names:
     # --------------------------------------------------------------------------

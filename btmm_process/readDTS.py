@@ -105,12 +105,18 @@ def xml_read(dumbXMLFile):
     return(actualData, metaData)
 
 
-def archive_read(cfg, prevNumChunk=0):
+def archive_read(cfg, write_mode='preserve', prevNumChunk=0):
     '''
     Reads all archived xml files in the provided directory
     and turns them into netcdfs.
 
     Optional arguments:
+    write_mode    -  Determines if the function peaks to see if the file it
+                     would create exists.
+                        write_mode == 'overwrite', no peaking, creates new
+                                      file.
+                        write_mode == 'preserve', peaks, does not process files
+                                      that already exist.
     prevNumChunk  -  The chunk number to assign the output netcdf name. When
                      running across multiple experiments/directories it can be
                      useful to specify your own value.
@@ -141,6 +147,18 @@ def archive_read(cfg, prevNumChunk=0):
         # Untar files
         for tFile in dirConTar:
             print(tFile)
+
+            # Name of the resulting netcdf
+            nc_out_name = 'raw_' + tFile.split('.')[0] + '.nc'
+
+            # Skip this archive if the netCDF already exists and we are
+            # not overwriting.
+            if write_mode == 'preserve':
+                if os.path.isfile(os.path.join(dirProcessed, nc_out_name)):
+                    print('... exists. No overwriting.')
+                    continue
+
+            # Extract the archive
             t = tarfile.open(tFile)
             t.extractall()
             t.close
@@ -175,7 +193,8 @@ def archive_read(cfg, prevNumChunk=0):
                 temp_Dataset.coords['time'] = meta['dt_start']
 
                 # Determine how to handle the reference probes
-                # Default behavior is to use the instrument reported reference temperatures.
+                # Default behavior is to use the instrument reported reference
+                # temperatures.
                 if cfg['flags']['ref_temp_option'] == 'default':
                     temp_Dataset['probe1Temperature'] = meta['probe1Temperature']
                     temp_Dataset['probe2Temperature'] = meta['probe2Temperature']
@@ -192,12 +211,14 @@ def archive_read(cfg, prevNumChunk=0):
                 # Create a list of xarray Datasets
                 ds_list.append(temp_Dataset)
             print('\n Concatenating netcdfs within archive...')
-            ds = xr.concat(ds_list, dim='time')
+            try:
+                ds = xr.concat(ds_list, dim='time')
+            except ValueError:
+                raise ValueError('No xml files were found within: ' + tFile)
 
             # Create a raw netcdf file for each archive interval. This means
             # that the archive interval dicates the speed/efficiency of the
             # later calibration step.
-            os.chdir(dirProcessed)
             ds.attrs = {'LAF_beg': meta['LAF_beg'],
                         'LAF_end': meta['LAF_end'],
                         'dLAF': meta['dLAF']}
@@ -221,8 +242,8 @@ def archive_read(cfg, prevNumChunk=0):
                 print('No PT100 field names were passed.')
 
             # Save to netcdf
-            nc_out_name = 'raw_' + tFile.split('.')[0]
-            ds.to_netcdf(nc_out_name + '.nc', 'w')
+            os.chdir(dirProcessed)
+            ds.to_netcdf(nc_out_name, 'w')
 
             # Close the netcdf and release the memory.
             ds.close()
