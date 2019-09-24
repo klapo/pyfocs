@@ -25,8 +25,8 @@ warnings.simplefilter(action='ignore', category=RuntimeWarning)
 # -----------------------------------------------------------------------------
 # Quick fix for us to do local debugging.
 try:
-    # filename_configfile_KL = ''
-    # filename_configfile_AF = '/home/anita/Schreibtisch/python_programme/config_files/LOVE/rim_unheated_190711_all.yml'
+    filename_configfile_KL = 'bla'
+    filename_configfile_AF = '/home/anita/Schreibtisch/python_programs/config_files/LOVE/LOVE_Simba_south_190711_config.yml'
     if os.path.exists(filename_configfile_KL):
         filename_configfile = filename_configfile_KL
     elif os.path.exists(filename_configfile_AF):
@@ -55,8 +55,9 @@ except NameError:
             ]
         filename_configfile = filedialog.askopenfilename(filetypes=ftypes)
 
+# This yaml syntax requires pyyaml v5.1
 with open(filename_configfile, 'r') as stream:
-    config_user = yaml.load(stream)
+    config_user = yaml.load(stream, Loader=yaml.FullLoader)
 
 try:
     remote_dir = config_user['directories']['remote']['remote_directories']
@@ -98,7 +99,7 @@ for exp_name in experiment_names:
 
     # Throw an error if raw files should be read but directory isn't found
     if (not os.path.exists(dir_raw_xml)) and (config_user['flags']['archiving_flag']):
-        raise FileNotFoundError('Raw data directory not found')
+        raise FileNotFoundError('Raw data directory not found: ' + dir_raw_xml)
 
     #%%
     # --------
@@ -136,32 +137,8 @@ for exp_name in experiment_names:
             os.makedirs(dir_raw_netcdf)
             print('Calibrated directory not found. Created a new one at ' + dir_raw_netcdf)
         # throw error if raw netcdf files are needed but neither found nor created
-        elif config_user['flags']['processed_flag']:
-            raise FileNotFoundError('Raw netcdf data directory not found')
-
-    #%%
-    # --------
-    # Processed netcdfs (labeling, initial data cleanup and
-    # prep for calibration)
-    if 'processed' in remote_dir:
-        dir_processed = os.path.join(config_user['directories']['remote']['dir_pre'],
-                                     exp_name, config_user['directories']['processed'])
-    else:
-        dir_processed = os.path.join(config_user['directories']['local']['dir_pre'],
-                                     exp_name, config_user['directories']['processed'])
-
-    if not os.path.exists(dir_processed):
-        # Create the folder for the processed files if it doesn't already
-        # exist and processed files will be created.
-        if config_user['flags']['processed_flag']:
-            os.makedirs(dir_processed)
-            print('Processed directory not found. Created a new one at '
-                  + dir_processed)
-        # Throw error if processed files are needed but neither
-        # found nor created.
         elif config_user['flags']['calibrate_flag']:
-            raise FileNotFoundError('Processed data directory not found')
-
+            raise FileNotFoundError('Raw netcdf data directory not found')
 
     #%%
     # --------
@@ -217,16 +194,19 @@ for exp_name in experiment_names:
     internal_config[exp_name]['archive']['targetPath'] = dir_archive
     internal_config[exp_name]['directories']['dirArchive'] = dir_archive
     internal_config[exp_name]['directories']['dirRawNetcdf'] = dir_raw_netcdf
-    internal_config[exp_name]['directories']['dirProcessed'] = dir_processed
     internal_config[exp_name]['directories']['dirCalibrated'] = dir_cal
     internal_config[exp_name]['directories']['dirFinal'] = dir_final
 
     # Make sure the prefix/suffix fields exist
     try:
-        internal_config[exp_name]['directories']['fileName']['prefix'] = config_user['directories']['raw_xml'] + '_' + exp_name
+        outname_prefix = config_user['directories']['prefix']
     except KeyError:
-        internal_config[exp_name]['directories']['fileName'] = {}
-        internal_config[exp_name]['directories']['fileName']['prefix'] = config_user['directories']['raw_xml'] + '_' + exp_name
+        outname_prefix = None
+
+    try:
+        outname_suffix = config_user['directories']['suffix']
+    except KeyError:
+        outname_suffix = None
 
    # Determine fiber type
     coretype = internal_config[exp_name]['dataProperties']['fiber_type']
@@ -235,6 +215,7 @@ for exp_name in experiment_names:
     else:
         cores = None
 
+#
 # Determine the list of location types
 try:
     loc_type = config_user['dataProperties']['all_locs']
@@ -257,13 +238,24 @@ except KeyError:
         config_user['flags']['processed_flag'] = False
         config_user['flags']['final_flag'] = False
 
+# Step loss corrections
+if ('step_loss_LAF' in config_user['dataProperties']
+        and 'step_loss_correction' in config_user['dataProperties']):
+    step_loss_flag = True
+else:
+    step_loss_flag = False
+
 # Determine write mode:
 try:
-    write_mode = internal_config[exp_name]['flags']['write_mode']
+    write_mode = config_user['flags']['write_mode']
 except KeyError:
     write_mode = 'overwrite'
 
-print(write_mode)
+# Determine calibration mode:
+try:
+    cal_mode = config_user['flags']['cal_mode']
+except KeyError:
+    cal_mode = 'instantaneous'
 
 # -----------------------------------------------------------------------------
 # Archive and create raw netcdfs
@@ -288,7 +280,9 @@ for exp_name in experiment_names:
         print('Writing netcdfs from raw xml files.')
         print(' ')
         print('creating raw netcdf for experiment: ', exp_name)
-        btmm_process.archive_read(internal_config[exp_name])
+        print(write_mode)
+        btmm_process.archive_read(internal_config[exp_name],
+                                  write_mode=write_mode)
 
 for exp_name in experiment_names:
     # --------------------------------------------------------------------------
@@ -300,17 +294,14 @@ for exp_name in experiment_names:
         if internal_config[exp_name]['flags']['ref_temp_option'] == 'external':
             # Get the metdata
             os.chdir(dir_ext)
-            ref_data = xr.open_mfdataset('*.nc').to_dataframe()
+            ref_data = xr.open_dataset(config_user['directories']['filename_external'])
+            ref_data = ref_data.resample(time = config_user['dataProperties']['resampling_time']).interpolate('linear')
 
             probe1_name = internal_config[exp_name]['dataProperties']['probe1Temperature']
             probe2_name = internal_config[exp_name]['dataProperties']['probe2Temperature']
 
-            probe1_cols = np.atleast_1d(internal_config[exp_name]['dataProperties']['probe1_value'])
-            probe2_cols = np.atleast_1d(internal_config[exp_name]['dataProperties']['probe2_value'])
-
-            probe1 = ref_data[probe1_cols]
-            probe2 = ref_data[probe2_cols]
-
+            # probe1 = ref_data[probe1_name]
+            # probe2 = ref_data[probe2_name]
 
         # Find all 'raw' netcdfs within the processed directory,
         # sort them (by date), and process each individually.
@@ -321,11 +312,6 @@ for exp_name in experiment_names:
         ncfiles.sort()
         ntot = np.size(ncfiles)
         for nraw, raw_nc in enumerate(ncfiles):
-            # Name of the output file for this archive chunk
-            try:
-                outname_suffix = config_user['directories']['fileName']['suffix']
-            except KeyError:
-                outname_suffix = ''
             outname_channel = raw_nc.split('.')[0].split('_')[-2]
             outname_date = raw_nc.split('.')[0].split('_')[-1]
 
@@ -336,7 +322,8 @@ for exp_name in experiment_names:
                 if coretype == 'multicore':
                     for c in cores:
                         outname_core = c
-                        outname = '_'.join(filter(None, [exp_name, 'cal',
+                        outname = '_'.join(filter(None, [outname_prefix,
+                                                         exp_name, 'cal',
                                                          outname_channel,
                                                          outname_date,
                                                          outname_suffix,
@@ -350,7 +337,7 @@ for exp_name in experiment_names:
                             print('Preserving existing netcdf ' + outname
                                   + ' (' + str(nraw + 1)
                                   + ' of ' + str(ntot) + ')')
-                        # If one of the core files does not exist exit the
+                        # If one of the core files does not exist, exit the
                         # loop and continue.
                         else:
                             skip_flag = False
@@ -358,7 +345,8 @@ for exp_name in experiment_names:
 
                 elif coretype == 'singlecore':
                     outname_core = None
-                    outname = '_'.join(filter(None, [exp_name, 'cal',
+                    outname = '_'.join(filter(None, [outname_prefix,
+                                                     exp_name, 'cal',
                                                      outname_channel,
                                                      outname_date,
                                                      outname_suffix,
@@ -375,7 +363,6 @@ for exp_name in experiment_names:
 
                 # The calibrated file exists, do not process and calibrate.
                 if skip_flag:
-
                     continue
             # Either the file does not exist or it is to be overwritten.
             print('Processing ' + outname_date + ' (' + str(nraw + 1)
@@ -401,27 +388,27 @@ for exp_name in experiment_names:
             # Add a delta t attribute
             dstemp.attrs['dt'] = config_user['dataProperties']['resampling_time']
 
-
             # Add in external reference data here
             if internal_config[exp_name]['flags']['ref_temp_option'] == 'external':
-                probe1_temp = probe1.reindex_like(dstemp.time,
-                                                  method='nearest',
-                                                  tolerance=1)
+                temp_ref_data = ref_data.reindex_like(dstemp.time,
+                                                      method='nearest',
+                                                      tolerance=1)
 
-                probe2_temp = probe2.reindex_like(dstemp.time,
-                                                  method='nearest',
-                                                  tolerance=1)
-                dstemp[probe1_name] = probe1_temp
-                dstemp[probe2_name] = probe2_temp
+                dstemp[probe1_name] = temp_ref_data[probe1_name]
+                dstemp[probe2_name] = temp_ref_data[probe2_name]
+
+                # Add additional external data for this data stream.
+                if internal_config[exp_name]['dataProperties']['external_fields']:
+                    for ext_dat in internal_config[exp_name]['dataProperties']['external_fields']:
+                        dstemp[ext_dat] = temp_ref_data[ext_dat]
 
                 # If the bath pt100s and dts do not line up in time,
                 # notify the user.
                 if not (np.size(np.flatnonzero(~np.isnan(dstemp.temp.values))) > 0):
-                    # N.
                     print('PT100 and DTS data do not line up in time for ' + raw_nc)
 
             # Step loss corrections if they are provided.
-            if 'step_loss_LAF' in config_user['dataProperties'] and 'step_loss_correction' in config_user['dataProperties']:
+            if step_loss_flag:
                 splice_LAF = np.atleast_1d(config_user['dataProperties']['step_loss_LAF'])
                 step_loss_corrections = np.atleast_1d(config_user['dataProperties']['step_loss_correction'])
 
@@ -437,6 +424,7 @@ for exp_name in experiment_names:
             # Split up multicore data
             if coretype == 'multicore':
                 for c in cores:
+                    print(c)
                     dstemp_core = dstemp
 
                     # Drop the unnecessary negative LAF indices
@@ -460,7 +448,10 @@ for exp_name in experiment_names:
                     # dstemp_core.attrs['loc_general_long'] = dict((l, config_user['loc_general'][l]['long name'])
 
                     # Calibrate the temperatures
-                    dstemp_core, _, _, _ = btmm_process.matrixInversion(dstemp_core, internal_config[exp_name])
+                    if cal_mode == 'smooth':
+                        dstemp_core = btmm_process.timeAvgCalibrate(dstemp_core, internal_config[exp_name])
+                    else:
+                        dstemp_core, _, _, _ = btmm_process.matrixInversion(dstemp_core, internal_config[exp_name])
 
                     # Rename the instrument reported temperature field
                     dstemp_core = dstemp_core.rename({'temp': 'instr_temp'})
@@ -468,7 +459,8 @@ for exp_name in experiment_names:
 
                     # Output the calibrated dataset
                     outname_core = c
-                    outname = '_'.join(filter(None, [exp_name, 'cal',
+                    outname = '_'.join(filter(None, [outname_prefix,
+                                                     exp_name, 'cal',
                                                      outname_channel,
                                                      outname_date,
                                                      outname_suffix,
@@ -497,12 +489,12 @@ for exp_name in experiment_names:
 
                 # Output the calibrated dataset
                 outname_core = None
-                outname = '_'.join(filter(None, [exp_name, 'cal',
+                outname = '_'.join(filter(None, [outname_prefix,
+                                                 exp_name, 'cal',
                                                  outname_channel,
                                                  outname_date,
                                                  outname_suffix,
                                                  outname_core])) + '.nc'
-
 
                 os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
                 dstemp.to_netcdf(outname, engine='netcdf4')
