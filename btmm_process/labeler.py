@@ -324,6 +324,32 @@ def dtsPhysicalCoords_3d(ds, location):
 
 
 # ------------------------------------------------------------------------------
+def create_multiindex(ds, coords=['x', 'y', 'z']):
+    '''
+    xarray does not (yet?) support writing a MultiIndex to netcdf format. To
+    get around this unsupported behavior, this function recreates a MultiIndex
+    using the saved 'x', 'y', and 'z' coordinates. Supports the ability to use
+    arbitrary coordinates with the default matching the behavior expected by
+    PyFOX.
+    '''
+    # Recreate the multiindex for an xarray dataset saved as a netcdf
+    coord_list = [ds[c] for c in coords]
+
+    # Create a pandas multiindex
+    midx = pd.MultiIndex.from_arrays(coord_list, names=coords)
+
+    # Drop the old, uncombined coordinates since they conflic with assigning
+    # the MultiIndex
+    ds = ds.drop(coords)
+    print(ds)
+    # Assing the MultiIndex, this recreates the individual coordinates that
+    # were just dropped.
+    ds = ds.assign_coords(xyz = midx)
+
+    return ds
+
+
+# ------------------------------------------------------------------------------
 def yamlDict(yamlPath):
     '''
     Reads the .yml label location file and returns the location dictionary
