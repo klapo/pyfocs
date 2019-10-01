@@ -282,14 +282,18 @@ def archiver(cfg):
                         for f in sourceFile:
                             os.remove(f)
 
-                    # If the archiving mode is active, do not process
-                    # incomplete archiving intervals. Instead exit out and let
-                    # the next scheduled call to the archiver deal with this
-                    # time interval. This step just requires no action here.
+                    print('Done with ' + ch + '.')
+                    xml_counts = xml_counts + 1
+                    break
 
-                print('Done with ' + ch + '.')
-                xml_counts = xml_counts + 1
-                break
+                # If the archiving mode is active, do not process
+                # the last archiving interval, as it may be incomplete. Instead
+                # exit and handle this interval with the next scheduled call
+                # to the archiver. This step just requires no action here.
+                if mode == 'active':
+                    print('Done with ' + ch + '.')
+                    xml_counts = xml_counts + 1
+                    break
 
     ########
     # Back up to the external drive if specified.

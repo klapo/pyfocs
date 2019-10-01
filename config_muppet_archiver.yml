@@ -19,7 +19,7 @@ archive:
   # Delete the raw xml files after creating the archive?
   cleanup_flag: True
   # Unused at the moment but can't be deleted
-  mode: archiving
+  mode: active
   # Interval (in minutes) over which to archive the raw xml files.
   archiveInterval: 5
   dirBackUp: ''
