@@ -289,9 +289,11 @@ def dtsPhysicalCoords_3d(ds, location):
         # Crude check for the mapping's consistency.
         d = (dx**2 + dy**2 + dz**2)**(0.5)
         if np.abs(d - dLAF) > 0.5 * dLAF:
-            delta_str = ('\ndx = ' + str(dx) + '\n' + 'dy = '
-                         + str(dy) + '\n' + 'dz = ' + str(dz)
-                         + '\n' + 'dLAF = ' + str(dLAF[0]))
+            delta_str = ('\ndx = ' + str(dx)
+                         + '\n' + 'dy = ' + str(dy)
+                         + '\n' + 'dz = ' + str(dz)
+                         + '\n' + 'total = ' + str(dz)
+                         + '\n' + 'dLAF = ' + str(dLAF))
             raise ValueError('Mapping problem detected for '
                              + location[l]['long name']
                              + '. Inferred data spacing is '
