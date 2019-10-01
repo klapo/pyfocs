@@ -23,3 +23,7 @@ Data and the surrounding directory structure is assumed to follow ![this outline
 ### References
 
 Hausner, M. B., Suárez, F., Glander, K. E., & Giesen, N. Van De. (2011). Calibrating Single-Ended Fiber-Optic Raman Spectra Distributed Temperature Sensing Data. Sensors, 11, 10859–10879. https://doi.org/10.3390/s111110859
+
+### Muppet Archiver
+
+Batch script for scheduled archiving of `.xml` files on the Silixa DTS devices. Why muppet? BTMM names their Silixa devices after muppet characters. Requires an anaconda 3.* distribution of python. Task scheduler must point to the `.bat` script and not the python script.
