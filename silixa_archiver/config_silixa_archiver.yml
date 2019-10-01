@@ -17,7 +17,8 @@ archive:
   - channel 1
   # Delete the raw xml files after creating the archive?
   cleanup_flag: True
-  # Unused at the moment but can't be deleted
+  # Indicates that the archiver should ignore the last archiving interval to
+  # not overwrite partially filled intervals.
   mode: active
   # Interval (in minutes) over which to archive the raw xml files.
   archiveInterval: 5
