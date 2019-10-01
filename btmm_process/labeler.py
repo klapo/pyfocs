@@ -289,9 +289,11 @@ def dtsPhysicalCoords_3d(ds, location):
         # Crude check for the mapping's consistency.
         d = (dx**2 + dy**2 + dz**2)**(0.5)
         if np.abs(d - dLAF) > 0.5 * dLAF:
-            delta_str = ('\ndx = ' + str(dx) + '\n' + 'dy = '
-                         + str(dy) + '\n' + 'dz = ' + str(dz)
-                         + '\n' + 'dLAF = ' + str(dLAF[0]))
+            delta_str = ('\ndx = ' + str(dx)
+                         + '\n' + 'dy = ' + str(dy)
+                         + '\n' + 'dz = ' + str(dz)
+                         + '\n' + 'total = ' + str(dz)
+                         + '\n' + 'dLAF = ' + str(dLAF))
             raise ValueError('Mapping problem detected for '
                              + location[l]['long name']
                              + '. Inferred data spacing is '
@@ -321,6 +323,32 @@ def dtsPhysicalCoords_3d(ds, location):
     # ds_out = ds_out.drop(['x', 'y', 'z'])
     # ds_out = ds_out.assign_coords(xyz = midx)
     return ds_out
+
+
+# ------------------------------------------------------------------------------
+def create_multiindex(ds, coords=['x', 'y', 'z']):
+    '''
+    xarray does not (yet?) support writing a MultiIndex to netcdf format. To
+    get around this unsupported behavior, this function recreates a MultiIndex
+    using the saved 'x', 'y', and 'z' coordinates. Supports the ability to use
+    arbitrary coordinates with the default matching the behavior expected by
+    PyFOX.
+    '''
+    # Recreate the multiindex for an xarray dataset saved as a netcdf
+    coord_list = [ds[c] for c in coords]
+
+    # Create a pandas multiindex
+    midx = pd.MultiIndex.from_arrays(coord_list, names=coords)
+
+    # Drop the old, uncombined coordinates since they conflic with assigning
+    # the MultiIndex
+    ds = ds.drop(coords)
+    print(ds)
+    # Assing the MultiIndex, this recreates the individual coordinates that
+    # were just dropped.
+    ds = ds.assign_coords(xyz = midx)
+
+    return ds
 
 
 # ------------------------------------------------------------------------------

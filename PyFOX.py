@@ -215,8 +215,8 @@ for exp_name in experiment_names:
     else:
         cores = None
 
-#
-# Determine the list of location types
+# Location library and data labels
+# Determine the list of all location types.
 try:
     loc_type = config_user['dataProperties']['all_locs']
 except KeyError:
@@ -517,6 +517,11 @@ if config_user['flags']['final_flag']:
     # List of finished files so we can skip files when handling multicore fibers.
     finished_files = []
 
+    # When finalizing the dataset all extraneous coordinates and data
+    # is dropped, leaving behind these variables.
+    coords_to_keep = ['xyz', 'time', 'x', 'y', 'z', 'core']
+    vars_to_keep = ['cal_temp']
+
     for exp_name in experiment_names:
         # Find all 'calibrated' netcdfs within the calibrated directory,
         # sort them by date and core name, and process each individually.
@@ -525,6 +530,7 @@ if config_user['flags']['final_flag']:
         ncfiles = [file for file in contents if '.nc' in file and 'cal' in file]
         ncfiles.sort()
         ntot = np.size(ncfiles)
+
         for ncal, cal_nc in enumerate(ncfiles):
             # Name of the output file for this archive chunk
             try:
@@ -554,7 +560,7 @@ if config_user['flags']['final_flag']:
                 # Assign physical coordinates. Each core is appended to a list to be merged later.
                 for c in nc_cal_core:
                     dstemp = xr.open_dataset(c)
-                    dstemp = dstemp.drop(['Ps', 'Pas', 'instr_temp'])
+
                     # Reformat the config locations to specify just a single core
                     core = str(dstemp.core.values)
 
@@ -582,6 +588,20 @@ if config_user['flags']['final_flag']:
 
                     dstemp_out[ploc] = xr.concat(dstemp_out[ploc], dim='core')
 
+                    # Clean up unused variables and labels.
+                    vars_to_drop = [v for v in dstemp_out[ploc].data_vars
+                                    if v not in vars_to_keep]
+                    coords_to_drop = [c for c in dstemp_out[ploc].coords
+                                      if c not in coords_to_keep]
+
+                    # Clean up attributes and dropped the unused ones.
+                    dt = dstemp_out[ploc].attrs['dt']
+                    dLAF = dstemp_out[ploc].attrs['dLAF']
+                    dstemp_out[ploc] = dstemp_out[ploc].drop(vars_to_drop).drop(coords_to_drop)
+                    dstemp_out[ploc].attrs = []
+                    dstemp_out[ploc].attrs['dt'] = dt
+                    dstemp_out[ploc].attrs['dLAF'] = dLAF
+
                     # Output each location type as a separate final file.
                     outname = '_'.join(name_components[:-1]).replace('cal', 'final') + '_' + ploc + '.nc'
                     os.chdir(internal_config[exp_name]['directories']['dirFinal'])
@@ -595,7 +615,21 @@ if config_user['flags']['final_flag']:
                 # Open each calibrated file.
                 os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
                 dstemp = xr.open_dataset(cal_nc)
-                dstemp = dstemp.drop(['Ps', 'Pas', 'instr_temp'])
+                dstemp = xr.open_dataset(c)
+
+                # Clean up unused variables and labels.
+                vars_to_drop = [v for v in dstemp.data_vars
+                                if v not in vars_to_keep]
+                coords_to_drop = [c for c in dstemp.coords
+                                  if c not in coords_to_keep]
+
+                # Clean up attributes and dropped the unused ones.
+                dt = dstemp.attrs['dt']
+                dLAF = dstemp.attrs['dLAF']
+                dstemp = dstemp.drop(vars_to_drop).drop(coords_to_drop)
+                dstemp.attrs = []
+                dstemp.attrs['dt']  = dt
+                dstemp.attrs['dLAF'] = dLAF
 
                 location = {}
                 for l in config_user['location_library']:
