@@ -1,5 +1,4 @@
 directories:
-  # afp-volume:host=DarkMix-server.local,user=anitafreundorfer,volume=darkmix_archive
   # path to where all the experiment data is located
   dir_pre: 'C:\UltimaData\temperature\'
   dir_archive: 'C:\UltimaData\archived_temperature\'
