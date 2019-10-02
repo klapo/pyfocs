@@ -3,7 +3,3 @@
 .DS_Store
 btmm_process/__pycache__/
 *.pyc
-example/archived
-example/calibrated
-example/raw_netcdf
-example/final
