@@ -280,7 +280,6 @@ for exp_name in experiment_names:
         print('Writing netcdfs from raw xml files.')
         print(' ')
         print('creating raw netcdf for experiment: ', exp_name)
-        print(write_mode)
         btmm_process.archive_read(internal_config[exp_name],
                                   write_mode=write_mode)
 
@@ -299,9 +298,6 @@ for exp_name in experiment_names:
 
             probe1_name = internal_config[exp_name]['dataProperties']['probe1Temperature']
             probe2_name = internal_config[exp_name]['dataProperties']['probe2Temperature']
-
-            # probe1 = ref_data[probe1_name]
-            # probe2 = ref_data[probe2_name]
 
         # Find all 'raw' netcdfs within the processed directory,
         # sort them (by date), and process each individually.
@@ -560,6 +556,7 @@ if config_user['flags']['final_flag']:
                 # Assign physical coordinates. Each core is appended to a list to be merged later.
                 for c in nc_cal_core:
                     dstemp = xr.open_dataset(c)
+                    dstemp.load()
 
                     # Reformat the config locations to specify just a single core
                     core = str(dstemp.core.values)
