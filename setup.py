@@ -6,7 +6,7 @@ setup(
     description='Processing of meteorological FODS data.',
     packages=find_packages(exclude=['ez_setup', 'examples', 'tests']),
     version='0.1',
-    install_requires=['pandas', 'numpy', 'xarray', 'xmltodict',
+    install_requires=['netcdf4', 'pandas', 'numpy', 'xarray', 'xmltodict',
                       'pyyaml', 'dirsync', 'scipy'],
     license='MIT',
     zip_safe=False,
