@@ -25,7 +25,7 @@ warnings.simplefilter(action='ignore', category=RuntimeWarning)
 #%% open the config file
 # The filename is hard coded to make it easier to use the
 # Windows Task Scheduler.
-filename_configfile = '/Users/karllapo/Desktop/software/python/scripts/PyFOX/config_silixa_archiver.yml' 
+filename_configfile = '/Users/karllapo/Desktop/software/python/scripts/PyFOX/muppet_archiver.yml' 
 
 with open(filename_configfile, 'r') as stream:
     config_user = yaml.load(stream)

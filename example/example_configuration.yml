@@ -2,7 +2,7 @@ directories:
   # path to where all the dts data is located. Change this for running the
   # example.
   local:
-    dir_pre: /Users/karllapo/Desktop/software/python/packages/btmm_process/
+    dir_pre: .
 
   # Names of the Subdirectories for all the processing steps.
   # Cannot start with a '/' as this signifies an absolute path and will ignore
@@ -16,7 +16,7 @@ directories:
 
   # This need to be full a path as it won't use the local/remote
   # directory prefix.
-  external: /Users/karllapo/Desktop/software/python/packages/btmm_process/example/external/
+  external: __file__
   filename_external: pyfox_smpl_reftemp.nc
 
   # List the experiments that should be processed.
