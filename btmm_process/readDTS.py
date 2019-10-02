@@ -227,9 +227,8 @@ def archive_read(cfg, write_mode='preserve', prevNumChunk=0):
             # Label the Ultima PT100 data. These names are used in
             # calibration and must match the 'refField' variables.
             try:
-                ds.rename({'probe1Temperature': cfg['dataProperties']['probe1Temperature'],
-                           'probe2Temperature': cfg['dataProperties']['probe2Temperature']},
-                          inplace=True)
+                ds = ds.rename({'probe1Temperature': cfg['dataProperties']['probe1Temperature'],
+                                'probe2Temperature': cfg['dataProperties']['probe2Temperature']})
             except KeyError:
                 # If no names are supplied, drop the PT100s. This is
                 # excpected behavior when working with an external
