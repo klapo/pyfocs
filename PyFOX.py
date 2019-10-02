@@ -79,6 +79,9 @@ for exp_name in experiment_names:
     # External data
     try:
         dir_ext = config_user['directories']['external']
+        # Handling for relative paths
+        if dir_ext == '.':
+            dir_ext = os.getcwd()
         # Check for empty yaml lists (assigned NoneType)
         if dir_ext is not None:
             # check if the external data directory exists, error if not
@@ -87,14 +90,30 @@ for exp_name in experiment_names:
     except KeyError:
         dir_ext = None
 
+    # Handling for relative paths
+    try:
+        dir_pre_local = config_user['directories']['local']['dir_pre']
+    except KeyError:
+        dir_pre_local = ''
+
+    try:
+        dir_pre_remote = config_user['directories']['remote']['dir_pre']
+    except KeyError:
+        dir_pre_remote = ''
+
+    if dir_pre_local == '.':
+        dir_pre_local = os.getcwd()
+    if dir_pre_remote == '.':
+        dir_pre_remote = os.getcwd()
+
     #%%
     # --------
     # Raw xml files
     if 'raw_xml' in remote_dir:
-        dir_raw_xml = os.path.join(config_user['directories']['remote']['dir_pre'],
+        dir_raw_xml = os.path.join(dir_pre_remote,
                                    exp_name, config_user['directories']['raw'])
     else:
-        dir_raw_xml = os.path.join(config_user['directories']['local']['dir_pre'],
+        dir_raw_xml = os.path.join(dir_pre_local,
                                    exp_name, config_user['directories']['raw_xml'])
 
     # Throw an error if raw files should be read but directory isn't found
@@ -105,10 +124,10 @@ for exp_name in experiment_names:
     # --------
     # Archived tar.gz of xmls
     if 'archive' in remote_dir:
-        dir_archive = os.path.join(config_user['directories']['remote']['dir_pre'],
+        dir_archive = os.path.join(dir_pre_remote,
                                    exp_name, config_user['directories']['archive'])
     else:
-        dir_archive = os.path.join(config_user['directories']['local']['dir_pre'],
+        dir_archive = os.path.join(dir_pre_local,
                                    exp_name, config_user['directories']['archive'])
 
     if (not os.path.exists(dir_archive)):
@@ -124,10 +143,10 @@ for exp_name in experiment_names:
     # --------
     # Raw xmls in netcdf format
     if 'raw_netcdf' in remote_dir:
-        dir_raw_netcdf = os.path.join(config_user['directories']['remote']['dir_pre'],
+        dir_raw_netcdf = os.path.join(dir_pre_remote,
                                       exp_name, config_user['directories']['raw_netcdf'])
     else:
-        dir_raw_netcdf = os.path.join(config_user['directories']['local']['dir_pre'],
+        dir_raw_netcdf = os.path.join(dir_pre_local,
                                       exp_name, config_user['directories']['raw_netcdf'])
 
     if not os.path.exists(dir_raw_netcdf):
@@ -144,10 +163,10 @@ for exp_name in experiment_names:
     # --------
     # Calibrated temperature (full matrix inversion)
     if 'calibrated' in remote_dir:
-        dir_cal = os.path.join(config_user['directories']['remote']['dir_pre'],
+        dir_cal = os.path.join(dir_pre_remote,
                                exp_name, config_user['directories']['calibrated'])
     else:
-        dir_cal = os.path.join(config_user['directories']['local']['dir_pre'],
+        dir_cal = os.path.join(dir_pre_local,
                                exp_name, config_user['directories']['calibrated'])
 
     if not os.path.exists(dir_cal):
@@ -165,10 +184,10 @@ for exp_name in experiment_names:
     # Final data (converted into just the labeled segments with
     # a physical location)
     if 'final' in remote_dir:
-        dir_final = os.path.join(config_user['directories']['remote']['dir_pre'],
+        dir_final = os.path.join(dir_pre_remote,
                                  exp_name, config_user['directories']['final'])
     else:
-        dir_final = os.path.join(config_user['directories']['local']['dir_pre'],
+        dir_final = os.path.join(dir_pre_local,
                                  exp_name, config_user['directories']['final'])
 
     # Create the folder for the final files if it doesn't already exist
@@ -180,10 +199,10 @@ for exp_name in experiment_names:
     # --------
     # Graphics folder (currently unused)
     if 'graphics' in remote_dir:
-        dir_graphics = os.path.join(config_user['directories']['remote']['dir_pre'],
+        dir_graphics = os.path.join(dir_pre_remote,
                                     exp_name, config_user['directories']['graphics'])
     else:
-        dir_graphics = os.path.join(config_user['directories']['local']['dir_pre'],
+        dir_graphics = os.path.join(dir_pre_local,
                                     exp_name, config_user['directories']['graphics'])
 
     # assemble internal config for each dts folder within the experiment folder

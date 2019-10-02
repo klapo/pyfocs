@@ -16,8 +16,8 @@ directories:
 
   # This need to be full a path as it won't use the local/remote
   # directory prefix.
-  external: __file__
-  filename_external: pyfox_smpl_reftemp.nc
+  external: .
+  filename_external: example/external/pyfox_smpl_reftemp.nc
 
   # List the experiments that should be processed.
   experiment_names:
