@@ -2,22 +2,24 @@
 
 pyfocs has been known by btmm_process (obscure non-pythonic name) and pyfox (an unmaintained package on PyPi) resulting in the new name for the library.
 
-# Installation and running the example
+# Getting Started]
 
 ## Installation
 pyfocs can be installed by using:
 
 `pip install pyfocs`
 
-which installs v0.1.1b or by downloading the source code, navigating to the directory containing it, and running
+which installs pyfocs plus all dependencies. Alternatively you can download the source code, navigate to the directory containing it, and run
 
 `python setup.py install`
 
-Both methods should result in the `PyFOX.py` being executable from the command line.
+Both methods should result in the `PyFOX.py` being executable from the command line. Installing the code from source may allow some dependency issues. These can be resolved through
+
+`pip install -r requirements.txt`
 
 ## Example
 
-Download the data in the `example` directory. Within that directory is an example configuraiton file in yaml format. Adjust the `dir_pre` and `external` paths to be those in the example folder. Then, you should be able to run pyfocs using:
+Download the data in the `example` directory. Within that directory is an example configuration file in yaml format. Adjust the `dir_pre` and `external` paths to be those of the example folder. Then, you should be able to run
 
 `PyFOX.py path/to/example_configuration.yml`
 
