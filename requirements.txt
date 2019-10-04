@@ -1,2 +1,2 @@
-xarray<0.13
+xarray<0.13,>0.12
 pyyaml>=5.1

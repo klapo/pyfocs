@@ -3,3 +3,6 @@
 .DS_Store
 btmm_process/__pycache__/
 *.pyc
+build/
+dist/
+pyfox.egg-info/
