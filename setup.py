@@ -10,8 +10,8 @@ setup(
     description='Processing of meteorological FODS data.',
     long_description=long_description,
     packages=find_packages(exclude=['ez_setup', 'examples', 'tests']),
-    version='0.1',
-    scripts=['PyFOX']
+    version='0.1.1',
+    scripts=['PyFOX.py'],
     install_requires=['netcdf4', 'pandas', 'numpy', 'xarray<0.13', 'xmltodict',
                       'pyyaml>=5.1', 'dirsync', 'scipy'],
     classifiers=[ "Programming Language :: Python :: 3",

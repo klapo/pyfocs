@@ -12,11 +12,11 @@ import yaml
 import tkinter as tk  # For the dialog that lets you choose your config file
 from tkinter import filedialog
 import copy
-import csv
 import sys
+import pkg_resources
 
 # UBT's package for handling dts data
-import btmm_process
+import pyfocs
 
 # Ignore the future compatibility warnings
 import warnings
@@ -43,6 +43,9 @@ except NameError:
     # Test if a file was provided to the script from the terminal.
     try:
         filename_configfile = sys.argv[1]
+        if filename_configfile == 'example':
+            filename_configfile = pkg_resources.resource_filename('pyfocs',
+                                                                  'example/example_configuration.yml')
         if not os.path.exists(filename_configfile):
             print('Config file' + sys.argv[1] + 'not found.')
 
