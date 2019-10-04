@@ -16,7 +16,7 @@ import sys
 import pkg_resources
 
 # UBT's package for handling dts data
-import pyfocs
+import btmm_process
 
 # Ignore the future compatibility warnings
 import warnings
@@ -43,9 +43,7 @@ except NameError:
     # Test if a file was provided to the script from the terminal.
     try:
         filename_configfile = sys.argv[1]
-        if filename_configfile == 'example':
-            filename_configfile = pkg_resources.resource_filename('pyfocs',
-                                                                  'example/example_configuration.yml')
+        # Return an error if no config file is found
         if not os.path.exists(filename_configfile):
             print('Config file' + sys.argv[1] + 'not found.')
 
@@ -85,9 +83,6 @@ for exp_name in experiment_names:
     # External data
     try:
         dir_ext = config_user['directories']['external']
-        # Handling for relative paths
-        if dir_ext == '.':
-            dir_ext = os.getcwd()
         # Check for empty yaml lists (assigned NoneType)
         if dir_ext is not None:
             # check if the external data directory exists, error if not
@@ -106,11 +101,6 @@ for exp_name in experiment_names:
         dir_pre_remote = config_user['directories']['remote']['dir_pre']
     except KeyError:
         dir_pre_remote = ''
-
-    if dir_pre_local == '.':
-        dir_pre_local = os.getcwd()
-    if dir_pre_remote == '.':
-        dir_pre_remote = os.getcwd()
 
     #%%
     # --------
