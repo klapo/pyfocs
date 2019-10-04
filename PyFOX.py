@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+
+
 import numpy as np
 from datetime import timedelta
 import pandas as pd
@@ -9,13 +12,12 @@ import yaml
 import tkinter as tk  # For the dialog that lets you choose your config file
 from tkinter import filedialog
 import copy
-import csv
 import sys
 
 # UBT's package for handling dts data
 import btmm_process
 
-# Ignore the future compatibility warnings
+# Ignore the future compatibility warnings and divide by zero "errors"
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
@@ -40,6 +42,7 @@ except NameError:
     # Test if a file was provided to the script from the terminal.
     try:
         filename_configfile = sys.argv[1]
+        # Return an error if no config file is found
         if not os.path.exists(filename_configfile):
             print('Config file' + sys.argv[1] + 'not found.')
 
@@ -87,16 +90,26 @@ for exp_name in experiment_names:
     except KeyError:
         dir_ext = None
 
+    # Handling for relative paths
+    try:
+        dir_pre_local = config_user['directories']['local']['dir_pre']
+    except KeyError:
+        dir_pre_local = ''
+
+    try:
+        dir_pre_remote = config_user['directories']['remote']['dir_pre']
+    except KeyError:
+        dir_pre_remote = ''
+
     #%%
     # --------
     # Raw xml files
     if 'raw_xml' in remote_dir:
-        dir_raw_xml = os.path.join(config_user['directories']['remote']['dir_pre'],
+        dir_raw_xml = os.path.join(dir_pre_remote,
                                    exp_name, config_user['directories']['raw'])
     else:
-        dir_raw_xml = os.path.join(config_user['directories']['local']['dir_pre'],
+        dir_raw_xml = os.path.join(dir_pre_local,
                                    exp_name, config_user['directories']['raw_xml'])
-
     # Throw an error if raw files should be read but directory isn't found
     if (not os.path.exists(dir_raw_xml)) and (config_user['flags']['archiving_flag']):
         raise FileNotFoundError('Raw data directory not found: ' + dir_raw_xml)
@@ -105,11 +118,12 @@ for exp_name in experiment_names:
     # --------
     # Archived tar.gz of xmls
     if 'archive' in remote_dir:
-        dir_archive = os.path.join(config_user['directories']['remote']['dir_pre'],
+        dir_archive = os.path.join(dir_pre_remote,
                                    exp_name, config_user['directories']['archive'])
     else:
-        dir_archive = os.path.join(config_user['directories']['local']['dir_pre'],
+        dir_archive = os.path.join(dir_pre_local,
                                    exp_name, config_user['directories']['archive'])
+    print(dir_archive)
 
     if (not os.path.exists(dir_archive)):
         # create the folder for the archived files if it doesn't already exist and archived files will be created
@@ -124,10 +138,10 @@ for exp_name in experiment_names:
     # --------
     # Raw xmls in netcdf format
     if 'raw_netcdf' in remote_dir:
-        dir_raw_netcdf = os.path.join(config_user['directories']['remote']['dir_pre'],
+        dir_raw_netcdf = os.path.join(dir_pre_remote,
                                       exp_name, config_user['directories']['raw_netcdf'])
     else:
-        dir_raw_netcdf = os.path.join(config_user['directories']['local']['dir_pre'],
+        dir_raw_netcdf = os.path.join(dir_pre_local,
                                       exp_name, config_user['directories']['raw_netcdf'])
 
     if not os.path.exists(dir_raw_netcdf):
@@ -144,10 +158,10 @@ for exp_name in experiment_names:
     # --------
     # Calibrated temperature (full matrix inversion)
     if 'calibrated' in remote_dir:
-        dir_cal = os.path.join(config_user['directories']['remote']['dir_pre'],
+        dir_cal = os.path.join(dir_pre_remote,
                                exp_name, config_user['directories']['calibrated'])
     else:
-        dir_cal = os.path.join(config_user['directories']['local']['dir_pre'],
+        dir_cal = os.path.join(dir_pre_local,
                                exp_name, config_user['directories']['calibrated'])
 
     if not os.path.exists(dir_cal):
@@ -165,10 +179,10 @@ for exp_name in experiment_names:
     # Final data (converted into just the labeled segments with
     # a physical location)
     if 'final' in remote_dir:
-        dir_final = os.path.join(config_user['directories']['remote']['dir_pre'],
+        dir_final = os.path.join(dir_pre_remote,
                                  exp_name, config_user['directories']['final'])
     else:
-        dir_final = os.path.join(config_user['directories']['local']['dir_pre'],
+        dir_final = os.path.join(dir_pre_local,
                                  exp_name, config_user['directories']['final'])
 
     # Create the folder for the final files if it doesn't already exist
@@ -180,10 +194,10 @@ for exp_name in experiment_names:
     # --------
     # Graphics folder (currently unused)
     if 'graphics' in remote_dir:
-        dir_graphics = os.path.join(config_user['directories']['remote']['dir_pre'],
+        dir_graphics = os.path.join(dir_pre_remote,
                                     exp_name, config_user['directories']['graphics'])
     else:
-        dir_graphics = os.path.join(config_user['directories']['local']['dir_pre'],
+        dir_graphics = os.path.join(dir_pre_local,
                                     exp_name, config_user['directories']['graphics'])
 
     # assemble internal config for each dts folder within the experiment folder
@@ -280,7 +294,6 @@ for exp_name in experiment_names:
         print('Writing netcdfs from raw xml files.')
         print(' ')
         print('creating raw netcdf for experiment: ', exp_name)
-        print(write_mode)
         btmm_process.archive_read(internal_config[exp_name],
                                   write_mode=write_mode)
 
@@ -299,9 +312,6 @@ for exp_name in experiment_names:
 
             probe1_name = internal_config[exp_name]['dataProperties']['probe1Temperature']
             probe2_name = internal_config[exp_name]['dataProperties']['probe2Temperature']
-
-            # probe1 = ref_data[probe1_name]
-            # probe2 = ref_data[probe2_name]
 
         # Find all 'raw' netcdfs within the processed directory,
         # sort them (by date), and process each individually.
@@ -560,6 +570,7 @@ if config_user['flags']['final_flag']:
                 # Assign physical coordinates. Each core is appended to a list to be merged later.
                 for c in nc_cal_core:
                     dstemp = xr.open_dataset(c)
+                    dstemp.load()
 
                     # Reformat the config locations to specify just a single core
                     core = str(dstemp.core.values)

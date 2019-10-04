@@ -227,9 +227,8 @@ def archive_read(cfg, write_mode='preserve', prevNumChunk=0):
             # Label the Ultima PT100 data. These names are used in
             # calibration and must match the 'refField' variables.
             try:
-                ds.rename({'probe1Temperature': cfg['dataProperties']['probe1Temperature'],
-                           'probe2Temperature': cfg['dataProperties']['probe2Temperature']},
-                          inplace=True)
+                ds = ds.rename({'probe1Temperature': cfg['dataProperties']['probe1Temperature'],
+                                'probe2Temperature': cfg['dataProperties']['probe2Temperature']})
             except KeyError:
                 # If no names are supplied, drop the PT100s. This is
                 # excpected behavior when working with an external
@@ -253,7 +252,9 @@ def archive_read(cfg, write_mode='preserve', prevNumChunk=0):
             print('')
             # Remove the extracted xml files. The second wildcard character
             # catches the 'incomplete' xml files that occur with power outages.
-            subprocess.Popen(['rm'] + glob.glob('*.xml*'))
+            files_to_remove = glob.glob('*.xml*')
+            for file in files_to_remove:
+                os.remove(file)
 
     # Notify the user if corrupt data are found.
     if corrupt_file_count > 0:
