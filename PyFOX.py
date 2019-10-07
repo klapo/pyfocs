@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-
-
 import numpy as np
 from datetime import timedelta
 import pandas as pd
@@ -12,12 +9,13 @@ import yaml
 import tkinter as tk  # For the dialog that lets you choose your config file
 from tkinter import filedialog
 import copy
+import csv
 import sys
 
 # UBT's package for handling dts data
 import btmm_process
 
-# Ignore the future compatibility warnings and divide by zero "errors"
+# Ignore the future compatibility warnings
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
@@ -42,7 +40,6 @@ except NameError:
     # Test if a file was provided to the script from the terminal.
     try:
         filename_configfile = sys.argv[1]
-        # Return an error if no config file is found
         if not os.path.exists(filename_configfile):
             print('Config file' + sys.argv[1] + 'not found.')
 
@@ -52,7 +49,6 @@ except NameError:
         root = tk.Tk()
         # to close this stupid root window that doesn't let itself be closed.
         root.withdraw()
-        filename_configfile = filedialog.askopenfilename()
         ftypes = [
             ('yaml configuration file', '*.yml'),
             ]
@@ -82,11 +78,15 @@ for exp_name in experiment_names:
     # External data
     try:
         dir_ext = config_user['directories']['external']
+        # Handling for relative paths
+        if dir_ext == '.':
+            dir_ext = os.getcwd()
         # Check for empty yaml lists (assigned NoneType)
         if dir_ext is not None:
             # check if the external data directory exists, error if not
             if (not os.path.exists(dir_ext)) and (config_user['flags']['ref_temp_option']):
-                raise FileNotFoundError('External data directory not found')
+                raise FileNotFoundError('External data directory not found at '
+                                        + dir_ext)
     except KeyError:
         dir_ext = None
 
@@ -101,6 +101,11 @@ for exp_name in experiment_names:
     except KeyError:
         dir_pre_remote = ''
 
+    if dir_pre_local == '.':
+        dir_pre_local = os.getcwd()
+    if dir_pre_remote == '.':
+        dir_pre_remote = os.getcwd()
+
     #%%
     # --------
     # Raw xml files
@@ -110,6 +115,7 @@ for exp_name in experiment_names:
     else:
         dir_raw_xml = os.path.join(dir_pre_local,
                                    exp_name, config_user['directories']['raw_xml'])
+
     # Throw an error if raw files should be read but directory isn't found
     if (not os.path.exists(dir_raw_xml)) and (config_user['flags']['archiving_flag']):
         raise FileNotFoundError('Raw data directory not found: ' + dir_raw_xml)
@@ -123,7 +129,6 @@ for exp_name in experiment_names:
     else:
         dir_archive = os.path.join(dir_pre_local,
                                    exp_name, config_user['directories']['archive'])
-    print(dir_archive)
 
     if (not os.path.exists(dir_archive)):
         # create the folder for the archived files if it doesn't already exist and archived files will be created
@@ -132,7 +137,8 @@ for exp_name in experiment_names:
             print('Archived directory not found. Created a new one at ' + dir_archive)
         # throw error if archived files are needed but neither found nor created
         elif config_user['flags']['archive_read_flag']:
-            raise FileNotFoundError('Archived data directory not found')
+            raise FileNotFoundError('Archived data directory not found at ' +
+                                    dir_archive)
 
     #%%
     # --------
@@ -152,7 +158,8 @@ for exp_name in experiment_names:
             print('Calibrated directory not found. Created a new one at ' + dir_raw_netcdf)
         # throw error if raw netcdf files are needed but neither found nor created
         elif config_user['flags']['calibrate_flag']:
-            raise FileNotFoundError('Raw netcdf data directory not found')
+            raise FileNotFoundError('Raw netcdf data directory not found ' +
+                                    dir_raw_netcdf)
 
     #%%
     # --------
@@ -172,7 +179,8 @@ for exp_name in experiment_names:
             print('Calibrated directory not found. Created a new one at '
                   + dir_cal)
         elif config_user['flags']['final_flag']:
-            raise FileNotFoundError('Calibrated data directory not found')
+            raise FileNotFoundError('Calibrated data directory not found ' +
+                                    dir_cal)
 
     #%%
     # --------
