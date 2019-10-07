@@ -105,6 +105,10 @@ dataProperties:
       LAF:
       - 655
       - 1310
+    ss:
+      LAF:
+      - 1310
+      - 2695
 
   # Correcting for step-losses at a splice
   # Splice LAF. All data after this point on the fiber will have
