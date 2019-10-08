@@ -104,10 +104,10 @@ dataProperties:
     p2:
       LAF:
       - 655
-      - 1310
+      - 1305
     ss:
       LAF:
-      - 1310
+      - 1305
       - 2695
 
   # Correcting for step-losses at a splice
