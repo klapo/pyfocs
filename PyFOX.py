@@ -631,7 +631,7 @@ if config_user['flags']['final_flag']:
                     # Output each location type as a separate final file.
                     outname = '_'.join(name_components[:-1]).replace('cal', 'final') + '_' + ploc + '.nc'
                     os.chdir(internal_config[exp_name]['directories']['dirFinal'])
-                    dstemp_out[ploc].to_netcdf(outname)
+                    dstemp_out[ploc].to_netcdf(outname, mode='w')
 
                 # Make sure we don't reprocess files.
                 finished_files.extend(nc_cal_core)
