@@ -2,7 +2,7 @@ directories:
   # path to where all the dts data is located. Change this for running the
   # example.
   local:
-    dir_pre: /PATH/TO/EXAMPLE/
+    dir_pre: /PATH/TO/EXAMPLE_DIRECTORY/
 
   # Names of the Subdirectories for all the processing steps.
   # Cannot start with a '/' as this signifies an absolute path and will ignore
@@ -16,12 +16,12 @@ directories:
 
   # This need to be full a path as it won't use the local/remote
   # directory prefix.
-  external: FULL/PATH/TO/EXAMPLE/EXTERNAL/
+  external: FULL/PATH/TO/EXAMPLE/DEMO/EXTERNAL/
   filename_external: pyfox_smpl_reftemp.nc
 
   # List the experiments that should be processed.
   experiment_names:
-  - example
+  - demo
   # Name of the channels to process.
   channelName:
   - channel 1
