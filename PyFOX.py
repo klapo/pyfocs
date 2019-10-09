@@ -602,9 +602,12 @@ if config_user['flags']['final_flag']:
                     # Clean up unused variables and labels.
                     vars_to_drop = [v for v in dstemp_out[ploc].data_vars
                                     if v not in vars_to_keep]
+                    
                     coords_to_drop = [c for c in dstemp_out[ploc].coords
                                       if c not in coords_to_keep]
-
+                    coords_to_drop.remove(ploc)
+                    
+                    
                     # Clean up attributes and dropped the unused ones.
                     dt = dstemp_out[ploc].attrs['dt']
                     dLAF = dstemp_out[ploc].attrs['dLAF']
