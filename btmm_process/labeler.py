@@ -343,7 +343,6 @@ def create_multiindex(ds, coords=['x', 'y', 'z']):
     # Drop the old, uncombined coordinates since they conflic with assigning
     # the MultiIndex
     ds = ds.drop(coords)
-    print(ds)
     # Assing the MultiIndex, this recreates the individual coordinates that
     # were just dropped.
     ds = ds.assign_coords(xyz = midx)

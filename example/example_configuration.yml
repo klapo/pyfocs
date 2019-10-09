@@ -17,7 +17,7 @@ directories:
   # This need to be full a path as it won't use the local/remote
   # directory prefix.
   external: FULL/PATH/TO/EXAMPLE/EXTERNAL/
-  filename_external: external/pyfox_smpl_reftemp.nc
+  filename_external: pyfox_smpl_reftemp.nc
 
   # List the experiments that should be processed.
   experiment_names:
@@ -101,14 +101,14 @@ dataProperties:
       LAF:
       - 0
       - 655
-    p2:
-      LAF:
-      - 655
-      - 1305
-    ss:
-      LAF:
-      - 1305
-      - 2695
+    # p2:
+    #   LAF:
+    #   - 655
+    #   - 1305
+    # ss:
+    #   LAF:
+    #   - 1305
+    #   - 2695
 
   # Correcting for step-losses at a splice
   # Splice LAF. All data after this point on the fiber will have
@@ -129,13 +129,13 @@ dataProperties:
   # labels to be excluded.
   all_locs:
   - unheated
-  - heated
+  # - heated
   - calibration
   # Locations in the 'phys_locs' category will be given physical coordinates
   # and stored as a separate dataset from the each other in the 'final' dataset.
   phys_locs:
   - unheated
-  - heated
+  # - heated
 
 flags:
   # True - raw .xml data compressed into archives of length 'archiveInterval'

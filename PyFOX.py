@@ -582,6 +582,9 @@ if config_user['flags']['final_flag']:
 
                     # Reformat the config locations to specify just a single core
                     core = str(dstemp.core.values)
+                    # Make sure we intend to process this core
+                    if core not in config_user['dataProperties']['cores']:
+                        continue
 
                     for l in config_user['location_library']:
                         location[l] = copy.deepcopy(config_user['location_library'][l])
@@ -591,18 +594,19 @@ if config_user['flags']['final_flag']:
                         if not ploc in dstemp_out:
                             dstemp_out[ploc] = []
                         # Find all the locations to label in this location type
-                        temp_loc = {loc:location[loc] for loc in location if ploc in location[loc]['loc_type']}
+                        temp_loc = {loc:location[loc] for loc in location if ploc==location[loc]['loc_type']}
                         dstemp_out[ploc].append(btmm_process.labeler.dtsPhysicalCoords_3d(dstemp, temp_loc))
 
                 # Merge the cores
                 for ploc in config_user['dataProperties']['phys_locs']:
+                    interp_to = None
                     for nc, c in enumerate(dstemp_out[ploc]):
                         # Make the assumption that the specific core is
                         # not important as they should be identical within
                         # the physical resolution of the DTS.
-                        if nc == 0:
+                        if not interp_to and c.cal_temp.any():
                             interp_to = c
-                        else:
+                        elif c.cal_temp.any() and interp_to:
                             dstemp_out[ploc][nc] = dstemp_out[ploc][nc].interp(xyz=interp_to.xyz)
 
                     dstemp_out[ploc] = xr.concat(dstemp_out[ploc], dim='core')
@@ -614,7 +618,6 @@ if config_user['flags']['final_flag']:
                     coords_to_drop = [c for c in dstemp_out[ploc].coords
                                       if c not in coords_to_keep]
                     coords_to_drop.remove(ploc)
-                    print(coords_to_drop)
 
                     # Clean up attributes and dropped the unused ones.
                     dt = dstemp_out[ploc].attrs['dt']
