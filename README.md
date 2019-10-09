@@ -78,6 +78,11 @@ https://www.anaconda.com/distribution/#download-section
 
 You should be prompted to install python for your particular OS. Install version 3.7*.
 
+## PyYAML updating
+An error in an old version of pip stops the updating of PyYAML. If you get an error related to this library you can solve it with:
+
+`pip install --ignore-installed PyYAML`
+
 ### Windows specific stuff
 You will always need to use the anaconda power prompt or a similar environment. You will find it difficult/impossible to run python outside of the anaconda environment.
 
@@ -92,3 +97,5 @@ Find path to anaconda python, e.g. "C:\Users\Your Name\Anaconda3\python"
 Click "Open"
 Click "OK"
 ```
+
+Other issues may be related to running the anaconda prompt without administrator issues.
