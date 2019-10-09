@@ -5,15 +5,25 @@ pyfocs has been known by btmm_process (obscure non-pythonic name) and pyfox (an 
 # Getting Started
 
 ## Installation
+
+### Using a package manager
 pyfocs can be installed by using:
 
 `pip install pyfocs`
 
-which installs pyfocs plus all dependencies. Alternatively you can download the source code, navigate to the directory containing it, and run
+which installs pyfocs plus all dependencies. This install method has caused problems for Windows OS. If you encounter errors when running pyfocs using this method, we instead recommend following the below method.
+
+### From source
+Alternatively you can download the source code from this repository (green button with "Clone or Download"), extract the package, navigate to the directory containing it, and run:
 
 `python setup.py install`
 
-Both methods should result in the `PyFOX.py` being executable from the command line. Installing the code from source may allow some dependency issues. These can be resolved through
+Note that Windows users will need to use anaconda power prompt or a similar python environment.
+
+Both methods should result in the `PyFOX.py` being callable from the command line.
+
+### Dependency issues
+Installing the code from source may allow some dependency issues. These can be resolved through
 
 `pip install -r requirements.txt`
 
@@ -25,7 +35,7 @@ Download the data in the `example` directory. Within that directory is an exampl
 
 Alternatively, providing no path to the yaml file will open a file browser for selecting the configuration file.
 
-# Introduction
+# Overview
 
 The Bayreuth Micrometeorology python library for processing Fiber Optic Distributed Sensing (FODS) data. The library consists of a family of simple functions and a master script (`PyFOX`) that can be used to process output from a Silixa Distribute Temperature Sensing (DTS) device, such as an Ultima or XT, from the original `*.xml` files to calibrated temperatures with physical labels. This library is built around the [xarray](http://xarray.pydata.org) package for handling n-dimensional data, especially in a netcdf format.
 
@@ -35,7 +45,9 @@ Other similar libraries exist, such as the [one developed at Delft University](h
 
 # PyFOX Steps
 
-Data and the surrounding directory structure is assumed to follow ![this outline.](data_structure_scheme.jpg). Each Subdirectory corresponds to a particular step in the processing.
+Data and the surrounding directory structure is assumed to follow ![this outline.](data_structure_scheme.jpg).
+
+Each Subdirectory corresponds to a particular step in the processing.
 
 1) Archives original `.xml` files into specified time interval.
 
