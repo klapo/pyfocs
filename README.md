@@ -47,7 +47,8 @@ Other similar libraries exist, such as the [one developed at Delft University](h
 
 # PyFOX Steps
 
-Data and the surrounding directory structure is assumed to follow ![this outline.](data_structure_scheme.jpg).
+Data and the surrounding directory structure is assumed to follow this outline.
+![](data_structure_scheme.jpg).
 
 Each Subdirectory corresponds to a particular step in the processing.
 
