@@ -25,9 +25,7 @@ Note that Windows users will need to use anaconda power prompt or a similar pyth
 Both methods should result in the `PyFOX.py` being callable from the command line.
 
 ### Dependency issues
-Installing the code from source may allow some dependency issues. These can be resolved through
-
-`pip install -r requirements.txt`
+Please see the [troubleshooting section](#Troubleshooting). For issues not covered there please raise an issue and include details on your own system, your python version, and the versions of the packages pyfocs requires.
 
 ## Example
 
