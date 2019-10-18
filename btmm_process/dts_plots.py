@@ -6,8 +6,15 @@ import numpy as np
 from .xr_helper import xr_swap_dims_sel
 
 
-def bath_check(ds, bath_define, plot_var='power', bath_lims=[-0.005, 0.005],
+def bath_check(ds,
+               bath_define,
+               plot_var='power',
+               bath_lims=[-0.005, 0.005],
                fig_kwargs=None, title=None):
+    '''
+    Plots for checking bath boundaries with both power anomaly and bias (bias
+    plots not implemented yet)
+    '''
 
     if fig_kwargs is None:
         fig_kwargs = dict()
@@ -19,7 +26,7 @@ def bath_check(ds, bath_define, plot_var='power', bath_lims=[-0.005, 0.005],
         fig.suptitle(title)
 
     for bn_num, bn in enumerate(bath_define):
-        temp_bath = xr_helper.xr_swap_dims_sel(ds, 'LAF', 'calibration', bn)
+        temp_bath = xr_swap_dims_sel(ds, 'LAF', 'calibration', bn)
         bath_start = temp_bath.LAF.min()
         bath_end = temp_bath.LAF.max()
         bath = ds.sel(LAF=slice(bath_start - 2, bath_end + 2))
@@ -34,7 +41,10 @@ def bath_check(ds, bath_define, plot_var='power', bath_lims=[-0.005, 0.005],
         ax.set_title(bn)
 
         # Fill in the bath locations
-        ax.fill_between([bath_start, bath_end], -20, 60, edgecolor='k', facecolor='0.9', alpha=0.8)
+        ax.fill_between([bath_start, bath_end], -20, 60,
+                        edgecolor='k',
+                        facecolor='0.9',
+                        alpha=0.8)
 
         # Power perturbation
         ax.plot(power.LAF, power - mean_power)
@@ -53,7 +63,10 @@ def bath_check(ds, bath_define, plot_var='power', bath_lims=[-0.005, 0.005],
 
 
 def bias_violin(ds, bath_define, plot_var='bias', fig_kwargs=None, title=None):
-
+    '''
+    Violinplots of bath biases showing the distribution over both time and
+    space.
+    '''
     if fig_kwargs is None:
         fig_kwargs = dict()
     fig, ax = plt.subplots(1, 1, figsize=(8, 6), **fig_kwargs)
@@ -66,8 +79,6 @@ def bias_violin(ds, bath_define, plot_var='bias', fig_kwargs=None, title=None):
 
     for bn_num, bn in enumerate(bath_define):
         bath = xr_swap_dims_sel(ds, 'LAF', 'calibration', bn)
-        bath_start = bath.LAF.min()
-        bath_end = bath.LAF.max()
 
         if plot_var == 'bias':
             val = (bath.cal_temp - bath[bath_define[bn]])
@@ -101,7 +112,9 @@ def bias_violin(ds, bath_define, plot_var='bias', fig_kwargs=None, title=None):
 
 def bath_validation(ds, bath_define, bath_lims=None, plot_var='bias',
                     fig_kwargs=None, title=None):
-
+    '''
+    Bart-like  plots of bath biases and power anomaly.
+    '''
     if plot_var == 'bias':
         label_text = 'Bias (K)'
         if not bath_lims:
@@ -123,10 +136,7 @@ def bath_validation(ds, bath_define, bath_lims=None, plot_var='bias',
                             nrows=len(bath_define) + 1,
                             width_ratios=widths,
                             hspace=0.15, wspace=0.15,
-                            left=0.08,
-                            bottom=0.12,
-                            right=0.9,
-                            top=0.88)
+                            )
     divnorm = colors.DivergingNorm(vmin=np.min(bath_lims),
                                    vcenter=0,
                                    vmax=np.max(bath_lims))
@@ -196,7 +206,7 @@ def bath_validation(ds, bath_define, bath_lims=None, plot_var='bias',
     ax_colorbar.set_ylabel(label_text)
 
     # Join the time axis
-    ax_time.legend()
+    ax_time.legend(bbox_to_anchor=(1.0, 1.08))
     ax_time.set_xticklabels([])
     ax_time.set_xlim(val.time.min().values, val.time.max().values)
 
