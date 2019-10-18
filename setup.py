@@ -15,7 +15,7 @@ setup(
     install_requires=['netcdf4',
                       'pandas',
                       'numpy',
-                      'xarray<0.13',
+                      'xarray<0.13,>=0.11',
                       'xmltodict',
                       'pyyaml>=5.1',
                       'dirsync',
