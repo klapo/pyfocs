@@ -20,6 +20,7 @@ setup(
                       'pyyaml>=5.1',
                       'dirsync',
                       'scipy',
+                      'matplotlib>3'
                       ],
     python_requires='>=3.5',
     classifiers=[ "Programming Language :: Python :: 3",

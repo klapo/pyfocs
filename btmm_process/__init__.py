@@ -4,3 +4,4 @@ from .labeler import yamlDict, create_multiindex
 from .calibrate import matrixInversion
 from .calibrate import timeAvgCalibrate
 from .dtsarch import archiver
+from .dts_plots import bath_check, bath_validation, bias_violin

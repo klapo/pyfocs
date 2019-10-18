@@ -1,9 +1,9 @@
-import matplotlib as plt
+import matplotlib.pyplot as plt
 from matplotlib.ticker import (MultipleLocator,
                                FormatStrFormatter)
 import matplotlib.colors as colors
 import numpy as np
-import .xr_helper
+from .xr_helper import xr_swap_dims_sel
 
 
 def bath_check(ds, bath_define, plot_var='power', bath_lims=[-0.005, 0.005],
