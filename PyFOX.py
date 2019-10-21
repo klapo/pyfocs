@@ -220,12 +220,7 @@ for exp_name in experiment_names:
     internal_config[exp_name]['directories']['dirCalibrated'] = dir_cal
     internal_config[exp_name]['directories']['dirFinal'] = dir_final
 
-    # Make sure the prefix/suffix fields exist
-    try:
-        outname_prefix = config_user['directories']['prefix']
-    except KeyError:
-        outname_prefix = None
-
+    # Determine if a file suffix was provided.
     try:
         outname_suffix = config_user['directories']['suffix']
     except KeyError:
@@ -341,8 +336,7 @@ for exp_name in experiment_names:
                 if coretype == 'multicore':
                     for c in cores:
                         outname_core = c
-                        outname = '_'.join(filter(None, [outname_prefix,
-                                                         exp_name, 'cal',
+                        outname = '_'.join(filter(None, [exp_name, 'cal',
                                                          outname_channel,
                                                          outname_date,
                                                          outname_suffix,
@@ -364,8 +358,7 @@ for exp_name in experiment_names:
 
                 elif coretype == 'singlecore':
                     outname_core = None
-                    outname = '_'.join(filter(None, [outname_prefix,
-                                                     exp_name, 'cal',
+                    outname = '_'.join(filter(None, [exp_name, 'cal',
                                                      outname_channel,
                                                      outname_date,
                                                      outname_suffix,
@@ -478,8 +471,7 @@ for exp_name in experiment_names:
 
                     # Output the calibrated dataset
                     outname_core = c
-                    outname = '_'.join(filter(None, [outname_prefix,
-                                                     exp_name, 'cal',
+                    outname = '_'.join(filter(None, [exp_name, 'cal',
                                                      outname_channel,
                                                      outname_date,
                                                      outname_suffix,
@@ -508,8 +500,7 @@ for exp_name in experiment_names:
 
                 # Output the calibrated dataset
                 outname_core = None
-                outname = '_'.join(filter(None, [outname_prefix,
-                                                 exp_name, 'cal',
+                outname = '_'.join(filter(None, [exp_name, 'cal',
                                                  outname_channel,
                                                  outname_date,
                                                  outname_suffix,
