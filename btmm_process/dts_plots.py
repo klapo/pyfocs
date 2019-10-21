@@ -75,8 +75,8 @@ def bias_violin(ds, bath_define, plot_var='bias',
     if title:
         ax.set_title(title)
 
-    val_max = np.max(plot_lims)
-    val_min = np.min(plot_lims)
+    val_max = np.nanmax(plot_lims)
+    val_min = np.nanmin(plot_lims)
 
     for bn_num, bn in enumerate(bath_define):
         bath = xr_swap_dims_sel(ds, 'LAF', 'calibration', bn)
