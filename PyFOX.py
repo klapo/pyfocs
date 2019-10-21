@@ -531,6 +531,7 @@ if config_user['flags']['final_flag']:
     # is dropped, leaving behind these variables.
     coords_to_keep = ['xyz', 'time', 'x', 'y', 'z', 'core']
     vars_to_keep = ['cal_temp']
+    core_to_proc = config_user['dataProperties']['cores']
 
     for exp_name in experiment_names:
         # Find all 'calibrated' netcdfs within the calibrated directory,
@@ -543,13 +544,7 @@ if config_user['flags']['final_flag']:
 
         for ncal, cal_nc in enumerate(ncfiles):
             # Name of the output file for this archive chunk
-            try:
-                outname_suffix = config_user['directories']['fileName']['suffix']
-            except KeyError:
-                outname_suffix = ''
             name_components = cal_nc.split('.')[0].split('_')
-            outname_channel = name_components[-3]
-            outname_date = name_components[-2]
 
             print('Finalizing ' + cal_nc + ' (' + str(ncal + 1)
                   + ' of ' + str(ntot) + ')')
@@ -563,11 +558,18 @@ if config_user['flags']['final_flag']:
                 # Check if we already handled this core.
                 if cal_nc in finished_files:
                     continue
+                # Cores are separate files but share all other name components.
+                # For a single datetime find the cores available.
                 nc_cal_core_name = '_'.join(name_components[:-1])
-                nc_cal_core = [file for file in ncfiles if nc_cal_core_name in file and 'cal' in file]
+
+                # Finds all core files for this time step.
+                nc_cal_core = [file for file in ncfiles
+                               if nc_cal_core_name in file and 'cal' in file
+                               and any(core_to_proc in file)]
                 dstemp_out = {}
 
-                # Assign physical coordinates. Each core is appended to a list to be merged later.
+                # Assign physical coordinates. Each core is appended to a
+                # list to be merged later.
                 for c in nc_cal_core:
                     dstemp = xr.open_dataset(c)
                     dstemp.load()
@@ -575,7 +577,7 @@ if config_user['flags']['final_flag']:
                     # Reformat the config locations to specify just a single core
                     core = str(dstemp.core.values)
                     # Make sure we intend to process this core
-                    if core not in config_user['dataProperties']['cores']:
+                    if core not in cores_to_proc:
                         continue
 
                     for l in config_user['location_library']:
