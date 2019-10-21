@@ -62,7 +62,8 @@ def bath_check(ds,
     return fig
 
 
-def bias_violin(ds, bath_define, plot_var='bias', fig_kwargs=None, title=None):
+def bias_violin(ds, bath_define, plot_var='bias',
+                fig_kwargs=None, title=None, plot_lims=[-0.5, 0.5]):
     '''
     Violinplots of bath biases showing the distribution over both time and
     space.
@@ -74,8 +75,8 @@ def bias_violin(ds, bath_define, plot_var='bias', fig_kwargs=None, title=None):
     if title:
         ax.set_title(title)
 
-    val_max = 0.5
-    val_min = -0.5
+    val_max = np.max(plot_lims)
+    val_min = np.min(plot_lims)
 
     for bn_num, bn in enumerate(bath_define):
         bath = xr_swap_dims_sel(ds, 'LAF', 'calibration', bn)
