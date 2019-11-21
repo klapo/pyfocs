@@ -531,7 +531,7 @@ if config_user['flags']['final_flag']:
     # is dropped, leaving behind these variables.
     coords_to_keep = ['xyz', 'time', 'x', 'y', 'z', 'core']
     vars_to_keep = ['cal_temp']
-    core_to_proc = config_user['dataProperties']['cores']
+    cores_to_proc = list(config_user['dataProperties']['cores'].keys())
 
     for exp_name in experiment_names:
         # Find all 'calibrated' netcdfs within the calibrated directory,
@@ -545,6 +545,12 @@ if config_user['flags']['final_flag']:
         for ncal, cal_nc in enumerate(ncfiles):
             # Name of the output file for this archive chunk
             name_components = cal_nc.split('.')[0].split('_')
+            # As we allow '_' in the experiment name/suffix we can't reliably
+            # count elemnts of the list. To get around this, we look for a
+            # reliably known element (the 'cal' indicator) and base our
+            # string indexing on the location of that element.
+            cal_str_ind = name_components.index('cal')
+            outname_date = name_components[cal_str_ind + 2]
 
             print('Finalizing ' + cal_nc + ' (' + str(ncal + 1)
                   + ' of ' + str(ntot) + ')')
@@ -564,8 +570,7 @@ if config_user['flags']['final_flag']:
 
                 # Finds all core files for this time step.
                 nc_cal_core = [file for file in ncfiles
-                               if nc_cal_core_name in file and 'cal' in file
-                               and any(core_to_proc in file)]
+                               if nc_cal_core_name in file and 'cal' in file]
                 dstemp_out = {}
 
                 # Assign physical coordinates. Each core is appended to a
@@ -574,7 +579,8 @@ if config_user['flags']['final_flag']:
                     dstemp = xr.open_dataset(c)
                     dstemp.load()
 
-                    # Reformat the config locations to specify just a single core
+                    # Reformat the config locations to specify just a
+                    # single core
                     core = str(dstemp.core.values)
                     # Make sure we intend to process this core
                     if core not in cores_to_proc:
@@ -585,7 +591,7 @@ if config_user['flags']['final_flag']:
                         location[l]['LAF'] = config_user['location_library'][l]['LAF'][core]
 
                     for ploc in config_user['dataProperties']['phys_locs']:
-                        if not ploc in dstemp_out:
+                        if ploc not in dstemp_out:
                             dstemp_out[ploc] = []
                         # Find all the locations to label in this location type
                         temp_loc = {loc:location[loc] for loc in location if ploc==location[loc]['loc_type']}
@@ -611,7 +617,12 @@ if config_user['flags']['final_flag']:
 
                     coords_to_drop = [c for c in dstemp_out[ploc].coords
                                       if c not in coords_to_keep]
-                    coords_to_drop.remove(ploc)
+                    try:
+                        coords_to_drop.remove(ploc)
+                    except ValueError:
+                        # Just continue onwards. The physical location was
+                        # not in the list of coordinates.
+                        coords_to_drop = coords_to_drop
 
                     # Clean up attributes and dropped the unused ones.
                     dt = dstemp_out[ploc].attrs['dt']
@@ -622,7 +633,10 @@ if config_user['flags']['final_flag']:
                     dstemp_out[ploc].attrs['dLAF'] = dLAF
 
                     # Output each location type as a separate final file.
-                    outname = '_'.join(name_components[:-1]).replace('cal', 'final') + '_' + ploc + '.nc'
+                    outname = '_'.join(filter(None, [exp_name, 'final',
+                                                     outname_date,
+                                                     outname_suffix,
+                                                     ploc])) + '.nc'
                     os.chdir(internal_config[exp_name]['directories']['dirFinal'])
                     dstemp_out[ploc].to_netcdf(outname, mode='w')
 
