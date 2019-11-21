@@ -4,6 +4,7 @@ from matplotlib.ticker import (MultipleLocator,
 import matplotlib.colors as colors
 import numpy as np
 from .xr_helper import xr_swap_dims_sel
+import scipy
 
 
 def bath_check(ds,
@@ -104,7 +105,7 @@ def bias_violin(ds, bath_define, plot_var='bias',
             violin_parts[comp].set_color('black')
 
     ax.set_ylim(val_min, val_max)
-    ax.set_ylabel('Bias ($^{\circ}$C)')
+    ax.set_ylabel(r'Bias ($^{\circ}$C)')
     ax.set_xticks(np.arange(len(bath_define)))
     ax.set_xticklabels(bath_define.keys());
 
@@ -212,5 +213,228 @@ def bath_validation(ds, bath_define, bath_lims=None, plot_var='bias',
     ax_time.set_xlim(val.time.min().values, val.time.max().values)
 
     fig.autofmt_xdate()
+
+    return fig
+
+
+def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50, c=None):
+    '''
+    Plot the given location's mean and standard deviation of log(Ps/Pas) and
+    stokes and anti-stokes intensities. This is used to verify that a given
+    section behaves correctly (e.g., checking for bend-dependent power losses)
+    and for verifying section limits.
+
+    INPUTS:
+
+    OUTPUTS:
+
+    '''
+
+    # Limits of the section to be plotted, including an offset for
+    # edge effects.
+    if c:
+        s_start = np.min(phys_locs[ploc]['LAF'][c]) - offset
+        s_end = np.max(phys_locs[ploc]['LAF'][c]) + offset
+    else:
+        s_start = np.min(phys_locs[ploc]['LAF']) - offset
+        s_end = np.max(phys_locs[ploc]['LAF']) + offset
+
+    # Only continue if an LAF is found
+    if np.isnan(s_start) or np.isnan(s_end):
+        print('LAFs for ' + ploc + ' return a NaN value.')
+        return
+    fig, axes = plt.subplots(4, 1, figsize=(10, 15), sharex=True)
+
+    # Derive the useful quantities
+    sect = ds.sel(LAF=slice(s_start, s_end))
+    sect['logPsPas'] = np.log(sect.Ps / sect.Pas)
+    sect = sect.mean(dim='time')
+    sect = sect.std(dim='time')
+
+    # Just the data within the section-of-interest for linear fitting.
+    fit_sect = sect.sel(LAF=slice(np.min(phys_locs[ploc]['LAF'][c]),
+                                  np.max(phys_locs[ploc]['LAF'][c])))
+    fit_sect = fit_sect.mean(dim='time')
+
+    # Mean(Log(Ps/Pas))
+    ax = axes[0]
+    ax.plot(sect.LAF,
+            sect['logPsPas'].values)
+
+    if lin_fit:
+        logPsPas_m, logPsPas_b, _, _, _ = scipy.stats.linregress(fit_sect.LAF,
+                                                                 fit_sect['logPsPas'].values)
+        ax.plot(sect.LAF, logPsPas_b + logPsPas_m * sect.LAF.values, '--',
+                label='linear fit', color='0.5')
+        ax.legend()
+
+    # Axis limits
+    y_mean = sect['logPsPas'].mean(dim='LAF').values
+    y_min = sect['logPsPas'].min().values + 0.004
+    y_max = sect['logPsPas'].max().values + 0.001
+
+    # locations labels
+    for ploc_labels in phys_locs:
+        lims = phys_locs[ploc_labels]['LAF'][c]
+        # Only label points that are within the plotted limits.
+        if (np.isnan(lims).any()
+                or np.max(lims) < s_start
+                or np.min(lims) > s_end):
+            continue
+
+        # Text locations for the label
+        text_y_loc = y_mean + (y_max - y_mean) / 2
+        if np.max(lims) > s_end:
+            text_x_loc = np.min(lims)
+        elif np.min(lims) < s_start:
+            text_x_loc = s_start
+        else:
+            text_x_loc = np.mean(lims)
+
+        # Label the location
+        ax.text(text_x_loc, text_y_loc, ploc_labels)
+        ax.fill_between(lims, 0, 4000,
+                        edgecolor='k',
+                        facecolor='0.9',
+                        alpha=0.8)
+
+    # Axis formatting
+    ax.set_ylim(y_min, y_max)
+    ax.set_ylabel('log(Ps/Pas)')
+    ax.xaxis.grid(True, which='minor')
+    ax.xaxis.set_major_locator(MultipleLocator(10))
+    ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
+    ax.xaxis.set_minor_locator(MultipleLocator(2))
+
+    # Std(Log(Ps/Pas))
+    ax = axes[1]
+    ax.plot(sect.LAF,
+            sect['logPsPas'].values)
+
+    y_mean = sect['logPsPas'].mean(dim='LAF').values
+    y_min = sect['logPsPas'].min().values
+    y_max = sect['logPsPas'].max().values
+
+    for ploc_labels in phys_locs:
+        lims = phys_locs[ploc_labels]['LAF'][c]
+        if (np.isnan(lims).any()
+                or np.max(lims) < s_start
+                or np.min(lims) > s_end):
+            continue
+
+        text_y_loc = y_mean + (y_max - y_mean) / 2
+        if np.max(lims) > s_end:
+            text_x_loc = np.min(lims)
+        elif np.min(lims) < s_start:
+            text_x_loc = s_start
+        else:
+            text_x_loc = np.mean(lims)
+
+        ax.text(text_x_loc, text_y_loc, ploc_labels)
+        ax.fill_between(lims, 0, 4000,
+                        edgecolor='k',
+                        facecolor='0.9',
+                        alpha=0.8)
+
+    ax.set_ylim(y_min, y_max)
+    ax.set_ylabel('std(log(Ps/Pas))')
+    ax.xaxis.grid(True, which='minor')
+    ax.xaxis.set_major_locator(MultipleLocator(10))
+    ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
+    ax.xaxis.set_minor_locator(MultipleLocator(2))
+
+    # Mean Stokes/Anti-stokes intensities
+    ax = axes[2]
+    ax.plot(sect.LAF,
+            np.log(sect['Ps'].values),
+            label='Ps')
+    ax.plot(sect.LAF,
+            np.log(sect['Pas'].values),
+            label='Pas')
+
+    if lin_fit:
+        Ps_m, Ps_b, _, _, _ = scipy.stats.linregress(fit_sect.LAF,
+                                                     np.log(fit_sect['Ps'].values))
+        Pas_m, Pas_b, _, _, _ = scipy.stats.linregress(fit_sect.LAF,
+                                                       np.log(fit_sect['Pas'].values))
+        ax.plot(sect.LAF, Ps_b + Ps_m * sect.LAF.values, '--',
+                label='Ps fit')
+        ax.plot(sect.LAF, Pas_b + Pas_m * sect.LAF.values, '--',
+                label='Pas fit')
+
+    y_mean = np.log(sect['Ps'].mean(dim='LAF').values)
+    y_min = np.log(sect['Pas'].min().values) - 0.1
+    y_max = np.log(sect['Ps'].max().values) + 0.1
+
+    for ploc_labels in phys_locs:
+        lims = phys_locs[ploc_labels]['LAF'][c]
+        if np.isnan(lims).any() or np.max(lims) < s_start or np.min(lims) > s_end:
+            continue
+
+        text_y_loc = y_mean + (y_max - y_mean) / 2
+
+        if np.max(lims) > s_end:
+            text_x_loc = np.min(lims)
+        elif np.min(lims) < s_start:
+            text_x_loc = s_start
+        else:
+            text_x_loc = np.mean(lims)
+        ax.text(text_x_loc, text_y_loc, ploc_labels)
+        ax.fill_between(lims, 0, 4000,
+                        edgecolor='k',
+                        facecolor='0.9',
+                        alpha=0.8)
+    ax.set_ylim(y_min, y_max)
+    ax.set_ylabel(r'$P_s, P_{as}$ Backscatter Intensities [-]')
+    ax.legend(loc='lower left')
+    ax.xaxis.grid(True, which='minor')
+    ax.xaxis.set_major_locator(MultipleLocator(10))
+    ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
+    ax.xaxis.set_minor_locator(MultipleLocator(2))
+
+    # STD Stokes/Anti-stokes intensities
+    ax = axes[3]
+    ax.plot(sect.LAF,
+            np.log(sect['Ps'].values),
+            label='Ps')
+    ax.plot(sect.LAF,
+            np.log(sect['Pas'].values),
+            label='Pas')
+
+    y_mean = np.log(sect['Ps'].mean(dim='LAF').values)
+    y_min = np.min([np.log(sect['Pas'].min().values),
+                    np.log(sect['Ps'].max().values)]) - 0.1
+    y_max = np.max([np.log(sect['Pas'].min().values),
+                    np.log(sect['Ps'].max().values)]) + 0.1
+    for ploc_labels in phys_locs:
+        lims = phys_locs[ploc_labels]['LAF'][c]
+        if (np.isnan(lims).any()
+                or np.max(lims) < s_start
+                or np.min(lims) > s_end):
+            continue
+
+        text_y_loc = y_mean + (y_max - y_mean) / 2
+
+        if np.max(lims) > s_end:
+            text_x_loc = np.min(lims)
+        elif np.min(lims) < s_start:
+            text_x_loc = s_start
+        else:
+            text_x_loc = np.mean(lims)
+        ax.text(text_x_loc, text_y_loc, ploc_labels)
+        ax.fill_between(lims, 0, 4000, edgecolor='k', facecolor='0.9', alpha=0.8)
+
+    ax.xaxis.grid(True, which='minor')
+    ax.xaxis.set_major_locator(MultipleLocator(10))
+    ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
+    ax.xaxis.set_minor_locator(MultipleLocator(2))
+
+    ax.legend(loc='lower left')
+    ax.set_ylim(y_min, y_max)
+    ax.set_ylabel(r'$\sigma(P_s), \sigma(P_{as})$')
+    ax.set_xlim(s_start, s_end)
+    ax.set_xlabel('LAF (m)')
+    fig.suptitle(c + ': ' + ploc)
+    fig.tight_layout()
 
     return fig
