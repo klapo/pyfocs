@@ -13,7 +13,11 @@ def matrixInversion(dsCal, cfg):
     refLoc2 = cfg['calibration']['refLoc2']
     refLoc3 = cfg['calibration']['refLoc3']
 
-    direction = cfg['calibration']['direction']
+    try:
+        direction = cfg['calibration']['direction']
+    except KeyError:
+        # Assume a forward direction as this is the most common method.
+        direction = 'forward'
 
     # Assume that the PT100 data is in Celsius
     refT1 = dsCal[refField1] + 273.15
