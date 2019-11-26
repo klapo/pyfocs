@@ -195,7 +195,9 @@ for exp_name in experiment_names:
                                  exp_name, config_user['directories']['final'])
 
     # Create the folder for the final files if it doesn't already exist
-    if (not os.path.exists(dir_final)) and (config_user['flags']['calibrate_flag']):
+    if ((not os.path.exists(dir_final))
+            and ((config_user['flags']['calibrate_flag'])
+                 or (config_user['flags']['final_flag']))):
         os.makedirs(dir_final)
         print('Final directory not found. Created a new one at ' + dir_final)
 
