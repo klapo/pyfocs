@@ -531,7 +531,7 @@ if config_user['flags']['final_flag']:
 
     # When finalizing the dataset all extraneous coordinates and data
     # is dropped, leaving behind these variables.
-    coords_to_keep = ['xyz', 'time', 'x', 'y', 'z', 'core']
+    coords_to_keep = ['xyz', 'time', 'x', 'y', 'z', 'core', 'LAF']
     vars_to_keep = ['cal_temp']
     cores_to_proc = list(config_user['dataProperties']['cores'].keys())
 
@@ -596,7 +596,18 @@ if config_user['flags']['final_flag']:
                         if ploc not in dstemp_out:
                             dstemp_out[ploc] = []
                         # Find all the locations to label in this location type
-                        temp_loc = {loc:location[loc] for loc in location if ploc==location[loc]['loc_type']}
+                        temp_loc = {loc: location[loc] for loc in location
+                                    if ploc == location[loc]['loc_type']}
+                        # Simplified dictionary for relabeling.
+                        relabel = {loc: location[loc]['LAF'] for loc in location
+                                   if ploc == location[loc]['loc_type']}
+                        # Relabel the locations. This allows locations to
+                        # change after calibrating, as the calibration only
+                        # cares about the location of the reference baths.
+                        dstemp = btmm_process.labelLoc_additional(dstemp,
+                                                                  relabel,
+                                                                  ploc)
+                        # Assign physical labels
                         dstemp_out[ploc].append(btmm_process.labeler.dtsPhysicalCoords_3d(dstemp, temp_loc))
 
                 # Merge the cores
