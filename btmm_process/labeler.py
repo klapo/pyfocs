@@ -310,7 +310,6 @@ def dtsPhysicalCoords_3d(ds, location):
                                          names=('x', 'y', 'z'))
         section.coords['xyz'] = ('LAF', midx)
         section = section.swap_dims({'LAF': 'xyz'})
-        section = section.drop('LAF')
         all_sections.append(section)
 
     # Concatenate along the physical coordinate MultiIndex
