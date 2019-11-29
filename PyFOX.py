@@ -683,8 +683,24 @@ if config_user['flags']['final_flag']:
                     location[l]['LAF'] = config_user['location_library'][l]['LAF']
 
                 for ploc in config_user['dataProperties']['phys_locs']:
+                    # Dictionary for creating physical location.
                     temp_loc = {loc:location[loc] for loc in location if ploc in location[loc]['loc_type']}
+                    # Simplified dictionary for relabeling.
+                    relabel = {loc: location[loc]['LAF'] for loc in location
+                               if ploc == location[loc]['loc_type']}
+                    # Relabel the locations. This allows locations to
+                    # change after calibrating, as the calibration only
+                    # cares about the location of the reference baths.
+                    dstemp = btmm_process.labelLoc_additional(dstemp,
+                                                              relabel,
+                                                              ploc)
+                    # Give the 3D labels.
                     dstemp_out = btmm_process.labeler.dtsPhysicalCoords_3d(dstemp, temp_loc)
+
+                    # Output each location type as a separate final file.
+                    outname = '_'.join(filter(None, [exp_name, 'final',
+                                                     outname_date,
+                                                     outname_suffix,
+                                                     ploc])) + '.nc'
                     os.chdir(internal_config[exp_name]['directories']['dirFinal'])
-                    outname = cal_nc.split('.')[0].replace('cal', 'final') + '_' + ploc + '.nc'
-                    dstemp_out.to_netcdf(outname)
+                    dstemp_out[ploc].to_netcdf(outname, mode='w')
