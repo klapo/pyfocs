@@ -2,7 +2,6 @@
 # Temperature dependent properties of air
 #########
 
-
 def prandtl(temp):
     '''
     Calculate Prandlt number of air (pr) from temperature (degree K)
