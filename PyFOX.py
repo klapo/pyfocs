@@ -533,7 +533,8 @@ if config_user['flags']['final_flag']:
     # is dropped, leaving behind these variables.
     coords_to_keep = ['xyz', 'time', 'x', 'y', 'z', 'core', 'LAF']
     vars_to_keep = ['cal_temp']
-    cores_to_proc = list(config_user['dataProperties']['cores'].keys())
+    if coretype == 'multicore':
+        cores_to_proc = list(config_user['dataProperties']['cores'].keys())
 
     for exp_name in experiment_names:
         # Find all 'calibrated' netcdfs within the calibrated directory,
@@ -661,7 +662,6 @@ if config_user['flags']['final_flag']:
                 # Open each calibrated file.
                 os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
                 dstemp = xr.open_dataset(cal_nc)
-                dstemp = xr.open_dataset(c)
 
                 # Clean up unused variables and labels.
                 vars_to_drop = [v for v in dstemp.data_vars
