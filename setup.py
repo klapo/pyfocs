@@ -1,4 +1,10 @@
+# Always prefer setuptools over distutils
 from setuptools import setup, find_packages
+from os import path
+
+# Get a relative path
+here = path.abspath(path.dirname(__file__))
+
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -9,8 +15,13 @@ setup(
     author_email='karl.lapo@uni-bayreuth.de',
     description='Processing of meteorological FODS data.',
     long_description=long_description,
-    packages=find_packages(exclude=['ez_setup', 'examples', 'tests']),
-    version='0.1.3.2',
+    long_description_content_type='text/markdown',
+    keywords='Fiber Optics Distributed Sensing DTS',
+    url='https://github.com/klapo/pyfocs',
+    packages=find_packages('src'),
+    include_package_data=True,
+    zip_safe=False,
+    version='0.1.4.0',
     scripts=['PyFOX.py'],
     install_requires=['netcdf4',
                       'pandas',
@@ -29,5 +40,9 @@ setup(
                   "Operating System :: OS Independent",
                   ],
     license='MIT',
-    include_package_data=True,
+    entry_points={
+        'console_scripts': [
+            'PyFOX.py=PyFOX.py:PyFOX.py',
+        ],
+    },
 )
