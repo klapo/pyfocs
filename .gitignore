@@ -7,3 +7,7 @@ build/
 dist/
 /*.egg-info/
 /*.egg
+
+# due to using tox and pytest
+.tox
+.cache
