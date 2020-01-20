@@ -1,0 +1,55 @@
+language: python
+python:
+    - "3.7"
+cache: pip
+env:
+  global:
+    - LD_PRELOAD=/lib/x86_64-linux-gnu/libSegFault.so
+    - SEGFAULT_SIGNALS=all
+  matrix:
+    - TOXENV=check
+    - TOXENV=docs
+matrix:
+  include:
+    - python: '3.6'
+      env:
+        - TOXENV=py36
+    - python: '3.7'
+      dist: xenial
+      env:
+        - TOXENV=py37,report,codecov,check
+      services:
+        - xvfb
+    - python: '3.8'
+      dist: xenial
+      env:
+        - TOXENV=py38
+      services:
+        - xvfb
+  allow_failures:  # Statsmodels is not there yet
+    - python: '3.8'
+
+before_install:
+  - python --version
+  - uname -a
+  - lsb_release -a
+  - "export DISPLAY=:99.0"
+#  - "sh -e /etc/init.d/xvfb start"
+  - sleep 3 # give xvfb some time to start
+install:
+  - pip install pypandoc
+  - sudo apt-get install pandoc
+  - pip install tox
+  - virtualenv --version
+  - easy_install --version
+  - pip --version
+  - tox --version
+script:
+  - tox -v
+after_failure:
+  - more .tox/log/* | cat
+  - more .tox/*/log/* | cat
+notifications:
+  email:
+    on_success: never
+    on_failure: always
