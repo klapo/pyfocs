@@ -1,6 +1,21 @@
-# Always prefer setuptools over distutils
-from setuptools import setup, find_packages
+#!/usr/bin/env python
+# -*- encoding: utf-8 -*-
+from __future__ import absolute_import
+from __future__ import print_function
+
+import io
+import re
+from glob import glob
 from os import path
+from os.path import basename
+from os.path import dirname
+from os.path import join
+from os.path import splitext
+
+# Always prefer setuptools over distutils
+from setuptools import find_packages
+from setuptools import setup
+
 
 # Get a relative path
 here = path.abspath(path.dirname(__file__))

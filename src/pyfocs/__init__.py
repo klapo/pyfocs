@@ -1,4 +1,4 @@
-from .readDTS import archive_read
+from .readDTS import archive_read, xml_read
 from .labeler import labelLoc_general, labelLoc_additional
 from .labeler import yamlDict, create_multiindex
 from .calibrate import matrixInversion

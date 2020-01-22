@@ -14,7 +14,8 @@ import csv
 import sys
 
 # UBT's package for handling dts data
-import btmm_process
+# import btmm_process
+import pyfocs
 
 # Ignore the future compatibility warnings
 import warnings

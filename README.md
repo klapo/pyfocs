@@ -13,7 +13,7 @@ pyfocs can be installed by using:
 
 `pip install pyfocs`
 
-which installs pyfocs plus all dependencies. This install method has caused problems for Windows OS. If you encounter errors when running pyfocs using this method, we instead recommend following the below method.
+which installs pyfocs plus all dependencies. This install method has caused problems for Windows OS. If you encounter errors when running pyfocs using this method, we instead recommend following the below method. If installing through pip and using an anaconda environment, then this step should be performed after installing all necessary conda packages, preferably in a new anaconda environment. [`pip` and `conda` can create conflicts in the packages, especially if used interchangeably multiple times.](https://www.anaconda.com/using-pip-in-a-conda-environment/).
 
 ### From source
 Alternatively you can download the source code from this repository (green button with "Clone or Download"), extract the package, navigate to the directory containing it, and run:
