@@ -26,14 +26,20 @@ with open("README.md", "r") as fh:
 
 setup(
     name='pyfocs',
+
     author="Karl Lapo and Anita Freundorfer",
     author_email='karl.lapo@uni-bayreuth.de',
+
     description='Processing of meteorological FODS data.',
     long_description=long_description,
     long_description_content_type='text/markdown',
     keywords='Fiber Optics Distributed Sensing DTS',
     url='https://github.com/klapo/pyfocs',
+
     packages=find_packages('src'),
+    package_dir={'': 'src'},
+    py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
+
     include_package_data=True,
     zip_safe=False,
     version='0.1.4.0',

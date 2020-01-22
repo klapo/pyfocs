@@ -5,9 +5,10 @@ btmm_process/__pycache__/
 *.pyc
 build/
 dist/
-/*.egg-info/
-/*.egg
+*.egg-info/
+*.egg
 
 # due to using tox and pytest
 .tox
 .cache
+.coverage
