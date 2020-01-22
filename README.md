@@ -1,5 +1,7 @@
 # pyfocs
 
+version==0.1.4
+
 pyfocs has been known by btmm_process (obscure non-pythonic name) and pyfox (an unmaintained package on PyPi) resulting in the new name for the library.
 
 # Getting Started
