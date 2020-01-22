@@ -27,6 +27,5 @@ def test_xmlread():
     '''
     Test the ability to read a single xml file and return the expected data.
     '''
-    print(pyfocs)
     # Did we read the file without getting a CorruptedXMLError exception?
-    assert pyfocs.xml_read(path_data_singlefile)
+    assert xml_read(path_data_singlefile)
