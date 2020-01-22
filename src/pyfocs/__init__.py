@@ -5,3 +5,6 @@ from .calibrate import matrixInversion
 from .calibrate import timeAvgCalibrate
 from .dtsarch import archiver
 from .dts_plots import bath_check, bath_validation, bias_violin
+
+
+__version__ = '0.1.4'
