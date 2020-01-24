@@ -91,7 +91,7 @@ def bias_violin(ds, bath_define, plot_var='bias',
                                      [bn_num],
                                      showmeans=True)
         ax.text(bn_num - 0.25, -0.45,
-                '$\mu$={:01.2f} C'.format(val.mean(dim='time').mean(dim='LAF').values),
+                r'$\mu$={:01.2f} C'.format(val.mean(dim='time').mean(dim='LAF').values),
                 bbox=dict(facecolor='white', alpha=0.5),
                 )
 
@@ -107,7 +107,7 @@ def bias_violin(ds, bath_define, plot_var='bias',
     ax.set_ylim(val_min, val_max)
     ax.set_ylabel(r'Bias ($^{\circ}$C)')
     ax.set_xticks(np.arange(len(bath_define)))
-    ax.set_xticklabels(bath_define.keys());
+    ax.set_xticklabels(bath_define.keys())
 
     return fig
 

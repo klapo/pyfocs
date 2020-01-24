@@ -71,7 +71,7 @@ setup(
         # 'dirsync',
         'scipy',
         'matplotlib>3'
-        ],
+    ],
 
     extras_require={
         # eg:
