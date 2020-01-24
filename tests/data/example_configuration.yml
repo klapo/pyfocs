@@ -21,7 +21,10 @@ directories:
 
   # List the experiments that should be processed.
   experiment_names:
-  - demo
+  # Use a single file to do the CI and pytests
+    - single_file_demo
+  # Uncomment the below line to run the full demo.
+  # - multicore_demo
   # Name of the channels to process.
   channelName:
   - channel 1
@@ -140,7 +143,7 @@ dataProperties:
 flags:
   # True - raw .xml data compressed into archives of length 'archiveInterval'
   # False - if archives already exist
-  archiving_flag: False
+  archiving_flag: True
   # Read the archived files ancd create the 'raw_netCDF'
   archive_read_flag: True
   # create the calibrated files from the processed files

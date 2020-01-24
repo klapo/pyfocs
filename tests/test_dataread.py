@@ -3,20 +3,24 @@ import os
 from pyfocs import xml_read
 
 
-# Multicore file example
+# Paths to example data
 path = os.path.dirname(os.path.abspath(__file__))
-path_data_arch = os.path.join(path, 'data', 'multicore_demo')
+path_data = os.path.join(path, 'data')
+mc_demo = 'multicore_demo'
+sf_demo = 'single_file_demo'
+sfn = 'channel 1_20190722000003996.xml'
 
-# Single file
-fn = 'archived/channel 1_20190722-0000/channel 1_20190722000003996.xml'
-path_data_singlefile = os.path.join(path_data_arch, fn)
+path_data_singlefile = os.path.join(path_data, sf_demo, 'raw_xml', sfn)
+path_data_multifile = os.path.join(path_data, mc_demo)
+yaml_file = os.path.join(path_data, 'example_configuration.yml')
+
 
 def test_example_data_exists():
     '''
     Test that the example data is found along the hard coded paths.
     '''
-    # The data directory exists.
-    assert os.path.isdir(path_data_arch)
+    # The multicore data directory exists.
+    assert os.path.isdir(path_data_multifile)
 
     # The single file we will be working with exists.
     assert os.path.isfile(path_data_singlefile)
