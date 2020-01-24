@@ -2,11 +2,13 @@ import os
 import pyfocs
 import sh
 import yaml
+import pytest
 
 path = os.path.dirname(os.path.abspath(__file__))
 path_data = os.path.join(path, 'data')
 path_data_external = os.path.join(path, 'data', 'multicore_demo', 'external')
 example_config = os.path.join(path, 'data', 'example_configuration.yml')
+
 
 def test_example_config_exists():
     '''

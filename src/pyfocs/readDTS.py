@@ -33,7 +33,7 @@ def xml_read(dumbXMLFile):
     try:
         with open(dumbXMLFile) as dumb:
             doc = xmltodict.parse(dumb.read())
-    except Exception as e:
+    except Exception:
         # The exception in the xmltodict code is poorly formatted. So we do a
         # general catch here and hope for the best.
         # Raising this error allows us to catch corrupted files.

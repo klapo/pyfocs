@@ -1,11 +1,9 @@
 import os
 import datetime
 import tarfile
-# import dirsync
 import numpy as np
 
-# ------------------------------------------------------------------------------
-# make_tarfile -- actually zips and archives data
+
 def make_tarfile(tarName, filesToZip):
     '''
     This helper function creates the command to tar.gz the DTS XML files.
@@ -23,31 +21,9 @@ def make_tarfile(tarName, filesToZip):
             tar.add(f, arcname=os.path.basename(f))
 
 
-# Commenting out this function for now as the dirsync package it relied on
-# raises annoying warnings. As this function is generally not used we should
-# decide if we maintain it or throw it out.
-# # ------------------------------------------------------------------------------
-# # backup_sync -- sync to an external backup drive.
-# def backup_sync(dirMobile, dirLocal, logfile):
-#
-#     if os.path.isdir(dirMobile):
-#         os.chdir(dirMobile)
-#         print('Backing up archives to mobile drive')
-#         print('Syncing ' + dirLocal + ' to ' + dirMobile)
-#
-#         dirsync.sync(dirLocal, dirMobile, 'diff')
-#         dirsync.sync(dirLocal, dirMobile, 'sync')
-#
-#     else:
-#         print('Warning: Mobile back-up was not found in the specified path.')
-#
-#     return()
-
-
-# ------------------------------------------------------------------------------
-# Rounds a datetime object to the nearest minute delta
 def round_dt(dt, delta, type='floor'):
     '''
+    Rounds a datetime object to the nearest minute delta
     dt - datetime object
     delta - rounding interval in minutes (e.g., nearest 15, delta=15)
     type - specifies if we round up or down
@@ -154,11 +130,10 @@ def dt_string_label(t):
     return(out_dt)
 # ------------------------------------------------------------------------------
 
-# ------------------------------------------------------------------------------
-# Archive data
-# ------------------------------------------------------------------------------
+
 def archiver(cfg):
     '''
+    Archive data
     Script to tar and gzip the Ultima data.
     Requires a configuration file to run.
     '''
@@ -169,21 +144,6 @@ def archiver(cfg):
     sourcePath = cfg['archive']['sourcePath']
     targetPath = cfg['archive']['targetPath']
     delta_minutes = cfg['archive']['archiveInterval']
-
-    # Determine if we are backing up to an external directory
-    try:
-        dirBackUp = cfg['archive']['dirBackUp']
-        if os.path.isdir(dirBackUp):
-            externalBackUp = True
-            logfile = cfg['archive']['logfile']
-        else:
-            print('No backup directory provided.')
-            externalBackUp = False
-            logfile = []
-    except KeyError:
-        print('No backup directory provided.')
-        externalBackUp = False
-        logfile = []
 
     # Determine if the archiver should clean up the original data directory
     try:
@@ -297,9 +257,4 @@ def archiver(cfg):
                     print('Done with ' + ch + '.')
                     xml_counts = xml_counts + 1
                     break
-
-    ########
-    # Back up to the external drive if specified.
-    if externalBackUp:
-        backup_sync(dirBackUp, targetPath, logfile)
 # ------------------------------------------------------------------------------

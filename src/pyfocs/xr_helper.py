@@ -5,7 +5,7 @@ def xr_swap_dims_sel(ds, coord1, coord2, selection):
     '''
     try:
         ret_ds = ds.swap_dims({coord1: coord2}).loc[{coord2: selection}].\
-                    swap_dims({coord2: coord1})
+            swap_dims({coord2: coord1})
     except ValueError:
         ret_ds = ds.swap_dims({coord1: coord2}).loc[{coord2: selection}]
 
