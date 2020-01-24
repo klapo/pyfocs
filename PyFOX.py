@@ -14,7 +14,7 @@ import csv
 import sys
 
 # UBT's package for handling dts data
-import btmm_process
+import pyfocs
 
 # Ignore the future compatibility warnings
 import warnings
@@ -292,7 +292,7 @@ for exp_name in experiment_names:
         print('Archiving raw xml files.')
         print(' ')
         print('archiving ', exp_name)
-        btmm_process.archiver(internal_config[exp_name])
+        pyfocs.archiver(internal_config[exp_name])
 
     # write raw netCDF
     if config_user['flags']['archive_read_flag']:
@@ -300,7 +300,7 @@ for exp_name in experiment_names:
         print('Writing netcdfs from raw xml files.')
         print(' ')
         print('creating raw netcdf for experiment: ', exp_name)
-        btmm_process.archive_read(internal_config[exp_name],
+        pyfocs.archive_read(internal_config[exp_name],
                                   write_mode=write_mode)
 
 for exp_name in experiment_names:
@@ -455,7 +455,7 @@ for exp_name in experiment_names:
                         for l in config_user['location_library']:
                             if loc_type_cur == config_user['location_library'][l]['loc_type']:
                                 location[l] = config_user['location_library'][l]['LAF'][c]
-                        dstemp_core = btmm_process.labelLoc_additional(dstemp_core,
+                        dstemp_core = pyfocs.labelLoc_additional(dstemp_core,
                                                                        location,
                                                                        loc_type_cur)
                     # Converting to a netcdf ruins this step unfortunately.
@@ -463,9 +463,9 @@ for exp_name in experiment_names:
 
                     # Calibrate the temperatures
                     if cal_mode == 'smooth':
-                        dstemp_core = btmm_process.timeAvgCalibrate(dstemp_core, internal_config[exp_name])
+                        dstemp_core = pyfocs.timeAvgCalibrate(dstemp_core, internal_config[exp_name])
                     else:
-                        dstemp_core, _, _, _ = btmm_process.matrixInversion(dstemp_core, internal_config[exp_name])
+                        dstemp_core, _, _, _ = pyfocs.matrixInversion(dstemp_core, internal_config[exp_name])
 
                     # Rename the instrument reported temperature field
                     dstemp_core = dstemp_core.rename({'temp': 'instr_temp'})
@@ -492,12 +492,12 @@ for exp_name in experiment_names:
                     for l in config_user['location_library']:
                         if loc_type_cur == config_user['location_library'][l]['loc_type']:
                             location[l] = config_user['location_library'][l]['LAF']
-                    dstemp = btmm_process.labelLoc_additional(dstemp,
+                    dstemp = pyfocs.labelLoc_additional(dstemp,
                                                               location,
                                                               loc_type_cur)
 
                 # Calibrate the temperatures.
-                dstemp, _, _, _ = btmm_process.matrixInversion(dstemp, internal_config[exp_name])
+                dstemp, _, _, _ = pyfocs.matrixInversion(dstemp, internal_config[exp_name])
                 dstemp = dstemp.rename({'temp': 'instr_temp'})
 
                 # Output the calibrated dataset
@@ -605,11 +605,11 @@ if config_user['flags']['final_flag']:
                         # Relabel the locations. This allows locations to
                         # change after calibrating, as the calibration only
                         # cares about the location of the reference baths.
-                        dstemp = btmm_process.labelLoc_additional(dstemp,
+                        dstemp = pyfocs.labelLoc_additional(dstemp,
                                                                   relabel,
                                                                   ploc)
                         # Assign physical labels
-                        dstemp_out[ploc].append(btmm_process.labeler.dtsPhysicalCoords_3d(dstemp, temp_loc))
+                        dstemp_out[ploc].append(pyfocs.labeler.dtsPhysicalCoords_3d(dstemp, temp_loc))
 
                 # Merge the cores
                 for ploc in config_user['dataProperties']['phys_locs']:
@@ -691,11 +691,11 @@ if config_user['flags']['final_flag']:
                     # Relabel the locations. This allows locations to
                     # change after calibrating, as the calibration only
                     # cares about the location of the reference baths.
-                    dstemp = btmm_process.labelLoc_additional(dstemp,
+                    dstemp = pyfocs.labelLoc_additional(dstemp,
                                                               relabel,
                                                               ploc)
                     # Give the 3D labels.
-                    dstemp_out = btmm_process.labeler.dtsPhysicalCoords_3d(dstemp, temp_loc)
+                    dstemp_out = pyfocs.labeler.dtsPhysicalCoords_3d(dstemp, temp_loc)
 
                     # Output each location type as a separate final file.
                     outname = '_'.join(filter(None, [exp_name, 'final',
