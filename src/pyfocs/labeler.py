@@ -363,22 +363,5 @@ def yamlDict(yamlPath):
         raise IOError('Could not find yml file at ' + yamlPath)
 
     with open(yamlPath, 'r') as ymlfile:
-        locationLabels = yaml.load(ymlfile)
-    return locationLabels
-
-# ------------------------------------------------------------------------------
-def yamlWrite(yamlPath):
-    '''
-    Reads the .yml label location file and returns the location dictionary
-    for labeling the DTS array.
-    INPUT:
-        yamlPath - path to the .yml file to read
-    OUTPUT:
-        locationLabels - python dictionary of the locations/LAF pairs.
-    '''
-    if not os.path.exists(yamlPath):
-        raise IOError('Could not find yml file at ' + yamlPath)
-
-    with open(yamlPath, 'r') as ymlfile:
-        locationLabels = yaml.load(ymlfile)
+        locationLabels = yaml.load(ymlfile, Loader=yaml.FullLoader)
     return locationLabels
