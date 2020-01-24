@@ -45,7 +45,6 @@ setup(
         'Operating System :: POSIX',
         'Operating System :: Microsoft :: Windows',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
@@ -69,7 +68,7 @@ setup(
         'xarray<0.13,>=0.11',
         'xmltodict',
         'pyyaml>=5.1',
-        'dirsync',
+        # 'dirsync',
         'scipy',
         'matplotlib>3'
         ],

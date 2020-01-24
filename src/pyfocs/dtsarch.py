@@ -1,7 +1,7 @@
 import os
 import datetime
 import tarfile
-import dirsync
+# import dirsync
 import numpy as np
 
 # ------------------------------------------------------------------------------
@@ -23,22 +23,25 @@ def make_tarfile(tarName, filesToZip):
             tar.add(f, arcname=os.path.basename(f))
 
 
-# ------------------------------------------------------------------------------
-# backup_sync -- sync to an external backup drive.
-def backup_sync(dirMobile, dirLocal, logfile):
-
-    if os.path.isdir(dirMobile):
-        os.chdir(dirMobile)
-        print('Backing up archives to mobile drive')
-        print('Syncing ' + dirLocal + ' to ' + dirMobile)
-
-        dirsync.sync(dirLocal, dirMobile, 'diff')
-        dirsync.sync(dirLocal, dirMobile, 'sync')
-
-    else:
-        print('Warning: Mobile back-up was not found in the specified path.')
-
-    return()
+# Commenting out this function for now as the dirsync package it relied on
+# raises annoying warnings. As this function is generally not used we should
+# decide if we maintain it or throw it out.
+# # ------------------------------------------------------------------------------
+# # backup_sync -- sync to an external backup drive.
+# def backup_sync(dirMobile, dirLocal, logfile):
+#
+#     if os.path.isdir(dirMobile):
+#         os.chdir(dirMobile)
+#         print('Backing up archives to mobile drive')
+#         print('Syncing ' + dirLocal + ' to ' + dirMobile)
+#
+#         dirsync.sync(dirLocal, dirMobile, 'diff')
+#         dirsync.sync(dirLocal, dirMobile, 'sync')
+#
+#     else:
+#         print('Warning: Mobile back-up was not found in the specified path.')
+#
+#     return()
 
 
 # ------------------------------------------------------------------------------
