@@ -7,4 +7,4 @@ from .dtsarch import archiver
 from .dts_plots import bath_check, bath_validation, bias_violin
 
 
-__version__ = '0.1.4'
+__version__ = '0.2.0'
