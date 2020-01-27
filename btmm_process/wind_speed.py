@@ -1,6 +1,6 @@
-#########
-# Temperature dependent properties of air
-#########
+import pandas as pd
+import numpy as np
+
 
 def prandtl(temp):
     '''
@@ -28,7 +28,7 @@ def kinematicViscosity(temp):
         print('Converted air temperature from Celsius to Kelvin.')
 
     temp = temp / 1000
-    return( (75 * temp**2 + 47.827 * temp - 5.3589) * 0.000001)
+    return((75 * temp**2 + 47.827 * temp - 5.3589) * 0.000001)
 
 
 def thermalConductivity(temp):
@@ -58,10 +58,8 @@ def calculate(dts, power, heat_ln, unheat_ln):
     Outputs:
     '''
 
-
-    ########
     # Constants coefficients
-    offset = 0 # unused
+    offset = 0  # unused
     # Cable radius in meters
     rad = 0.000625
     # Spatial (instrument) resolution of dts observations
@@ -71,21 +69,21 @@ def calculate(dts, power, heat_ln, unheat_ln):
     # Stefan-Boltzmann constant
     sigma = 5.67 * 10**(-8)
     # Emissivity of the fiber surface
-    emissivity = 0.95 # From table for PE
+    emissivity = 0.95  # From table for PE
     # Coefficients for modeling the convective heat flux assuming that Re > 40
     c = 0.51
     m = 0.5
     npr = 0.37
 
     # size of the dataset
-    len_time = dts_vert_arr.time.size
+    len_time = dts.time.size
 
     ########
     # Diffeerence between the heated and unheated fibers.
     # mean(Heated(t) + Heated(t+1) - Unheated(t) - Unheated(t+1)) / 2
     # Future development could include using a smoother/more sophisticated derivative estimate.
-    heated = dts_vert_arr.sel(loc_general=heat_ln)
-    unheated = dts_vert_arr.sel(loc_general=unheat_ln)
+    heated = dts.sel(loc_general=heat_ln)
+    unheated = dts.sel(loc_general=unheat_ln)
     delta = (heated - unheated)
     # Resampling/averaging/smoothing should be done by the user.
     #     delta = (heated.isel(time=slice(0, len_time-1)).values
@@ -143,5 +141,5 @@ def calculate(dts, power, heat_ln, unheat_ln):
     # fn=crv*(((-dT1)/dt))+dT4*e*2*rad*3.14;
     numer = -1000 * crv * (rad / 2) * (deltaT_dt_heat - deltaT_dt_unheat) + (lw_out_heat - lw_out_unheat)
 
-    fiber_wind = ((p / (2 * np.pi * rad) + numer) / demon)**(1 / m)
+    fiber_wind = ((power / (2 * np.pi * rad) + numer) / demon)**(1 / m)
     return fiber_wind
