@@ -34,6 +34,9 @@ def test_example_runs_on_pyfox():
     stream = open(os.path.join(path_data, 'temp.yml'), 'w')
     yaml.dump(cfg, stream)
 
+    # This block of code assumes that any problems will throw an error back to
+    # python from the shell. This is not necessarily true. But, this also
+    # explains why the code coverage report is so poor.
     try:
         sh.python(['PyFOX.py', os.path.join(path_data, 'temp.yml')])
     except sh.ErrorReturnCode as e:

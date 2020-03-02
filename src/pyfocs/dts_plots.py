@@ -71,7 +71,7 @@ def bias_violin(ds, bath_define, plot_var='bias',
     '''
     if fig_kwargs is None:
         fig_kwargs = dict()
-    fig, ax = plt.subplots(1, 1, figsize=(8, 6), **fig_kwargs)
+    fig, ax = plt.subplots(1, 1, figsize=(4, 3), **fig_kwargs)
 
     if title:
         ax.set_title(title)
