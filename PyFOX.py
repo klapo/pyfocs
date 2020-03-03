@@ -277,6 +277,9 @@ try:
 except KeyError:
     cal_mode = 'instantaneous'
 
+# Channels to process
+channelNames = config_user['directories']['channelName']
+
 # -----------------------------------------------------------------------------
 # Archive and create raw netcdfs
 # -----------------------------------------------------------------------------
@@ -324,7 +327,9 @@ for exp_name in experiment_names:
         os.chdir(internal_config[exp_name]['directories']['dirRawNetcdf'])
         contents = os.listdir()
         ncfiles = [file for file in contents
-                   if '.nc' in file and 'raw' in file]
+                   if '.nc' in file
+                   and 'raw' in file
+                   and any(chN in file for chN in channelNames)]
         ncfiles.sort()
         ntot = np.size(ncfiles)
         for nraw, raw_nc in enumerate(ncfiles):
@@ -461,11 +466,8 @@ for exp_name in experiment_names:
                     # Converting to a netcdf ruins this step unfortunately.
                     # dstemp_core.attrs['loc_general_long'] = dict((l, config_user['loc_general'][l]['long name'])
 
-                    # Calibrate the temperatures
-                    if cal_mode == 'smooth':
-                        dstemp_core = pyfocs.timeAvgCalibrate(dstemp_core, internal_config[exp_name])
-                    else:
-                        dstemp_core, _, _, _ = pyfocs.matrixInversion(dstemp_core, internal_config[exp_name])
+                    dstemp_core, _, _, _ = pyfocs.matrixInversion(dstemp_core,
+                                                                  internal_config[exp_name])
 
                     # Rename the instrument reported temperature field
                     dstemp_core = dstemp_core.rename({'temp': 'instr_temp'})
@@ -491,7 +493,10 @@ for exp_name in experiment_names:
                     location = {}
                     for l in config_user['location_library']:
                         if loc_type_cur == config_user['location_library'][l]['loc_type']:
-                            location[l] = config_user['location_library'][l]['LAF']
+                            try:
+                                location[l] = config_user['location_library'][l]['LAF']
+                            except KeyError:
+                                print('No LAFs provided for ' + l)
                     dstemp = pyfocs.labelLoc_additional(dstemp,
                                                               location,
                                                               loc_type_cur)
