@@ -5,6 +5,22 @@ import matplotlib.colors as colors
 import numpy as np
 from .xr_helper import xr_swap_dims_sel
 import scipy
+import seaborn as sns
+
+
+def plot_env():
+    '''
+    Set the seaborn plotting environment.
+    '''
+    # Set the plot style from the seaborn library
+    sns.set_style("whitegrid")
+    context = 'paper'
+    sns.set_context(context)
+    plt.rcParams['figure.dpi']= 200
+    # Define a default color palette (this should be fairly color blind friendly)
+    flatui = ["#3498db", "#FFBF00", "#95a5a6", "#34495e", "#e74c3c", "#9b59b6",]
+    sns.set_palette(sns.color_palette(flatui))
+    return
 
 
 def bath_check(ds,
@@ -16,12 +32,18 @@ def bath_check(ds,
     Plots for checking bath boundaries with both power anomaly and bias (bias
     plots not implemented yet)
     '''
+    # Set the plotting environment
+    plot_env()
 
+    # Build the figure
     if fig_kwargs is None:
         fig_kwargs = dict()
+
+    if 'figsize' not in fig_kwargs:
+        fig_kwargs['figsize'] = (6, 4)
+
     fig, axes = plt.subplots(1, len(bath_define),
                              sharey=True,
-                             figsize=(10, 6),
                              **fig_kwargs)
     if title:
         fig.suptitle(title)
@@ -69,9 +91,15 @@ def bias_violin(ds, bath_define, plot_var='bias',
     Violinplots of bath biases showing the distribution over both time and
     space.
     '''
+
+    # Set the plotting environment
+    plot_env()
+
     if fig_kwargs is None:
         fig_kwargs = dict()
-    fig, ax = plt.subplots(1, 1, figsize=(8, 6), **fig_kwargs)
+    if 'figsize' not in fig_kwargs:
+        fig_kwargs['figsize'] = (6, 4)
+    fig, ax = plt.subplots(1, 1, **fig_kwargs)
 
     if title:
         ax.set_title(title)
@@ -117,18 +145,23 @@ def bath_validation(ds, bath_define, bath_lims=None, plot_var='bias',
     '''
     Bart-like  plots of bath biases and power anomaly.
     '''
+    # Set the plotting environment
+    plot_env()
     if plot_var == 'bias':
         label_text = 'Bias (K)'
         if not bath_lims:
             bath_lims = [-0.5, 0.5]
     if plot_var == 'power':
-        label_text = r'$log(\frac{Ps}{Pas}) - \overline{log(\frac{Ps}{Pas})}$ [-]'
+        label_text = r'$<log(\frac{Ps}{Pas})>$ [-]'
         if not bath_lims:
             bath_lims = [-0.005, 0.005]
 
     if fig_kwargs is None:
         fig_kwargs = dict()
-    fig = plt.figure(figsize=(12, 12), **fig_kwargs)
+
+    if 'figsize' not in fig_kwargs:
+        fig_kwargs['figsize'] = (6, 4)
+    fig = plt.figure(**fig_kwargs)
 
     if title:
         fig.suptitle(title, y=0.95)
@@ -137,7 +170,7 @@ def bath_validation(ds, bath_define, bath_lims=None, plot_var='bias',
     spec = fig.add_gridspec(ncols=3,
                             nrows=len(bath_define) + 1,
                             width_ratios=widths,
-                            hspace=0.15, wspace=0.15,
+                            hspace=0.18, wspace=0.15,
                             )
     divnorm = colors.DivergingNorm(vmin=np.min(bath_lims),
                                    vcenter=0,
@@ -229,7 +262,8 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50, c=None):
     OUTPUTS:
 
     '''
-
+    # Set the plotting environment
+    plot_env()
     # Limits of the section to be plotted, including an offset for
     # edge effects.
     if c:
