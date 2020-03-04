@@ -456,7 +456,8 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50, c=None):
         else:
             text_x_loc = np.mean(lims)
         ax.text(text_x_loc, text_y_loc, ploc_labels)
-        ax.fill_between(lims, 0, 4000, edgecolor='k', facecolor='0.9', alpha=0.8)
+        ax.fill_between(lims, 0, 4000,
+                        edgecolor='k', facecolor='0.9', alpha=0.8)
 
     ax.xaxis.grid(True, which='minor')
     ax.xaxis.set_major_locator(MultipleLocator(10))
@@ -469,6 +470,180 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50, c=None):
     ax.set_xlim(s_start, s_end)
     ax.set_xlabel('LAF (m)')
     fig.suptitle(c + ': ' + ploc)
+    fig.tight_layout()
+
+    return fig
+
+
+def bath_check(ds,
+               bath_define,
+               lims_dict=None,
+               fig_kwargs=None,
+               title=None,
+               include_temp=False,
+               laf_lims=2,
+               ):
+    '''
+    Helper function for determining bath limits and integrity.
+
+    INPUTS:
+        ds - xarray object following pyfocs protocol
+        bath_define - dictionary defining the bath
+        laf_lims - LAF padding to include for visual inspection, default is 2m.
+    '''
+
+    # 1st row = bias in instrument reported temperature
+    # 2nd row = power anomaly
+    # 3rd row = standard deviation of power
+    # 4th row = spatial derivative of power
+
+    colr = sns.xkcd_rgb['purple']
+
+    # Determine if there are any figure keywords to pass
+    if fig_kwargs is None:
+        fig_kwargs = dict()
+    if 'figsize' not in fig_kwargs:
+        fig_kwargs['figsize'] = (6, 4)
+    # Determine if we should include bias in
+    # instrument reported temperature.
+    if include_temp:
+        numrows = 4
+    else:
+        numrows = 3
+
+    # Generate the figure
+    fig, axes = plt.subplots(numrows, 1,
+                             figsize=(2, 6),
+                             **fig_kwargs)
+    if title:
+        fig.suptitle(title)
+
+    # Limits for the different plots
+    bath_lims = {'temp': [-2, 2],  # +/- from mean ref. temp
+                 'power_anom': [-0.005, 0.005],
+                 'power_std': [0, 0.015],
+                 'power_deriv': [-0.05, 0.05],
+                 }
+    if lims_dict:
+        # Sanitize the input dictionary
+        subset_test = all([ld in bath_lims.keys() for ld in lims_dict])
+        assert subset_test
+        # Re-assign from lims_dict to bath_lims
+        for ld in lims_dict:
+            bath_lims[ld] = lims_dict[ld]
+
+    # Bath name
+    bn = list(bath_define.keys())[0]
+    probename = list(bath_define.values())[0]
+
+    # Determine dimension name, swap to calibration, and select bath.
+    spacedim = [d for d in ds.dims if 'time' not in d]
+    msg = 'Too many non-time dimensions detected. Expected only a 2D array.'
+    assert len(spacedim) == 1, msg
+    spacedim = spacedim[0]
+    ds = ds.swap_dims({spacedim: 'calibration'})
+
+    # Prepare the dataset to include the bath
+    bath = ds.loc[{'calibration': bn}]
+    bath_start = bath[spacedim].min().values
+    bath_end = bath[spacedim].max().values
+    ds = ds.swap_dims({'calibration': spacedim})
+    bathplus = ds.sel({spacedim: slice(bath_start - laf_lims,
+                                       bath_end + laf_lims)})
+
+    # How is temperature named?
+    if 'instr_temp' not in ds.data_vars:
+        try:
+            ds = ds.rename({'temp': 'instr_temp'})
+        except KeyError:
+            print('Expected to find temp or instr_temp fields.')
+            raise KeyError
+
+    # Plot the temperature bias if it was requested
+    axind = 0
+    if include_temp:
+        ax = axes[0]
+        axind = 1
+        ax.fill_between([bath_start, bath_end],
+                        -20, 60, edgecolor='k',
+                        facecolor='0.9', alpha=0.8)
+        ax.plot(bathplus.LAF,
+                bathplus.mean(dim='time').instr_temp,
+                'o-', color=colr, label='Instr. temp')
+
+        probeval = bath[probename].mean(dim='time')
+        ax.plot([bath_start, bath_end],
+                [probeval, probeval],
+                '--', color='0.6', label='Reference')
+
+        ylims = bath[probename].mean(dim='time').values
+        ylims = ylims + np.array(bath_lims['temp'])
+        ax.set_ylim(ylims)
+        ax.legend()
+        ax.set_ylabel('Instr. temperature (C)')
+
+    # Power anomaly
+    ax = axes[0 + axind]
+    power = np.log(bathplus.Ps / bathplus.Pas)
+    mean_power = power.sel(LAF=slice(bath_start, bath_end)).mean(dim='LAF').mean(dim='time').values
+    power = power.mean(dim='time')
+
+    ax.xaxis.grid(True, which='major')
+
+    # Fill in the bath locations
+    ax.fill_between([bath_start, bath_end], -20, 60,
+                    edgecolor='k', facecolor='0.9', alpha=0.8)
+
+    # Power anomaly
+    ax.plot(power.LAF, power - mean_power, 'o-', color=colr)
+
+    ax.set_xlim(bath_start - laf_lims, bath_end + laf_lims)
+    ax.set_ylim(bath_lims['power_anom'])
+
+    ax.set_ylabel(r'$log(\frac{Ps}{Pas}) - \overline{log(\frac{Ps}{Pas})}$')
+    ax.set_xlabel('LAF (m)')
+    ax.xaxis.set_major_locator(MultipleLocator(1))
+    ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
+
+    # Standard deviation of power
+    ax = axes[1 + axind]
+    ax.fill_between([bath_start, bath_end], -20, 60,
+                    edgecolor='k', facecolor='0.9', alpha=0.8)
+
+    power_std = np.log(bathplus.Ps / bathplus.Pas).std(dim='time')
+    ax.plot(power.LAF, power_std, 'o-', color=colr)
+
+    ax.set_xlim(bath_start - laf_lims, bath_end + laf_lims)
+    ax.set_ylim(bath_lims['power_std'])
+
+    ax.set_ylabel(r'$\sigma_{time}(log(\frac{Ps}{Pas}))$')
+    ax.set_xlabel('LAF (m)')
+    ax.xaxis.set_major_locator(MultipleLocator(1))
+    ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
+
+    # Spatial derivative of power
+    ax = axes[2 + axind]
+    power = np.log(bathplus.Ps / bathplus.Pas)
+    dP_dLAF = power.diff(dim='LAF').mean(dim='time')
+    dP_dLAF_sigma = power.diff(dim='LAF').std(dim='time')
+
+    ax.fill_between([bath_start, bath_end], -20, 60,
+                    edgecolor='k', facecolor='0.9', alpha=0.8)
+
+    ax.plot(dP_dLAF.LAF, dP_dLAF, 'o-', color=colr)
+    ax.fill_between(dP_dLAF.LAF,
+                    dP_dLAF - dP_dLAF_sigma,
+                    dP_dLAF + dP_dLAF_sigma,
+                    color=colr, alpha=0.5)
+
+    ax.set_xlim(bath_start - laf_lims, bath_end + laf_lims)
+    ax.set_ylim(bath_lims['power_deriv'])
+
+    ax.set_ylabel(r'$\frac{dlog(\frac{Ps}{Pas})}{dLAF}$')
+    ax.set_xlabel('LAF (m)')
+    ax.xaxis.set_major_locator(MultipleLocator(1))
+    ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
+    fig.autofmt_xdate()
     fig.tight_layout()
 
     return fig
