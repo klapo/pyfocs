@@ -23,68 +23,6 @@ def plot_env():
     return
 
 
-def bath_check(ds,
-               bath_define,
-               plot_var='power',
-               bath_lims=[-0.005, 0.005],
-               fig_kwargs=None, title=None):
-    '''
-    Plots for checking bath boundaries with both power anomaly and bias (bias
-    plots not implemented yet)
-    '''
-    # Set the plotting environment
-    plot_env()
-
-    # Build the figure
-    if fig_kwargs is None:
-        fig_kwargs = dict()
-
-    if 'figsize' not in fig_kwargs:
-        fig_kwargs['figsize'] = (6, 4)
-
-    fig, axes = plt.subplots(1, len(bath_define),
-                             sharey=True,
-                             **fig_kwargs)
-    if title:
-        fig.suptitle(title)
-
-    for bn_num, bn in enumerate(bath_define):
-        temp_bath = xr_swap_dims_sel(ds, 'LAF', 'calibration', bn)
-        bath_start = temp_bath.LAF.min()
-        bath_end = temp_bath.LAF.max()
-        bath = ds.sel(LAF=slice(bath_start - 2, bath_end + 2))
-
-        if plot_var == 'power':
-            power = np.log(bath.Ps / bath.Pas)
-            mean_power = power.sel(LAF=slice(bath_start, bath_end)).mean(dim='LAF').mean(dim='time').values
-            power = power.mean(dim='time')
-
-        ax = axes[bn_num]
-        ax.xaxis.grid(True, which='major')
-        ax.set_title(bn)
-
-        # Fill in the bath locations
-        ax.fill_between([bath_start, bath_end], -20, 60,
-                        edgecolor='k',
-                        facecolor='0.9',
-                        alpha=0.8)
-
-        # Power perturbation
-        ax.plot(power.LAF, power - mean_power)
-
-        ax.set_xlim(bath_start - 1.5, bath_end + 1.5)
-        ax.set_ylim(bath_lims)
-
-        if ax.is_first_col():
-            ax.set_ylabel(r'$log(\frac{Ps}{Pas}) - \overline{log(\frac{Ps}{Pas})}$')
-        ax.set_xlabel('LAF (m)')
-        ax.xaxis.set_major_locator(MultipleLocator(1))
-        ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
-    fig.autofmt_xdate()
-
-    return fig
-
-
 def bias_violin(ds, bath_define, plot_var='bias',
                 fig_kwargs=None, title=None, plot_lims=[-0.5, 0.5]):
     '''
