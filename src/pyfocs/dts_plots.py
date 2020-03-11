@@ -21,7 +21,7 @@ def plot_env(sns_found):
     sns.set_style("whitegrid")
     context = 'paper'
     sns.set_context(context)
-    plt.rcParams['figure.dpi']= 200
+    plt.rcParams['figure.dpi'] = 200
     # Define a default color palette (this should be fairly color blind friendly)
     flatui = ["#3498db", "#FFBF00", "#95a5a6", "#34495e", "#e74c3c", "#9b59b6",]
     sns.set_palette(sns.color_palette(flatui))
