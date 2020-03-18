@@ -1,4 +1,4 @@
-def xr_swap_dims_sel(ds, coord1, coord2, selection):
+def swap_sel(ds, coord1, coord2, selection):
     '''
     Selects data using a non-dimension coordinate and then returns an xarray
     Dataset with the original dimensions.

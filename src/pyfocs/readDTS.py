@@ -6,7 +6,6 @@ import xarray as xr
 import glob
 import tarfile
 import numpy as np
-from .labeler import labelLoc_general, labelLoc_additional, yamlDict
 
 
 # Error classes
@@ -222,7 +221,6 @@ def archive_read(cfg, write_mode='preserve', prevNumChunk=0):
             ds.attrs = {'LAF_beg': meta['LAF_beg'],
                         'LAF_end': meta['LAF_end'],
                         'dLAF': meta['dLAF']}
-            # ds = labelLoc_general(ds, labels)
 
             # Label the Ultima PT100 data. These names are used in
             # calibration and must match the 'refField' variables.
