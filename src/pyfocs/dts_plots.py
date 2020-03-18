@@ -5,62 +5,27 @@ import matplotlib.colors as colors
 import numpy as np
 from .xr_helper import xr_swap_dims_sel
 import scipy
+import importlib
+
+sns_spec = importlib.util.find_spec("seaborn")
+sns_found = sns_spec is not None
+if sns_found:
+    import seaborn as sns
 
 
-def bath_check(ds,
-               bath_define,
-               plot_var='power',
-               bath_lims=[-0.005, 0.005],
-               fig_kwargs=None, title=None):
+def plot_env(sns_found):
     '''
-    Plots for checking bath boundaries with both power anomaly and bias (bias
-    plots not implemented yet)
+    Set the seaborn plotting environment.
     '''
-
-    if fig_kwargs is None:
-        fig_kwargs = dict()
-    fig, axes = plt.subplots(1, len(bath_define),
-                             sharey=True,
-                             figsize=(10, 6),
-                             **fig_kwargs)
-    if title:
-        fig.suptitle(title)
-
-    for bn_num, bn in enumerate(bath_define):
-        temp_bath = xr_swap_dims_sel(ds, 'LAF', 'calibration', bn)
-        bath_start = temp_bath.LAF.min()
-        bath_end = temp_bath.LAF.max()
-        bath = ds.sel(LAF=slice(bath_start - 2, bath_end + 2))
-
-        if plot_var == 'power':
-            power = np.log(bath.Ps / bath.Pas)
-            mean_power = power.sel(LAF=slice(bath_start, bath_end)).mean(dim='LAF').mean(dim='time').values
-            power = power.mean(dim='time')
-
-        ax = axes[bn_num]
-        ax.xaxis.grid(True, which='major')
-        ax.set_title(bn)
-
-        # Fill in the bath locations
-        ax.fill_between([bath_start, bath_end], -20, 60,
-                        edgecolor='k',
-                        facecolor='0.9',
-                        alpha=0.8)
-
-        # Power perturbation
-        ax.plot(power.LAF, power - mean_power)
-
-        ax.set_xlim(bath_start - 1.5, bath_end + 1.5)
-        ax.set_ylim(bath_lims)
-
-        if ax.is_first_col():
-            ax.set_ylabel(r'$log(\frac{Ps}{Pas}) - \overline{log(\frac{Ps}{Pas})}$')
-        ax.set_xlabel('LAF (m)')
-        ax.xaxis.set_major_locator(MultipleLocator(1))
-        ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
-    fig.autofmt_xdate()
-
-    return fig
+    # Set the plot style from the seaborn library
+    sns.set_style("whitegrid")
+    context = 'paper'
+    sns.set_context(context)
+    plt.rcParams['figure.dpi'] = 200
+    # Define a default color palette (this should be fairly color blind friendly)
+    flatui = ["#3498db", "#FFBF00", "#95a5a6", "#34495e", "#e74c3c", "#9b59b6",]
+    sns.set_palette(sns.color_palette(flatui))
+    return
 
 
 def bias_violin(ds, bath_define, plot_var='bias',
@@ -69,9 +34,15 @@ def bias_violin(ds, bath_define, plot_var='bias',
     Violinplots of bath biases showing the distribution over both time and
     space.
     '''
+
+    # Set the plotting environment
+    plot_env()
+
     if fig_kwargs is None:
         fig_kwargs = dict()
-    fig, ax = plt.subplots(1, 1, figsize=(4, 3), **fig_kwargs)
+    if 'figsize' not in fig_kwargs:
+        fig_kwargs['figsize'] = (6, 4)
+    fig, ax = plt.subplots(1, 1, **fig_kwargs)
 
     if title:
         ax.set_title(title)
@@ -117,18 +88,23 @@ def bath_validation(ds, bath_define, bath_lims=None, plot_var='bias',
     '''
     Bart-like  plots of bath biases and power anomaly.
     '''
+    # Set the plotting environment
+    plot_env()
     if plot_var == 'bias':
         label_text = 'Bias (K)'
         if not bath_lims:
             bath_lims = [-0.5, 0.5]
     if plot_var == 'power':
-        label_text = r'$log(\frac{Ps}{Pas}) - \overline{log(\frac{Ps}{Pas})}$ [-]'
+        label_text = r'$<log(\frac{Ps}{Pas})>$ [-]'
         if not bath_lims:
             bath_lims = [-0.005, 0.005]
 
     if fig_kwargs is None:
         fig_kwargs = dict()
-    fig = plt.figure(figsize=(12, 12), **fig_kwargs)
+
+    if 'figsize' not in fig_kwargs:
+        fig_kwargs['figsize'] = (6, 4)
+    fig = plt.figure(**fig_kwargs)
 
     if title:
         fig.suptitle(title, y=0.95)
@@ -137,7 +113,7 @@ def bath_validation(ds, bath_define, bath_lims=None, plot_var='bias',
     spec = fig.add_gridspec(ncols=3,
                             nrows=len(bath_define) + 1,
                             width_ratios=widths,
-                            hspace=0.15, wspace=0.15,
+                            hspace=0.18, wspace=0.15,
                             )
     divnorm = colors.DivergingNorm(vmin=np.min(bath_lims),
                                    vcenter=0,
@@ -229,7 +205,8 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50, c=None):
     OUTPUTS:
 
     '''
-
+    # Set the plotting environment
+    plot_env()
     # Limits of the section to be plotted, including an offset for
     # edge effects.
     if c:
@@ -422,7 +399,8 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50, c=None):
         else:
             text_x_loc = np.mean(lims)
         ax.text(text_x_loc, text_y_loc, ploc_labels)
-        ax.fill_between(lims, 0, 4000, edgecolor='k', facecolor='0.9', alpha=0.8)
+        ax.fill_between(lims, 0, 4000,
+                        edgecolor='k', facecolor='0.9', alpha=0.8)
 
     ax.xaxis.grid(True, which='minor')
     ax.xaxis.set_major_locator(MultipleLocator(10))
@@ -438,3 +416,246 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50, c=None):
     fig.tight_layout()
 
     return fig
+
+
+def bath_check(ds,
+               bath_define,
+               lims_dict=None,
+               fig_kwargs=None,
+               title=None,
+               include_temp=False,
+               laf_lims=2,
+               ):
+    '''
+    Helper function for determining bath limits and integrity.
+
+    INPUTS:
+        ds - xarray object following pyfocs protocol
+        bath_define - dictionary defining the bath
+        laf_lims - LAF padding to include for visual inspection, default is 2m.
+    '''
+
+    # 1st row = bias in instrument reported temperature
+    # 2nd row = power anomaly
+    # 3rd row = standard deviation of power
+    # 4th row = spatial derivative of power
+
+    colr = sns.xkcd_rgb['purple']
+
+    # Determine if there are any figure keywords to pass
+    if fig_kwargs is None:
+        fig_kwargs = dict()
+    if 'figsize' not in fig_kwargs:
+        fig_kwargs['figsize'] = (2, 6)
+    # Determine if we should include bias in
+    # instrument reported temperature.
+    if include_temp:
+        numrows = 4
+    else:
+        numrows = 3
+
+    numcols = len(bath_define)
+
+    # Generate the figure
+    fig, axes = plt.subplots(numrows, numcols,
+                             **fig_kwargs)
+    axes = np.atleast_2d(axes)
+    print(np.shape(axes))
+    if title:
+        fig.suptitle(title)
+
+    # Limits for the different plots
+    bath_lims = {'temp': [-2, 2],  # +/- from mean ref. temp
+                 'power_anom': [-0.05, 0.05],
+                 'power_std': [0, 0.015],
+                 'power_deriv': [-0.05, 0.05],
+                 }
+    if lims_dict:
+        # Sanitize the input dictionary
+        subset_test = all([ld in bath_lims.keys() for ld in lims_dict])
+        assert subset_test
+        # Re-assign from lims_dict to bath_lims
+        for ld in lims_dict:
+            bath_lims[ld] = lims_dict[ld]
+
+    # Determine dimension name, swap to calibration, and select bath.
+    spacedim = [d for d in ds.dims if 'time' not in d]
+    msg = 'Too many non-time dimensions detected. Expected only a 2D array.'
+    assert len(spacedim) == 1, msg
+    spacedim = spacedim[0]
+
+    # Grab just this bath
+    for bnum, bname in enumerate(bath_define):
+        probename = bath_define[bname]
+        axcol = axes[:, bnum]
+
+        ds = ds.swap_dims({spacedim: 'calibration'})
+        bath = ds.loc[{'calibration': bname}]
+        bath_start = bath[spacedim].min().values
+        bath_end = bath[spacedim].max().values
+        ds = ds.swap_dims({'calibration': spacedim})
+        bathplus = ds.sel({spacedim: slice(bath_start - laf_lims,
+                                           bath_end + laf_lims)})
+
+        # How is temperature named?
+        if 'instr_temp' not in ds.data_vars:
+            try:
+                ds = ds.rename({'temp': 'instr_temp'})
+            except KeyError:
+                print('Expected to find temp or instr_temp fields.')
+                raise KeyError
+
+        # Plot the temperature bias if it was requested
+        axind = 0
+        if include_temp:
+            ax = axcol[0]
+            axind = 1
+            ax.fill_between([bath_start, bath_end],
+                            -20, 60, edgecolor='k',
+                            facecolor='0.9', alpha=0.8)
+            ax.plot(bathplus.LAF,
+                    bathplus.mean(dim='time').instr_temp,
+                    'o-', color=colr, label='Instr. temp')
+
+            probeval = bath[probename].mean(dim='time')
+            ax.plot([bath_start, bath_end],
+                    [probeval, probeval],
+                    '--', color='0.6', label='Reference')
+
+            ylims = bath[probename].mean(dim='time').values
+            ylims = ylims + np.array(bath_lims['temp'])
+            ax.set_ylim(ylims)
+            ax.legend()
+            ax.set_ylabel('Instr. temperature (C)')
+
+        # Power anomaly
+        ax = axcol[0 + axind]
+        power = np.log(bathplus.Ps / bathplus.Pas)
+        mean_power = power.sel(LAF=slice(bath_start, bath_end)).mean(dim='LAF').mean(dim='time').values
+        power_anom = power - mean_power
+        power_anom_std = power_anom.std(dim='time')
+        power_anom_mean = power_anom.mean(dim='time')
+
+        ax.xaxis.grid(True, which='major')
+
+        ax.fill_between([bath_start, bath_end], -20, 60,
+                        edgecolor='k', facecolor='0.9', alpha=0.8)
+        ax.plot(power_anom_mean.LAF, power_anom_mean, 'o-', color=colr)
+        ax.fill_between(power_anom_mean.LAF,
+                        power_anom_mean - power_anom_std,
+                        power_anom_mean + power_anom_std,
+                        color=colr, alpha=0.5)
+
+        ax.set_xlim(bath_start - laf_lims, bath_end + laf_lims)
+        ax.set_ylim(bath_lims['power_anom'])
+        ax.set_ylabel(r'$log(\frac{Ps}{Pas}) - \overline{log(\frac{Ps}{Pas})}$')
+        ax.set_xlabel('LAF (m)')
+        ax.xaxis.set_major_locator(MultipleLocator(1))
+        ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
+
+        # Standard deviation of power
+        ax = axcol[1 + axind]
+        ax.fill_between([bath_start, bath_end], -20, 60,
+                        edgecolor='k', facecolor='0.9', alpha=0.8)
+
+        power_std = power.std(dim='time')
+        ax.plot(power.LAF, power_std, 'o-', color=colr)
+
+        ax.set_xlim(bath_start - laf_lims, bath_end + laf_lims)
+        ax.set_ylim(bath_lims['power_std'])
+        ax.set_ylabel(r'$\sigma_{time}(log(\frac{Ps}{Pas}))$')
+        ax.set_xlabel('LAF (m)')
+        ax.xaxis.set_major_locator(MultipleLocator(1))
+        ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
+
+        # Spatial derivative of power
+        ax = axcol[2 + axind]
+        dP_dLAF = power.diff(dim='LAF').mean(dim='time')
+        dP_dLAF_sigma = power.diff(dim='LAF').std(dim='time')
+
+        ax.fill_between([bath_start, bath_end], -20, 60,
+                        edgecolor='k', facecolor='0.9', alpha=0.8)
+
+        ax.plot(dP_dLAF.LAF, dP_dLAF, 'o-', color=colr)
+        ax.fill_between(dP_dLAF.LAF,
+                        dP_dLAF - dP_dLAF_sigma,
+                        dP_dLAF + dP_dLAF_sigma,
+                        color=colr, alpha=0.5)
+
+        ax.set_xlim(bath_start - laf_lims, bath_end + laf_lims)
+        ax.set_ylim(bath_lims['power_deriv'])
+        ax.set_ylabel(r'$\frac{dlog(\frac{Ps}{Pas})}{dLAF}$')
+        ax.set_xlabel('LAF (m)')
+        ax.xaxis.set_major_locator(MultipleLocator(1))
+        ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
+
+    fig.autofmt_xdate()
+    fig.tight_layout()
+
+    return fig
+
+
+def overview(ds,
+             lims_dict=None,
+             indexer='LAF',
+             fig_kwargs=None,
+             title=None,
+             instr_temp=True,
+             cal_temp=True,
+             type='temperature'
+            ):
+    '''
+    Helper function for plotting the time-averaged overview of the DTS data.
+    INPUTS:
+        ds - xarray object following pyfocs protocol
+        type - specifies if this is a temperature overview plot or a
+            running variance of the backscatter intensities.
+    '''
+
+    # Determine if there are any figure keywords to pass
+    if fig_kwargs is None:
+        fig_kwargs = dict()
+    if 'figsize' not in fig_kwargs:
+        fig_kwargs['figsize'] = (6, 2)
+
+    # Generate the figure
+    fig, ax = plt.subplots(1, 1, **fig_kwargs)
+
+    if title:
+        fig.suptitle(title)
+
+    # Limits for the different plots
+    if lims_dict and indexer in lims_dict.keys():
+        xlims = lims_dict[indexer]
+        assert len(xlims) == 2, 'lims_dict was not properly formatted.'
+        ds = ds.sel(ds=slice(xlims[0], xlims[-1]))
+    else:
+        xlims = [ds[indexer].min(), ds[indexer].max()]
+
+    if lims_dict and 'temperature' in lims_dict:
+        ylims = lims_dict['temperature']
+    else:
+        ylims = [ds['cal_temp'].min(),
+                 ds['cal_temp'].max()]
+
+    if type == 'temperature':
+        # Instrument reported temperature
+        ax.plot(ds.LAF, ds.instr_temp.mean(dim='time'),
+                label='Instrument reported temperature')
+        # Calibrated temperature
+        ax.plot(ds.LAF, ds.cal_temp.mean(dim='time'),
+                label='Calibrated temperature')
+
+    if type == 'variance':
+        ps_var = ds['Ps'].rolling(LAF=10, center=True).std().mean(dim='time')
+        pas_var = ds['Pas'].rolling(LAF=10, center=True).std().mean(dim='time')
+        ax.plot(ps_var[indexer], ps_var, label='Stokes')
+        ax.plot(pas_var[indexer], pas_var, label='Anti-Stokes')
+
+    ax.legend()
+    ax.set_xlabel(indexer + ' (m)')
+    ax.set_xlim(xlims)
+    ax.set_ylabel('Temperature (C)')
+    ax.set_ylim(ylims)
+
+    return overview
