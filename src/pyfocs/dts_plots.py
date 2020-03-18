@@ -3,7 +3,7 @@ from matplotlib.ticker import (MultipleLocator,
                                FormatStrFormatter)
 import matplotlib.colors as colors
 import numpy as np
-from .xr_helper import xr_swap_dims_sel
+from .xr_helper import swap_sel
 import scipy
 import importlib
 
