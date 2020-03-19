@@ -6,6 +6,7 @@ import numpy as np
 from .xr_helper import swap_sel
 import scipy
 import importlib
+import pyfocs
 
 sns_spec = importlib.util.find_spec("seaborn")
 sns_found = sns_spec is not None
@@ -13,20 +14,24 @@ if sns_found:
     import seaborn as sns
 
 
-def plot_env(sns_found):
+def plot_env():
     '''
     Set the seaborn plotting environment.
     '''
-    # Set the plot style from the seaborn library
-    sns.set_style("whitegrid")
-    context = 'paper'
-    sns.set_context(context)
-    plt.rcParams['figure.dpi'] = 200
-    # Define a default color palette (this should be fairly color blind friendly)
-    flatui = ["#3498db", "#FFBF00", "#95a5a6", "#34495e", "#e74c3c", "#9b59b6",]
-    sns.set_palette(sns.color_palette(flatui))
-    return
+    sns_spec = importlib.util.find_spec("seaborn")
+    sns_found = sns_spec is not None
+    if sns_found:
 
+        # Set the plot style from the seaborn library
+        sns.set_style("whitegrid")
+        context = 'paper'
+        sns.set_context(context)
+        plt.rcParams['figure.dpi'] = 200
+        # Define a default color palette (this should be fairly color blind friendly)
+        flatui = ["#3498db", "#FFBF00", "#95a5a6", "#34495e", "#e74c3c", "#9b59b6",]
+        sns.set_palette(sns.color_palette(flatui))
+
+    return
 
 def bias_violin(ds, bath_define, plot_var='bias',
                 fig_kwargs=None, title=None, plot_lims=[-0.5, 0.5]):
@@ -51,7 +56,7 @@ def bias_violin(ds, bath_define, plot_var='bias',
     val_min = np.nanmin(plot_lims)
 
     for bn_num, bn in enumerate(bath_define):
-        bath = xr_swap_dims_sel(ds, 'LAF', 'calibration', bn)
+        bath = swap_sel(ds, 'LAF', 'calibration', bn)
 
         if plot_var == 'bias':
             val = (bath.cal_temp - bath[bath_define[bn]])
@@ -137,7 +142,7 @@ def bath_validation(ds, bath_define, bath_lims=None, plot_var='bias',
         ax_map = ax_maps[bn_num]
 
         # Create the biases
-        bath = xr_swap_dims_sel(ds, 'LAF', 'calibration', bn)
+        bath = swap_sel(ds, 'LAF', 'calibration', bn)
         bath_start = bath.LAF.min()
         bath_end = bath.LAF.max()
         if plot_var == 'bias':
@@ -608,8 +613,15 @@ def overview(ds,
     Helper function for plotting the time-averaged overview of the DTS data.
     INPUTS:
         ds - xarray object following pyfocs protocol
-        type - specifies if this is a temperature overview plot or a
-            running variance of the backscatter intensities.
+        type [<'temperature'>, 'variance'] - specifies the type of overview plot
+            'temperature' plot of instrument and calibrated temperature.
+            'variance' plot running variance of the backscatter intensities.
+        title - optional string, name for the plot
+        indexer - name of the spatial indexer. If not provided assumes the
+            the spatial indexer is called 'LAF'.
+        instr_temp - Include the instrument reported temperatures. Default it True.
+        cal_temp - Include the calibrated temperatures. Default is True.
+        fig_kwards - keywords to pass to the figure creation command.
     '''
 
     # Determine if there are any figure keywords to pass
@@ -632,9 +644,9 @@ def overview(ds,
     else:
         xlims = [ds[indexer].min(), ds[indexer].max()]
 
-    if lims_dict and 'temperature' in lims_dict:
+    if lims_dict and 'temperature' in lims_dict and type == 'temperature':
         ylims = lims_dict['temperature']
-    else:
+    elif type == 'temperature':
         ylims = [ds['cal_temp'].min(),
                  ds['cal_temp'].max()]
 
@@ -645,17 +657,33 @@ def overview(ds,
         # Calibrated temperature
         ax.plot(ds.LAF, ds.cal_temp.mean(dim='time'),
                 label='Calibrated temperature')
+        ylabel = 'Temperature (C)'
 
     if type == 'variance':
         ps_var = ds['Ps'].rolling(LAF=10, center=True).std().mean(dim='time')
         pas_var = ds['Pas'].rolling(LAF=10, center=True).std().mean(dim='time')
+        if lims_dict and 'variance' in lims_dict:
+            ylims = lims_dict['variance']
+        else:
+            ylims = [0, np.max([ps_var.max().values, pas_var.max().values])]
+
         ax.plot(ps_var[indexer], ps_var, label='Stokes')
         ax.plot(pas_var[indexer], pas_var, label='Anti-Stokes')
+        ylabel = r'$\sigma_{LAF}$ (power) [-]'
+
+    if type == 'noise':
+        noise = pyfocs.noisymoments(ds.cal_temp.values)
+        if lims_dict and 'noise' in lims_dict:
+            ylims = lims_dict['noise']
+        else:
+            ylims = [0, 1]
+        ax.plot(ds[indexer], noise, label='Estimated Instrument Noise')
+        ylabel = 'Noise (K)'
 
     ax.legend()
     ax.set_xlabel(indexer + ' (m)')
     ax.set_xlim(xlims)
-    ax.set_ylabel('Temperature (C)')
+    ax.set_ylabel(ylabel)
     ax.set_ylim(ylims)
 
     return overview
