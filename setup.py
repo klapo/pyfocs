@@ -66,7 +66,7 @@ setup(
         'pandas',
         'scipy',
         'netcdf4',
-        'xarray<0.13,>=0.11',
+        'xarray',
         'xmltodict',
         'pyyaml>=5.1',
         # 'dirsync',
