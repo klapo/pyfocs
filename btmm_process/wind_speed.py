@@ -141,5 +141,5 @@ def calculate(dts, power, heat_ln, unheat_ln):
     # fn=crv*(((-dT1)/dt))+dT4*e*2*rad*3.14;
     numer = -1000 * crv * (rad / 2) * (deltaT_dt_heat - deltaT_dt_unheat) + (lw_out_heat - lw_out_unheat)
 
-    fiber_wind = ((power / (2 * np.pi * rad) + numer) / demon)**(1 / m)
+    fiber_wind = ((0.5*power / (2 * np.pi * rad) + numer) / demon)**(1 / m)
     return fiber_wind
