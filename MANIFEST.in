@@ -1,0 +1,34 @@
+graft docs
+graft src
+graft ci
+graft tests
+
+include .bumpversion.cfg
+include .coveragerc
+include .cookiecutterrc
+include .editorconfig
+
+include LICENSE
+include README.md
+include CHANGELOG.md
+
+include tox.ini .travis.yml .appveyor.yml pyproject.toml
+
+global-exclude *.py[cod] __pycache__/* *.so *.dylib
+
+# Suggested from tox
+include *.jpg
+include *.pdf
+recursive-include muppet_archiver *.bat
+recursive-include muppet_archiver *.py
+recursive-include muppet_archiver *.yml
+recursive-include notebooks *.html
+recursive-include notebooks *.ipynb
+recursive-include notebooks *.jpg
+
+# Ignore temp files, os stuff
+exclude *.DS_Store
+recursive-exclude src/pyfocs *.DS_Store
+recursive-exclude tests/data *.DS_Store
+recursive-exclude tests/data/.ipynb_checkpoints *.ipynb
+exclude tests/data/example_data_notebooks.tar.gz
