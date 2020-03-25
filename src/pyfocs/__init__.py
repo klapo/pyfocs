@@ -5,6 +5,7 @@ from .calibrate import matrixInversion
 from .calibrate import timeAvgCalibrate
 from .dtsarch import archiver
 from .dts_plots import bath_check, bath_validation, bias_violin
+from .stats import noisymoments, norm_xcorr
 
 
 __version__ = '0.1.4'

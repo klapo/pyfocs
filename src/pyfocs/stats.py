@@ -1,3 +1,6 @@
+import numpy as np
+
+
 def noisymoments(x, maxlag=10):
     '''
     Function for estimating statistical moments from noisy time series
@@ -92,8 +95,45 @@ def norm_xcorr(x1, x2, lag=None, remove_mean=False, scaleopt='unbiased'):
 
     if not lag:
         return norm_xcorr
-    elif type(maxlag) == int:
+    elif type(lag) == int:
         norm_xcorr = norm_xcorr[norm_xcorr.size // 2 - lag: norm_xcorr.size//2 + lag + 1]
         return norm_xcorr
-    elif not type(maxlag) == int:
-        raise TypeError('maxlag must be an int')
+    elif not type(lag) == int:
+        raise TypeError('lag must be an int')
+
+
+def block_diff(da, indexer, window_size, step_size):
+    '''
+    Computes the finite difference derivative over an arbitrary window and dimension.
+    Returns an xarray DataArray with the same coordinates as the original DataArray.
+    '''
+
+    # Rolling average
+    da_roll = da.rolling({indexer: window_size}, center=True, min_periods=window_size // 2).mean()
+
+    # Dictionaries of our indexer for this window
+    sel_var_dict1 = {indexer: slice(window_size, None)}
+    sel_var_dict2 = {indexer: slice(None, -window_size)}
+    # And the dictionary of the window mid-point.
+    sel_var_dict_mid = {indexer: slice(window_size // 2, -window_size // 2)}
+
+    # Block difference using the numpy arrays to avoid xarray trying to automatically align
+    # the two objects.
+    bdiff_np = da_roll.isel(sel_var_dict1).values - da_roll.isel(sel_var_dict2).values
+
+    # Convert to physical units
+    bdiff_np = bdiff_np / (window_size * step_size)
+
+    # Re-construct the xarray object. Here I make some assumptions just to make the example work.
+    dim_names = da.coords.dims
+    indexer_midpoint = da.isel(sel_var_dict_mid)[indexer]
+
+    dim_list = [da[d] for d in dim_names if indexer not in d]
+    dim_list.append(indexer_midpoint[indexer])
+
+    bdiff_xr = xr.DataArray(bdiff_np, coords=dim_list, dims=dim_names)
+
+    # Re-index to the original DataArray
+    bdiff_xr = bdiff_xr.reindex_like(da)
+    
+    return bdiff_xr

@@ -62,14 +62,14 @@ setup(
     ],
     python_requires='>=3.5',
     install_requires=[
-        'netcdf4',
-        'pandas',
         'numpy',
-        'xarray<0.13,>=0.11',
+        'pandas',
+        'scipy',
+        'netcdf4',
+        'xarray',
         'xmltodict',
         'pyyaml>=5.1',
         # 'dirsync',
-        'scipy',
         'matplotlib>3'
     ],
 
