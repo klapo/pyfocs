@@ -611,8 +611,8 @@ if config_user['flags']['final_flag']:
                         # change after calibrating, as the calibration only
                         # cares about the location of the reference baths.
                         dstemp = pyfocs.labelLoc_additional(dstemp,
-                                                                  relabel,
-                                                                  ploc)
+                                                            relabel,
+                                                            ploc)
                         # Assign physical labels
                         dstemp_out[ploc].append(pyfocs.labeler.dtsPhysicalCoords_3d(dstemp, temp_loc))
 
@@ -697,8 +697,8 @@ if config_user['flags']['final_flag']:
                     # change after calibrating, as the calibration only
                     # cares about the location of the reference baths.
                     dstemp = pyfocs.labelLoc_additional(dstemp,
-                                                              relabel,
-                                                              ploc)
+                                                        relabel,
+                                                        ploc)
                     # Give the 3D labels.
                     dstemp_out = pyfocs.labeler.dtsPhysicalCoords_3d(dstemp, temp_loc)
 
