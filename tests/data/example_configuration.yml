@@ -95,7 +95,8 @@ dataProperties:
   # probe1_value:
   # probe2_value:
 
-  # Type of fiber optic cable (singlecore vs multicore)
+  # Type of fiber optic cable (singlecore vs multicore). If none provided
+  # pyfocs assumes a single core.
   fiber_type: multicore
   # Expected to be identical to the core name in the location library. This
   # section is only necessary if fiber_type = 'multicore'.
