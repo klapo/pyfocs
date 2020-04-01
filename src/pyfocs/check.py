@@ -32,9 +32,9 @@ def config(fn_cfg):
         # in "fine_name.yml", line 2, column 1
 
     try:
-        remote_dir = cfg['directories']['remote']['remote_directories']
+        in_cfg['remote_dir'] = cfg['directories']['remote']['remote_directories']
     except KeyError:
-        remote_dir = []
+        in_cfg['remote_dir'] = []
 
     # -------------------------------------------------------------------------
     # Look through the configuration file and prepare
@@ -48,7 +48,6 @@ def config(fn_cfg):
              'archive_read_flag', 'calibrate_flag', 'final_flag']
 
     assert all([fl in flags for fl in in_cfg['flags']]), 'Not all flags were found.'
-    # assert all([isinstance(fl, bool) for fl in in_cfg['flags'] if fl in bool_flags]), 'Flags must be boolean.'
 
     for exp_name in experiment_names:
         # Create directories if they don't exist and
@@ -238,16 +237,16 @@ def config(fn_cfg):
             print('No location library found, all steps after creating raw' +
                   ' netcdfs have been disabled.')
             check_loc_library = False
-            cfg['flags']['calibrate_flag'] = False
-            cfg['flags']['processed_flag'] = False
-            cfg['flags']['final_flag'] = False
+            in_cfg['flags']['calibrate_flag'] = False
+            in_cfg['flags']['processed_flag'] = False
+            in_cfg['flags']['final_flag'] = False
         except TypeError:
             print('No location library found, all steps after creating raw' +
                   ' netcdfs have been disabled.')
             check_loc_library = False
-            cfg['flags']['calibrate_flag'] = False
-            cfg['flags']['processed_flag'] = False
-            cfg['flags']['final_flag'] = False
+            in_cfg['flags']['calibrate_flag'] = False
+            in_cfg['flags']['processed_flag'] = False
+            in_cfg['flags']['final_flag'] = False
 
     # -------------------------------------------------------------------------
     # Labeling sections and physical coordinates
@@ -317,8 +316,8 @@ def config(fn_cfg):
         step_loss_flag = True
         in_cfg['step_loss'] = {}
         in_cfg['step_loss']['flag'] = step_loss_flag
-        in_cfg['step_loss']['LAF'] = cfg['dataProperties']['step_loss_LAF']
-        in_cfg['step_loss']['correction'] = cfg['dataProperties']['step_loss_correction']
+        in_cfg['step_loss']['LAF'] = np.atleast_1d(cfg['dataProperties']['step_loss_LAF'])
+        in_cfg['step_loss']['correction'] = np.atleast_1d(cfg['dataProperties']['step_loss_correction'])
     else:
         step_loss_flag = False
         in_cfg['step_loss'] = {}
@@ -340,7 +339,7 @@ def config(fn_cfg):
     #     cal_mode = 'instantaneous'
 
     # Channels to process -- this should be on the outside of the script
-    channelNames = cfg['directories']['channelName']
+    in_cfg['channelNames'] = cfg['directories']['channelName']
 
     return in_cfg, lib
 
