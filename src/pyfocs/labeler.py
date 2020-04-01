@@ -33,19 +33,30 @@ def labelLoc_additional(ds, location, loc_type):
     for lc in location:
         shape = np.shape(location[lc])
 
+        # Skip locations with nans
+        if any(np.isnan(location[lc])):
+            print(lc + ' was not labeled due to NaNs in LAF. Check library.')
+            continue
+
         # For non-continuous label locations, loop through each labeled section
         if np.size(shape) > 1:
             for loc_num in np.arange(0, max(shape)):
                 LAF1 = min(location[lc][loc_num])
                 LAF2 = max(location[lc][loc_num])
-                ds.coords[loc_type].loc[(ds.LAF > LAF1) & (ds.LAF < LAF2)] = lc
+                # Grab the LAF coordinate for ease of reference
+                LAF = ds.coords['LAF']
+                ds.coords[loc_type].loc[dict(LAF=LAF[(LAF > LAF1) &
+                                                     (LAF < LAF2)])] = lc
 
         # The label locations occur only once in the LAF domain.
         elif np.size(shape) == 1:
             if np.size(location[lc]) > 1:
                 LAF1 = min(location[lc])
                 LAF2 = max(location[lc])
-                ds.coords[loc_type].loc[(ds.LAF > LAF1) & (ds.LAF < LAF2)] = lc
+                # Grab the LAF coordinate for ease of reference
+                LAF = ds.coords['LAF']
+                ds.coords[loc_type].loc[dict(LAF=LAF[(LAF > LAF1) &
+                                                     (LAF < LAF2)])] = lc
 
         # It is a single item element (i.e., a point) to label. Find the
         # nearest point to label.
