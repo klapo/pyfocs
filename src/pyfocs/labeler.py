@@ -31,38 +31,48 @@ def labelLoc_additional(ds, location, loc_type):
 
     # Loop over all labels and find where they exist in the LAF domain.
     for lc in location:
-        shape = np.shape(location[lc])
-
-        # Skip locations with nans
-        if any(np.isnan(location[lc])):
-            print(lc + ' was not labeled due to NaNs in LAF. Check library.')
-            continue
-
-        # For non-continuous label locations, loop through each labeled section
-        if np.size(shape) > 1:
-            for loc_num in np.arange(0, max(shape)):
-                LAF1 = min(location[lc][loc_num])
-                LAF2 = max(location[lc][loc_num])
-                # Grab the LAF coordinate for ease of reference
-                LAF = ds.coords['LAF']
-                ds.coords[loc_type].loc[dict(LAF=LAF[(LAF > LAF1) &
-                                                     (LAF < LAF2)])] = lc
-
-        # The label locations occur only once in the LAF domain.
-        elif np.size(shape) == 1:
-            if np.size(location[lc]) > 1:
-                LAF1 = min(location[lc])
-                LAF2 = max(location[lc])
-                # Grab the LAF coordinate for ease of reference
-                LAF = ds.coords['LAF']
-                ds.coords[loc_type].loc[dict(LAF=LAF[(LAF > LAF1) &
-                                                     (LAF < LAF2)])] = lc
-
-        # It is a single item element (i.e., a point) to label. Find the
-        # nearest point to label.
+        # If we've been handed a formatted location library then we know we
+        # have a tuple of points.
+        if 'LAF' in location[lc]:
+            LAF1 = min(location[lc]['LAF'])
+            LAF2 = max(location[lc]['LAF'])
+            # Grab the LAF coordinate for ease of reference
+            LAF = ds.coords['LAF']
+            ds.coords[loc_type].loc[dict(LAF=LAF[(LAF > LAF1) &
+                                                 (LAF < LAF2)])] = lc
         else:
-            LAF_single_loc = ds.sel(LAF=location[lc], method='nearest').LAF
-            ds.coords[loc_type].loc[(ds.LAF == LAF_single_loc)] = lc
+            # We were handed a dictionary with tuples.
+            shape = np.shape(location[lc])
+
+            # Skip locations with nans
+            if any(np.isnan(location[lc])):
+                continue
+
+            # For non-continuous label locations, loop through each labeled section
+            if np.size(shape) > 1:
+                for loc_num in np.arange(0, max(shape)):
+                    LAF1 = min(location[lc][loc_num])
+                    LAF2 = max(location[lc][loc_num])
+                    # Grab the LAF coordinate for ease of reference
+                    LAF = ds.coords['LAF']
+                    ds.coords[loc_type].loc[dict(LAF=LAF[(LAF > LAF1) &
+                                                         (LAF < LAF2)])] = lc
+
+            # The label locations occur only once in the LAF domain.
+            elif np.size(shape) == 1:
+                if np.size(location[lc]) > 1:
+                    LAF1 = min(location[lc])
+                    LAF2 = max(location[lc])
+                    # Grab the LAF coordinate for ease of reference
+                    LAF = ds.coords['LAF']
+                    ds.coords[loc_type].loc[dict(LAF=LAF[(LAF > LAF1) &
+                                                         (LAF < LAF2)])] = lc
+
+            # It is a single item element (i.e., a point) to label. Find the
+            # nearest point to label.
+            else:
+                LAF_single_loc = ds.sel(LAF=location[lc], method='nearest').LAF
+                ds.coords[loc_type].loc[(ds.LAF == LAF_single_loc)] = lc
 
     return ds
 
@@ -204,6 +214,7 @@ def dtsPhysicalCoords_3d(ds, location):
     '''
 
     all_sections = []
+    LAF = ds.coords['LAF']
 
     # Extract out just the relative distance section.
     # Assumed that the first LAF section refers to the start of the
@@ -217,13 +228,12 @@ def dtsPhysicalCoords_3d(ds, location):
         z = location[l]['z_coord']
 
         # Determine the LAF for this section.
-        LAF = location[l]['LAF']
-        LAF1 = min(LAF)
-        LAF2 = max(LAF)
+        LAF1 = min(location[l]['LAF'])
+        LAF2 = max(location[l]['LAF'])
         dLAF, _ = stats.mode(np.diff(ds.LAF.values))
 
         # Extract out just the section in question
-        section = ds.loc[dict(LAF=(ds.LAF > LAF1) & (ds.LAF < LAF2))]
+        section = ds.loc[dict(LAF=LAF[(LAF > LAF1) & (LAF < LAF2)])]
         num_LAF = np.size(section.LAF.values)
 
         # Interpolate each coordinate into a line
