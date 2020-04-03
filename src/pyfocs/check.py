@@ -150,6 +150,10 @@ def config(fn_cfg):
             probe2_name = cfg['dataProperties']['probe2Temperature']
         # Calibration field
         in_cfg['calibration'] = copy.deepcopy(cfg['calibration'])
+        # The multiiple labelings of the reference probe will be removed with
+        # the coming update to the calibration.
+        in_cfg['probe1'] = probe1_name
+        in_cfg['probe2'] = probe2_name
 
     # --------
     # Prepare each requested experiment.
