@@ -358,7 +358,7 @@ def config(fn_cfg):
 
                     # All locations are defined by a pair of LAFs.
                     assert 'LAF' in lib[loc_type_cur][l], 'No LAFs provided for ' + l
-                    assert len(lib[loc_type_cur][l]['LAF']) == 2, missing_mess.format(ploc=l)
+                    assert len(lib[loc_type_cur][l]['LAF']) == 2, missing_mess.format(ploc=l, lib=lib[loc_type_cur][l])
                     if any(np.isnan(lib[loc_type_cur][l]['LAF'])):
                         del lib[loc_type_cur][l]
                         print(l + ' will not be labeled due to NaNs in LAF. Check library.')
@@ -407,8 +407,13 @@ def config(fn_cfg):
 
                 for l in cfg['location_library']:
                     if loc_type_cur == cfg['location_library'][l]['loc_type']:
-                        lib[c][loc_type_cur][l] = cfg['location_library'][l]
+                        lib_this_loc = copy.deepcopy(cfg['location_library'][l])
+                        # Debugging lines, delete after more testing.
+                        # print(l)
+                        # print(lib_this_loc)
+                        # print('---------------------------------------')
                         # Drop any other other cores from the LAF field.
+                        lib[c][loc_type_cur][l] = lib_this_loc
                         lib[c][loc_type_cur][l]['LAF'] = lib[c][loc_type_cur][l]['LAF'][c]
 
                         # All locations are defined by a pair of LAFs.
@@ -457,6 +462,7 @@ def config(fn_cfg):
         in_cfg['step_loss']['correction'] = steploss_corr
     else:
         step_loss_flag = False
+        in_cfg['step_loss'] = {}
         in_cfg['step_loss']['flag'] = step_loss_flag
 
     # Determine write mode:
