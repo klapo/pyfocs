@@ -24,261 +24,52 @@ warnings.simplefilter(action='ignore', category=RuntimeWarning)
 # -----------------------------------------------------------------------------
 # Configuration file
 # -----------------------------------------------------------------------------
-# Quick fix for us to do local debugging.
+# Test if a file was provided to the script from the terminal.
 try:
-    filename_configfile_KL = 'bla'
-    filename_configfile_AF = '/home/anita/Schreibtisch/python_programs/config_files/LOVE/LOVE_Simba_south_190711_config.yml'
-    if os.path.exists(filename_configfile_KL):
-        filename_configfile = filename_configfile_KL
-    elif os.path.exists(filename_configfile_AF):
-        filename_configfile = filename_configfile_AF
-    else:
-        raise NameError('Config file not found.')
+    filename_configfile = sys.argv[1]
+    if not os.path.exists(filename_configfile):
+        print('Config file' + sys.argv[1] + 'not found.')
 
-# Expected, non-debugging behavior.
-except NameError:
+# Prompt the user for the config file.
+except IndexError:
+    # Open the config file
+    root = tk.Tk()
+    # to close this stupid root window that doesn't let itself be closed.
+    root.withdraw()
+    ftypes = [
+        ('yaml configuration file', '*.yml'),
+        ]
+    filename_configfile = filedialog.askopenfilename(filetypes=ftypes)
 
-    # Test if a file was provided to the script from the terminal.
-    try:
-        filename_configfile = sys.argv[1]
-        if not os.path.exists(filename_configfile):
-            print('Config file' + sys.argv[1] + 'not found.')
+# Call the config file reader and formatter.
+internal_config, lib = pyfocs.check.config(filename_configfile)
 
-    # Prompt the user for the config file.
-    except IndexError:
-        # Open the config file
-        root = tk.Tk()
-        # to close this stupid root window that doesn't let itself be closed.
-        root.withdraw()
-        ftypes = [
-            ('yaml configuration file', '*.yml'),
-            ]
-        filename_configfile = filedialog.askopenfilename(filetypes=ftypes)
+if internal_config is None:
+    raise NameError('Configuration file generated an error.')
 
-# This yaml syntax requires pyyaml v5.1
-with open(filename_configfile, 'r') as stream:
-    config_user = yaml.load(stream, Loader=yaml.FullLoader)
-
-try:
-    remote_dir = config_user['directories']['remote']['remote_directories']
-except KeyError:
-    remote_dir = []
-
-# -----------------------------------------------------------------------------
-# Look through the configuration file and prepare
-# -----------------------------------------------------------------------------
-#%% loop through the experiment_names
-experiment_names = config_user['directories']['experiment_names']
-internal_config = {}
-for exp_name in experiment_names:
-    #%% Get paths for the directories of the different processing steps.
-    # Create directories if they don't exist and errors if needed data aren't
-    # found.
-
-    # --------
-    # External data
-    try:
-        dir_ext = config_user['directories']['external']
-        # Handling for relative paths
-        if dir_ext == '.':
-            dir_ext = os.getcwd()
-        # Check for empty yaml lists (assigned NoneType)
-        if dir_ext is not None:
-            # check if the external data directory exists, error if not
-            if (not os.path.exists(dir_ext)) and (config_user['flags']['ref_temp_option']):
-                raise FileNotFoundError('External data directory not found at '
-                                        + dir_ext)
-    except KeyError:
-        dir_ext = None
-
-    # Handling for relative paths
-    try:
-        dir_pre_local = config_user['directories']['local']['dir_pre']
-    except KeyError:
-        dir_pre_local = ''
-
-    try:
-        dir_pre_remote = config_user['directories']['remote']['dir_pre']
-    except KeyError:
-        dir_pre_remote = ''
-
-    if dir_pre_local == '.':
-        dir_pre_local = os.getcwd()
-    if dir_pre_remote == '.':
-        dir_pre_remote = os.getcwd()
-
-    #%%
-    # --------
-    # Raw xml files
-    if 'raw_xml' in remote_dir:
-        dir_raw_xml = os.path.join(dir_pre_remote,
-                                   exp_name, config_user['directories']['raw'])
-    else:
-        dir_raw_xml = os.path.join(dir_pre_local,
-                                   exp_name, config_user['directories']['raw_xml'])
-
-    # Throw an error if raw files should be read but directory isn't found
-    if (not os.path.exists(dir_raw_xml)) and (config_user['flags']['archiving_flag']):
-        raise FileNotFoundError('Raw data directory not found: ' + dir_raw_xml)
-
-    #%%
-    # --------
-    # Archived tar.gz of xmls
-    if 'archive' in remote_dir:
-        dir_archive = os.path.join(dir_pre_remote,
-                                   exp_name, config_user['directories']['archive'])
-    else:
-        dir_archive = os.path.join(dir_pre_local,
-                                   exp_name, config_user['directories']['archive'])
-
-    if (not os.path.exists(dir_archive)):
-        # create the folder for the archived files if it doesn't already exist and archived files will be created
-        if config_user['flags']['archiving_flag']:
-            os.makedirs(dir_archive)
-            print('Archived directory not found. Created a new one at ' + dir_archive)
-        # throw error if archived files are needed but neither found nor created
-        elif config_user['flags']['archive_read_flag']:
-            raise FileNotFoundError('Archived data directory not found at ' +
-                                    dir_archive)
-
-    #%%
-    # --------
-    # Raw xmls in netcdf format
-    if 'raw_netcdf' in remote_dir:
-        dir_raw_netcdf = os.path.join(dir_pre_remote,
-                                      exp_name, config_user['directories']['raw_netcdf'])
-    else:
-        dir_raw_netcdf = os.path.join(dir_pre_local,
-                                      exp_name, config_user['directories']['raw_netcdf'])
-
-    if not os.path.exists(dir_raw_netcdf):
-        # Create the folder for the raw netcdf files if it doesn't already
-        # exist and raw netcdf files will be created.
-        if config_user['flags']['archive_read_flag']:
-            os.makedirs(dir_raw_netcdf)
-            print('Calibrated directory not found. Created a new one at ' + dir_raw_netcdf)
-        # throw error if raw netcdf files are needed but neither found nor created
-        elif config_user['flags']['calibrate_flag']:
-            raise FileNotFoundError('Raw netcdf data directory not found ' +
-                                    dir_raw_netcdf)
-
-    #%%
-    # --------
-    # Calibrated temperature (full matrix inversion)
-    if 'calibrated' in remote_dir:
-        dir_cal = os.path.join(dir_pre_remote,
-                               exp_name, config_user['directories']['calibrated'])
-    else:
-        dir_cal = os.path.join(dir_pre_local,
-                               exp_name, config_user['directories']['calibrated'])
-
-    if not os.path.exists(dir_cal):
-        # create the folder for the calibrated files if it doesn't already
-        # exist and calibrated files will be created
-        if config_user['flags']['calibrate_flag']:
-            os.makedirs(dir_cal)
-            print('Calibrated directory not found. Created a new one at '
-                  + dir_cal)
-        elif config_user['flags']['final_flag']:
-            raise FileNotFoundError('Calibrated data directory not found ' +
-                                    dir_cal)
-
-    #%%
-    # --------
-    # Final data (converted into just the labeled segments with
-    # a physical location)
-    if 'final' in remote_dir:
-        dir_final = os.path.join(dir_pre_remote,
-                                 exp_name, config_user['directories']['final'])
-    else:
-        dir_final = os.path.join(dir_pre_local,
-                                 exp_name, config_user['directories']['final'])
-
-    # Create the folder for the final files if it doesn't already exist
-    if ((not os.path.exists(dir_final))
-            and ((config_user['flags']['calibrate_flag'])
-                 or (config_user['flags']['final_flag']))):
-        os.makedirs(dir_final)
-        print('Final directory not found. Created a new one at ' + dir_final)
-
-    #%%
-    # --------
-    # Graphics folder (currently unused)
-    if 'graphics' in remote_dir:
-        dir_graphics = os.path.join(dir_pre_remote,
-                                    exp_name, config_user['directories']['graphics'])
-    else:
-        dir_graphics = os.path.join(dir_pre_local,
-                                    exp_name, config_user['directories']['graphics'])
-
-    # assemble internal config for each dts folder within the experiment folder
-    internal_config[exp_name] = {}
-    internal_config[exp_name] = copy.deepcopy(config_user)
-    internal_config[exp_name]['archive']['channelName'] = config_user['directories']['channelName']
-    internal_config[exp_name]['archive']['sourcePath'] = dir_raw_xml
-    internal_config[exp_name]['archive']['targetPath'] = dir_archive
-    internal_config[exp_name]['directories']['dirArchive'] = dir_archive
-    internal_config[exp_name]['directories']['dirRawNetcdf'] = dir_raw_netcdf
-    internal_config[exp_name]['directories']['dirCalibrated'] = dir_cal
-    internal_config[exp_name]['directories']['dirFinal'] = dir_final
-
-    # Determine if a file suffix was provided.
-    try:
-        outname_suffix = config_user['directories']['suffix']
-    except KeyError:
-        outname_suffix = None
-
-   # Determine fiber type
-    coretype = internal_config[exp_name]['dataProperties']['fiber_type']
-    if coretype == 'multicore':
-        cores = internal_config[exp_name]['dataProperties']['cores']
-    else:
-        cores = None
-
-# Location library and data labels
-# Determine the list of all location types.
-try:
-    loc_type = config_user['dataProperties']['all_locs']
-except KeyError:
-    loc_type = []
-    try:
-        for l in config_user['location_library']:
-            loc_type.append(config_user['location_library'][l]['loc_type'])
-        loc_type = np.unique(loc_type).tolist()
-    except KeyError:
-        print('No location library found, all steps after creating raw' +
-              ' netcdfs have been disabled.')
-        config_user['flags']['calibrate_flag'] = False
-        config_user['flags']['processed_flag'] = False
-        config_user['flags']['final_flag'] = False
-    except TypeError:
-        print('No location library found, all steps after creating raw' +
-              ' netcdfs have been disabled.')
-        config_user['flags']['calibrate_flag'] = False
-        config_user['flags']['processed_flag'] = False
-        config_user['flags']['final_flag'] = False
+# Unpack items from the formatted configuration dictionaries.
+# Processing flags
+write_mode = internal_config['write_mode']
+ref_temp_option = internal_config['flags']['ref_temp_option']
+archiving_flag = internal_config['flags']['archiving_flag']
+archive_read_flag = internal_config['flags']['archive_read_flag']
+calibrate_flag = internal_config['flags']['calibrate_flag']
+final_flag = internal_config['flags']['final_flag']
 
 # Step loss corrections
-if ('step_loss_LAF' in config_user['dataProperties']
-        and 'step_loss_correction' in config_user['dataProperties']):
-    step_loss_flag = True
-else:
-    step_loss_flag = False
+step_loss_flag = internal_config['step_loss']['flag']
+if step_loss_flag:
+    splice_LAF = internal_config['step_loss']['LAF']
+    step_loss_corrections = internal_config['step_loss']['correction']
 
-# Determine write mode:
-try:
-    write_mode = config_user['flags']['write_mode']
-except KeyError:
-    write_mode = 'overwrite'
+# Channels/experiments/output file names
+channelNames = internal_config['channelNames']
+experiment_names = internal_config['experiment_names']
+outname_suffix = internal_config['outname_suffix']
 
-# Determine calibration mode:
-try:
-    cal_mode = config_user['flags']['cal_mode']
-except KeyError:
-    cal_mode = 'instantaneous'
-
-# Channels to process
-channelNames = config_user['directories']['channelName']
+# Cores (mostly relevant to multicore fibers)
+coretype = internal_config['coretype']
+cores = internal_config['cores']
 
 # -----------------------------------------------------------------------------
 # Archive and create raw netcdfs
@@ -290,7 +81,7 @@ for exp_name in experiment_names:
     print('-------------')
 
     # archiving
-    if config_user['flags']['archiving_flag']:
+    if archiving_flag:
         print('-------------')
         print('Archiving raw xml files.')
         print(' ')
@@ -298,29 +89,31 @@ for exp_name in experiment_names:
         pyfocs.archiver(internal_config[exp_name])
 
     # write raw netCDF
-    if config_user['flags']['archive_read_flag']:
+    if archive_read_flag:
         print('-------------')
         print('Writing netcdfs from raw xml files.')
         print(' ')
         print('creating raw netcdf for experiment: ', exp_name)
         pyfocs.archive_read(internal_config[exp_name],
-                                  write_mode=write_mode)
+                            write_mode=write_mode)
 
 for exp_name in experiment_names:
     # --------------------------------------------------------------------------
     # Process DTS files
     # --------------------------------------------------------------------------
-    if config_user['flags']['calibrate_flag']:
+    if calibrate_flag:
+
+        # Time step for resampling to a uniform time step
+        delta_t = internal_config['resampling_time']
 
         # Get the external data to add if we are not using the instrument PT100s
-        if internal_config[exp_name]['flags']['ref_temp_option'] == 'external':
+        if internal_config['flags']['ref_temp_option'] == 'external':
             # Get the metdata
-            os.chdir(dir_ext)
-            ref_data = xr.open_dataset(config_user['directories']['filename_external'])
-            ref_data = ref_data.resample(time = config_user['dataProperties']['resampling_time']).interpolate('linear')
+            ref_data = xr.open_dataset(internal_config['external_data'])
+            ref_data = ref_data.resample(time=delta_t).interpolate('linear')
 
-            probe1_name = internal_config[exp_name]['dataProperties']['probe1Temperature']
-            probe2_name = internal_config[exp_name]['dataProperties']['probe2Temperature']
+            probe1_name = internal_config['probe1']
+            probe2_name = internal_config['probe2']
 
         # Find all 'raw' netcdfs within the processed directory,
         # sort them (by date), and process each individually.
@@ -395,20 +188,23 @@ for exp_name in experiment_names:
             # instruments. Do this using a linear interpolation.
 
             # Round to the nearest time interval
-            delta_t = config_user['dataProperties']['resampling_time']
             dt_start = pd.Timestamp(dstemp.time.values[0]).round(delta_t)
             dt_end = pd.Timestamp(dstemp.time.values[-1]).round(delta_t)
 
-            # Create a regular interval time stamp index
-            reg_time_pd = pd.date_range(start=dt_start, end=dt_end, freq=delta_t)
-            dstemp = dstemp.interp(time=reg_time_pd,
-                                   kwargs={'fill_value': 'extrapolate'})
+            # Catch a weird edge case for a single time step.
+            if not dt_start == dt_end:
+                # Create a regular interval time stamp index
+                reg_time_pd = pd.date_range(start=dt_start,
+                                            end=dt_end,
+                                            freq=delta_t)
+                dstemp = dstemp.interp(time=reg_time_pd,
+                                       kwargs={'fill_value': 'extrapolate'})
 
             # Add a delta t attribute
-            dstemp.attrs['dt'] = config_user['dataProperties']['resampling_time']
+            dstemp.attrs['dt'] = delta_t
 
             # Add in external reference data here
-            if internal_config[exp_name]['flags']['ref_temp_option'] == 'external':
+            if internal_config['flags']['ref_temp_option'] == 'external':
                 temp_ref_data = ref_data.reindex_like(dstemp.time,
                                                       method='nearest',
                                                       tolerance=1)
@@ -417,8 +213,8 @@ for exp_name in experiment_names:
                 dstemp[probe2_name] = temp_ref_data[probe2_name]
 
                 # Add additional external data for this data stream.
-                if internal_config[exp_name]['dataProperties']['external_fields']:
-                    for ext_dat in internal_config[exp_name]['dataProperties']['external_fields']:
+                if internal_config['external_fields']:
+                    for ext_dat in internal_config['external_fields']:
                         dstemp[ext_dat] = temp_ref_data[ext_dat]
 
                 # If the bath pt100s and dts do not line up in time,
@@ -428,46 +224,35 @@ for exp_name in experiment_names:
 
             # Step loss corrections if they are provided.
             if step_loss_flag:
-                splice_LAF = np.atleast_1d(config_user['dataProperties']['step_loss_LAF'])
-                step_loss_corrections = np.atleast_1d(config_user['dataProperties']['step_loss_correction'])
-
-                # Make sure these are not NaNs
-                if splice_LAF and step_loss_corrections:
-                    # Calculate the log power of the stokes/anti-stokes scattering
-                    dstemp['logPsPas'] = np.log(dstemp.Ps / dstemp.Pas)
-                    # Correct for any step-losses due to splicing.
-                    for spl_num, spl_LAF in enumerate(splice_LAF):
-                        dstemp['logPsPas'] = dstemp.logPsPas.where((dstemp.LAF < spl_LAF),
-                                                                   dstemp.logPsPas + step_loss_corrections[spl_num])
+                # Calculate the log power of the stokes/anti-stokes scattering
+                dstemp['logPsPas'] = np.log(dstemp.Ps / dstemp.Pas)
+                # Correct for any step-losses due to splicing.
+                for spl_num, spl_LAF in enumerate(splice_LAF):
+                    dstemp['logPsPas'] = dstemp.logPsPas.where((dstemp.LAF < spl_LAF),
+                                                               dstemp.logPsPas + step_loss_corrections[spl_num])
 
             # Split up multicore data
             if coretype == 'multicore':
                 for c in cores:
-                    print(c)
                     dstemp_core = dstemp
 
                     # Drop the unnecessary negative LAF indices
-                    core_LAF_start = config_user['dataProperties']['cores'][c]['LAF'][0]
-                    core_LAF_end = config_user['dataProperties']['cores'][c]['LAF'][-1]
-                    dstemp_core = dstemp_core.sel(LAF=((dstemp_core['LAF'] > core_LAF_start)
-                                                        & (dstemp_core['LAF'] < core_LAF_end)))
+                    core_LAF_start = cores[c]['LAF'][0]
+                    core_LAF_end = cores[c]['LAF'][-1]
+                    dstemp_core = dstemp_core.sel(LAF=(slice(core_LAF_start, core_LAF_end)))
                     dstemp_core.attrs['LAF_beg'] = core_LAF_start
                     dstemp_core.attrs['LAF_end'] = core_LAF_end
 
                     # Location labels
-                    for loc_type_cur in loc_type:
-                        location = {}
-                        for l in config_user['location_library']:
-                            if loc_type_cur == config_user['location_library'][l]['loc_type']:
-                                location[l] = config_user['location_library'][l]['LAF'][c]
+                    for loc_type_cur in lib[c]:
                         dstemp_core = pyfocs.labelLoc_additional(dstemp_core,
-                                                                       location,
-                                                                       loc_type_cur)
+                                                                 lib[c][loc_type_cur],
+                                                                 loc_type_cur)
                     # Converting to a netcdf ruins this step unfortunately.
                     # dstemp_core.attrs['loc_general_long'] = dict((l, config_user['loc_general'][l]['long name'])
 
                     dstemp_core, _, _, _ = pyfocs.matrixInversion(dstemp_core,
-                                                                  internal_config[exp_name])
+                                                                  internal_config)
 
                     # Rename the instrument reported temperature field
                     dstemp_core = dstemp_core.rename({'temp': 'instr_temp'})
@@ -485,24 +270,18 @@ for exp_name in experiment_names:
 
             elif coretype == 'singlecore':
                 # Drop the unnecessary negative LAF indices
-                dstemp = dstemp.sel(LAF=dstemp['LAF'] > 0)
+                dstemp = dstemp.sel(LAF=slice(0, None))
                 dstemp.attrs['LAF_beg'] = dstemp.LAF.values[0]
 
                 # Location labels
-                for loc_type_cur in loc_type:
-                    location = {}
-                    for l in config_user['location_library']:
-                        if loc_type_cur == config_user['location_library'][l]['loc_type']:
-                            try:
-                                location[l] = config_user['location_library'][l]['LAF']
-                            except KeyError:
-                                print('No LAFs provided for ' + l)
+                for loc_type_cur in lib:
+                    # lib_laf = {l: lib[loc_type_cur][l]['LAF'] for l in lib[loc_type_cur]}
                     dstemp = pyfocs.labelLoc_additional(dstemp,
-                                                              location,
-                                                              loc_type_cur)
+                                                        lib[loc_type_cur],
+                                                        loc_type_cur)
 
                 # Calibrate the temperatures.
-                dstemp, _, _, _ = pyfocs.matrixInversion(dstemp, internal_config[exp_name])
+                dstemp, _, _, _ = pyfocs.matrixInversion(dstemp, internal_config)
                 dstemp = dstemp.rename({'temp': 'instr_temp'})
 
                 # Output the calibrated dataset
@@ -523,13 +302,12 @@ for exp_name in experiment_names:
 # -----------------------------------------------------------------------------
 #%% Final preparation of the DTS dataset
 
-if config_user['flags']['final_flag']:
+if final_flag:
     print('-------------')
     print('Final preparation: assigning physical coordinates, dropping unused fields and locations')
     print(' ')
 
-    # Locations to physically label
-    phys_locs = config_user['dataProperties']['phys_locs']
+    phys_locs = internal_config['phys_locs']
 
     # List of finished files so we can skip files when handling multicore fibers.
     finished_files = []
@@ -539,7 +317,7 @@ if config_user['flags']['final_flag']:
     coords_to_keep = ['xyz', 'time', 'x', 'y', 'z', 'core', 'LAF']
     vars_to_keep = ['cal_temp']
     if coretype == 'multicore':
-        cores_to_proc = list(config_user['dataProperties']['cores'].keys())
+        cores_to_proc = list(cores.keys())
 
     for exp_name in experiment_names:
         # Find all 'calibrated' netcdfs within the calibrated directory,
@@ -560,11 +338,8 @@ if config_user['flags']['final_flag']:
             cal_str_ind = name_components.index('cal')
             outname_date = name_components[cal_str_ind + 2]
 
-            print('Finalizing ' + cal_nc + ' (' + str(ncal + 1)
+            print('Physically labeling ' + cal_nc + ' (' + str(ncal + 1)
                   + ' of ' + str(ntot) + ')')
-
-            # Location dictionary to pass to the physical coordinates function.
-            location = {}
 
             # Deal with multicore fibers differently than single core fibers.
             if coretype == 'multicore':
@@ -587,6 +362,21 @@ if config_user['flags']['final_flag']:
                     dstemp = xr.open_dataset(c)
                     dstemp.load()
 
+                    # Drop everything except the calibrated temperature.
+                    # Clean up unused variables and labels.
+                    vars_to_drop = [v for v in dstemp.data_vars
+                                    if v not in vars_to_keep]
+
+                    coords_to_drop = [c for c in dstemp.coords
+                                      if c not in coords_to_keep]
+                    try:
+                        coords_to_drop.remove(phys_locs)
+                    except ValueError:
+                        # Just continue onwards. The physical location was
+                        # not in the list of coordinates.
+                        coords_to_drop = coords_to_drop
+                    dstemp = dstemp.drop(vars_to_drop).drop(coords_to_drop)
+
                     # Reformat the config locations to specify just a
                     # single core
                     core = str(dstemp.core.values)
@@ -594,30 +384,23 @@ if config_user['flags']['final_flag']:
                     if core not in cores_to_proc:
                         continue
 
-                    for l in config_user['location_library']:
-                        location[l] = copy.deepcopy(config_user['location_library'][l])
-                        location[l]['LAF'] = config_user['location_library'][l]['LAF'][core]
-
-                    for ploc in config_user['dataProperties']['phys_locs']:
+                    for ploc in phys_locs:
                         if ploc not in dstemp_out:
                             dstemp_out[ploc] = []
-                        # Find all the locations to label in this location type
-                        temp_loc = {loc: location[loc] for loc in location
-                                    if ploc == location[loc]['loc_type']}
-                        # Simplified dictionary for relabeling.
-                        relabel = {loc: location[loc]['LAF'] for loc in location
-                                   if ploc == location[loc]['loc_type']}
                         # Relabel the locations. This allows locations to
                         # change after calibrating, as the calibration only
                         # cares about the location of the reference baths.
                         dstemp = pyfocs.labelLoc_additional(dstemp,
-                                                            relabel,
+                                                            lib[core][ploc],
                                                             ploc)
+
                         # Assign physical labels
-                        dstemp_out[ploc].append(pyfocs.labeler.dtsPhysicalCoords_3d(dstemp, temp_loc))
+                        dstemp_out[ploc].append(
+                            pyfocs.labeler.dtsPhysicalCoords_3d(dstemp,
+                                                                lib[core][ploc]))
 
                 # Merge the cores
-                for ploc in config_user['dataProperties']['phys_locs']:
+                for ploc in phys_locs:
                     interp_to = None
                     for nc, c in enumerate(dstemp_out[ploc]):
                         # Make the assumption that the specific core is
@@ -630,23 +413,9 @@ if config_user['flags']['final_flag']:
 
                     dstemp_out[ploc] = xr.concat(dstemp_out[ploc], dim='core')
 
-                    # Clean up unused variables and labels.
-                    vars_to_drop = [v for v in dstemp_out[ploc].data_vars
-                                    if v not in vars_to_keep]
-
-                    coords_to_drop = [c for c in dstemp_out[ploc].coords
-                                      if c not in coords_to_keep]
-                    try:
-                        coords_to_drop.remove(ploc)
-                    except ValueError:
-                        # Just continue onwards. The physical location was
-                        # not in the list of coordinates.
-                        coords_to_drop = coords_to_drop
-
                     # Clean up attributes and dropped the unused ones.
                     dt = dstemp_out[ploc].attrs['dt']
                     dLAF = dstemp_out[ploc].attrs['dLAF']
-                    dstemp_out[ploc] = dstemp_out[ploc].drop(vars_to_drop).drop(coords_to_drop)
                     dstemp_out[ploc].attrs = []
                     dstemp_out[ploc].attrs['dt'] = dt
                     dstemp_out[ploc].attrs['dLAF'] = dLAF
@@ -682,25 +451,17 @@ if config_user['flags']['final_flag']:
                 dstemp.attrs['dt']  = dt
                 dstemp.attrs['dLAF'] = dLAF
 
-                location = {}
-                for l in config_user['location_library']:
-                    location[l] = copy.deepcopy(config_user['location_library'][l])
-                    location[l]['LAF'] = config_user['location_library'][l]['LAF']
-
-                for ploc in config_user['dataProperties']['phys_locs']:
-                    # Dictionary for creating physical location.
-                    temp_loc = {loc:location[loc] for loc in location if ploc in location[loc]['loc_type']}
-                    # Simplified dictionary for relabeling.
-                    relabel = {loc: location[loc]['LAF'] for loc in location
-                               if ploc == location[loc]['loc_type']}
+                for ploc in phys_locs:
                     # Relabel the locations. This allows locations to
                     # change after calibrating, as the calibration only
                     # cares about the location of the reference baths.
-                    dstemp = pyfocs.labelLoc_additional(dstemp,
-                                                        relabel,
-                                                        ploc)
-                    # Give the 3D labels.
-                    dstemp_out = pyfocs.labeler.dtsPhysicalCoords_3d(dstemp, temp_loc)
+                    dstemp_ploc = pyfocs.labelLoc_additional(dstemp,
+                                                            lib[ploc],
+                                                            ploc)
+
+                    # Assign physical labels
+                    dstemp_ploc = pyfocs.labeler.dtsPhysicalCoords_3d(dstemp_ploc,
+                                                                      lib[ploc])
 
                     # Output each location type as a separate final file.
                     outname = '_'.join(filter(None, [exp_name, 'final',
@@ -708,4 +469,4 @@ if config_user['flags']['final_flag']:
                                                      outname_suffix,
                                                      ploc])) + '.nc'
                     os.chdir(internal_config[exp_name]['directories']['dirFinal'])
-                    dstemp_out[ploc].to_netcdf(outname, mode='w')
+                    dstemp_ploc.to_netcdf(outname, mode='w')
