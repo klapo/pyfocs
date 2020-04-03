@@ -164,13 +164,6 @@ flags:
   # 'overwrite' - The files are overwritten (default).
   write_mode: overwrite
 
-  # Calibration mode:
-  # 'instantaneous'  - default. Uses the log(Ps/Pas) for each time step.
-  # 'smooth'         - averages the log(Ps/Pas) over the interval defined by
-  #                    ['calibration']['averaging_interval'] in seconds.
-  #                    Experimental feature.
-  cal_mode: instantaneous
-
 # The location library is necessary for calibration (where are the baths) and
 # for the `final` processing step of assigning physical coordinates to the data.
 # A data dimension will be created for each unique 'loc_type' in the
