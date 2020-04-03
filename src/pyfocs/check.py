@@ -145,6 +145,9 @@ def config(fn_cfg):
             except KeyError:
                 in_cfg['external_fields'] = []
 
+        else:
+            probe1_name = cfg['dataProperties']['probe1Temperature']
+            probe2_name = cfg['dataProperties']['probe2Temperature']
         # Calibration field
         in_cfg['calibration'] = copy.deepcopy(cfg['calibration'])
 
