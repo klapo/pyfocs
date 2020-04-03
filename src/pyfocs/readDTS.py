@@ -191,17 +191,10 @@ def archive_read(cfg, write_mode='preserve', prevNumChunk=0):
                 temp_Dataset = xr.Dataset.from_dataframe(df)
                 temp_Dataset.coords['time'] = meta['dt_start']
 
-                # Determine how to handle the reference probes
-                # Default behavior is to use the instrument reported reference
-                # temperatures.
-                if cfg['flags']['ref_temp_option'] == 'default':
-                    temp_Dataset['probe1Temperature'] = meta['probe1Temperature']
-                    temp_Dataset['probe2Temperature'] = meta['probe2Temperature']
-
-                # Use constant temperatures provided by the user.
-                if cfg['flags']['ref_temp_option'] == 'constant':
-                    temp_Dataset['probe1Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe1_value']
-                    temp_Dataset['probe2Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe2_value']
+                # Assing the reference probes to the dataset. This is no
+                # longer an option.
+                temp_Dataset['probe1Temperature'] = meta['probe1Temperature']
+                temp_Dataset['probe2Temperature'] = meta['probe2Temperature']
 
                 # If the flag is 'external' than no probe temperature field is
                 # returned as the external data stream must be handled

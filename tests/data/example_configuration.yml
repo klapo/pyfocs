@@ -95,7 +95,8 @@ dataProperties:
   # probe1_value:
   # probe2_value:
 
-  # Type of fiber optic cable (singlecore vs multicore)
+  # Type of fiber optic cable (singlecore vs multicore). If none provided
+  # pyfocs assumes a single core.
   fiber_type: multicore
   # Expected to be identical to the core name in the location library. This
   # section is only necessary if fiber_type = 'multicore'.
@@ -162,13 +163,6 @@ flags:
   # 'preserve'  - preserve the existing files and skip that step.
   # 'overwrite' - The files are overwritten (default).
   write_mode: overwrite
-
-  # Calibration mode:
-  # 'instantaneous'  - default. Uses the log(Ps/Pas) for each time step.
-  # 'smooth'         - averages the log(Ps/Pas) over the interval defined by
-  #                    ['calibration']['averaging_interval'] in seconds.
-  #                    Experimental feature.
-  cal_mode: instantaneous
 
 # The location library is necessary for calibration (where are the baths) and
 # for the `final` processing step of assigning physical coordinates to the data.

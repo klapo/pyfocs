@@ -6,6 +6,7 @@ from .calibrate import timeAvgCalibrate
 from .dtsarch import archiver
 from .dts_plots import bath_check, bath_validation, bias_violin
 from .stats import noisymoments, norm_xcorr
+from .check import config
 
 
 __version__ = '0.1.4'
