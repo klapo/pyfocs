@@ -39,7 +39,19 @@ def config(fn_cfg):
     in_cfg['experiment_names'] = experiment_names
 
     # Verify that the flags exist and are booleans.
-    in_cfg['flags'] = cfg['flags']
+
+    # Remove deprecated flags.
+    try:
+        del cfg['flags']['cal_mode']
+        in_cfg['flags'] = cfg['flags']
+    except KeyError:
+        in_cfg['flags'] = cfg['flags']
+
+    # Catch an old name for the "final" flag.
+    if 'processed_flag' in in_cfg['flags']:
+        in_cfg['flags']['final_flag'] = in_cfg['flags']['processed_flag']
+        del in_cfg['processed_flag']
+
     flags = ['ref_temp_option', 'write_mode', 'archiving_flag',
              'archive_read_flag', 'calibrate_flag', 'final_flag']
     if not all([fl in flags for fl in in_cfg['flags']]):
@@ -305,14 +317,12 @@ def config(fn_cfg):
                   ' netcdfs have been disabled.')
             check_loc_library = False
             in_cfg['flags']['calibrate_flag'] = False
-            in_cfg['flags']['processed_flag'] = False
             in_cfg['flags']['final_flag'] = False
         except TypeError:
             print('No location library found, all steps after creating raw' +
                   ' netcdfs have been disabled.')
             check_loc_library = False
             in_cfg['flags']['calibrate_flag'] = False
-            in_cfg['flags']['processed_flag'] = False
             in_cfg['flags']['final_flag'] = False
     if 'calibration' not in loc_type and calibrate_flag:
         loc_type.append('calibration')
