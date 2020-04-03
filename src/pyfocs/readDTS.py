@@ -218,18 +218,17 @@ def archive_read(cfg, write_mode='preserve', prevNumChunk=0):
             # Label the Ultima PT100 data. These names are used in
             # calibration and must match the 'refField' variables.
             try:
-                ds = ds.rename({'probe1Temperature': cfg['dataProperties']['probe1Temperature'],
-                                'probe2Temperature': cfg['dataProperties']['probe2Temperature']})
-            except KeyError:
-                # If no names are supplied, drop the PT100s. This is
-                # excpected behavior when working with an external
-                # datastream for the reference PT100s
-                ds = ds.drop(['probe1Temperature', 'probe2Temperature'])
+                ds = ds.rename({'probe1Temperature': cfg['probe1'],
+                                'probe2Temperature': cfg['probe2']})
+            # Passing no values for the probe names causes a ValueError
+            # since both will be `None`. In that case, skip over the
+            # probe naming.
             except ValueError:
-                # Passing no values for the probe names causes a ValueError
-                # since both will be `None`. In that case, skip over the
-                # probe naming.
                 print('No PT100 field names were passed.')
+            # No new names are handed to the probes.
+            except KeyError:
+                print('No PT100 field names were passed.')
+
 
             # Save to netcdf
             os.chdir(dirProcessed)

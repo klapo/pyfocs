@@ -133,10 +133,6 @@ def config(fn_cfg):
             try:
                 probe1_name = cfg['dataProperties']['probe1Temperature']
                 probe2_name = cfg['dataProperties']['probe2Temperature']
-
-                in_cfg['probe1'] = probe1_name
-                in_cfg['probe2'] = probe2_name
-
             except KeyError:
                 mess = ('When using external reference temperature probes '
                         'the probe1Temperature and probe2Temperature fields '
@@ -149,8 +145,15 @@ def config(fn_cfg):
             except KeyError:
                 in_cfg['external_fields'] = []
 
+        else:
+            probe1_name = cfg['dataProperties']['probe1Temperature']
+            probe2_name = cfg['dataProperties']['probe2Temperature']
         # Calibration field
         in_cfg['calibration'] = copy.deepcopy(cfg['calibration'])
+        # The multiiple labelings of the reference probe will be removed with
+        # the coming update to the calibration.
+        in_cfg['probe1'] = probe1_name
+        in_cfg['probe2'] = probe2_name
 
     # --------
     # Prepare each requested experiment.
@@ -275,6 +278,9 @@ def config(fn_cfg):
         in_cfg[exp_name]['directories']['dirCalibrated'] = dir_cal
         in_cfg[exp_name]['directories']['dirFinal'] = dir_final
         in_cfg[exp_name]['directories']['dirGraphics'] = dir_graphics
+        in_cfg[exp_name]['probe1'] = probe1_name
+        in_cfg[exp_name]['probe2'] = probe2_name
+
 
     # -------------------------------------------------------------------------
     # Integrity of the location library
