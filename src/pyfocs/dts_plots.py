@@ -198,7 +198,7 @@ def bath_validation(ds, bath_define, bath_lims=None, plot_var='bias',
     return fig
 
 
-def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50, c=None):
+def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50):
     '''
     Plot the given location's mean and standard deviation of log(Ps/Pas) and
     stokes and anti-stokes intensities. This is used to verify that a given
@@ -206,20 +206,25 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50, c=None):
     and for verifying section limits.
 
     INPUTS:
-
+        ploc - string that is a key within the phys_locs location dictionary
+               returned by the check.config() function. This should indicate
+               section for plotting.
+        phys_locs - location library dictionary returned by the check.config()
+        ds - xarray Dataset as formatted by pyfocs.
+        offset - distance in meters added to the section LAF limits.
+        lin_fig - indicates whether a linear fit should be made between
+                  adjacent sections when testing for step- or bend-losses.
     OUTPUTS:
 
     '''
     # Set the plotting environment
     plot_env()
-    # Limits of the section to be plotted, including an offset for
-    # edge effects.
-    if c:
-        s_start = np.min(phys_locs[ploc]['LAF'][c]) - offset
-        s_end = np.max(phys_locs[ploc]['LAF'][c]) + offset
-    else:
-        s_start = np.min(phys_locs[ploc]['LAF']) - offset
-        s_end = np.max(phys_locs[ploc]['LAF']) + offset
+    # Limits of the section to be plotted
+    start = np.min(phys_locs[ploc]['LAF'])
+    end = np.max(phys_locs[ploc]['LAF'])
+    # Limits with an offset to examine edge effects and bend losses at holders.
+    s_start = start - offset
+    s_end = end + offset
 
     # Only continue if an LAF is found
     if np.isnan(s_start) or np.isnan(s_end):
@@ -230,18 +235,17 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50, c=None):
     # Derive the useful quantities
     sect = ds.sel(LAF=slice(s_start, s_end))
     sect['logPsPas'] = np.log(sect.Ps / sect.Pas)
-    sect = sect.mean(dim='time')
-    sect = sect.std(dim='time')
+    sect_mean = sect.mean(dim='time')
+    sect_var = sect.std(dim='time')
 
     # Just the data within the section-of-interest for linear fitting.
-    fit_sect = sect.sel(LAF=slice(np.min(phys_locs[ploc]['LAF'][c]),
-                                  np.max(phys_locs[ploc]['LAF'][c])))
+    fit_sect = sect.sel(LAF=slice(start, end))
     fit_sect = fit_sect.mean(dim='time')
 
     # Mean(Log(Ps/Pas))
     ax = axes[0]
-    ax.plot(sect.LAF,
-            sect['logPsPas'].values)
+    ax.plot(sect_mean.LAF,
+            sect_mean['logPsPas'].values)
 
     if lin_fit:
         logPsPas_m, logPsPas_b, _, _, _ = scipy.stats.linregress(fit_sect.LAF,
@@ -251,13 +255,13 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50, c=None):
         ax.legend()
 
     # Axis limits
-    y_mean = sect['logPsPas'].mean(dim='LAF').values
-    y_min = sect['logPsPas'].min().values + 0.004
-    y_max = sect['logPsPas'].max().values + 0.001
+    y_mean = sect_mean['logPsPas'].mean(dim='LAF').values
+    y_min = sect_mean['logPsPas'].min().values + 0.004
+    y_max = sect_mean['logPsPas'].max().values + 0.001
 
     # locations labels
     for ploc_labels in phys_locs:
-        lims = phys_locs[ploc_labels]['LAF'][c]
+        lims = phys_locs[ploc_labels]['LAF']
         # Only label points that are within the plotted limits.
         if (np.isnan(lims).any()
                 or np.max(lims) < s_start
@@ -291,14 +295,15 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50, c=None):
     # Std(Log(Ps/Pas))
     ax = axes[1]
     ax.plot(sect.LAF,
-            sect['logPsPas'].values)
+            sect_var['logPsPas'].values)
 
-    y_mean = sect['logPsPas'].mean(dim='LAF').values
-    y_min = sect['logPsPas'].min().values
-    y_max = sect['logPsPas'].max().values
+    y_mean = sect_var['logPsPas'].mean(dim='LAF').values
+    y_min = sect_var['logPsPas'].min().values
+    y_max = sect_var['logPsPas'].max().values
 
+    # In future updates this line could be merged with the above instances
     for ploc_labels in phys_locs:
-        lims = phys_locs[ploc_labels]['LAF'][c]
+        lims = phys_locs[ploc_labels]['LAF']
         if (np.isnan(lims).any()
                 or np.max(lims) < s_start
                 or np.min(lims) > s_end):
@@ -327,11 +332,11 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50, c=None):
 
     # Mean Stokes/Anti-stokes intensities
     ax = axes[2]
-    ax.plot(sect.LAF,
-            np.log(sect['Ps'].values),
+    ax.plot(sect_mean.LAF,
+            np.log(sect_mean['Ps'].values),
             label='Ps')
-    ax.plot(sect.LAF,
-            np.log(sect['Pas'].values),
+    ax.plot(sect_mean.LAF,
+            np.log(sect_mean['Pas'].values),
             label='Pas')
 
     if lin_fit:
@@ -344,12 +349,12 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50, c=None):
         ax.plot(sect.LAF, Pas_b + Pas_m * sect.LAF.values, '--',
                 label='Pas fit')
 
-    y_mean = np.log(sect['Ps'].mean(dim='LAF').values)
-    y_min = np.log(sect['Pas'].min().values) - 0.1
-    y_max = np.log(sect['Ps'].max().values) + 0.1
+    y_mean = np.log(sect_mean['Ps'].mean(dim='LAF').values)
+    y_min = np.log(sect_mean['Pas'].min().values) - 0.1
+    y_max = np.log(sect_mean['Ps'].max().values) + 0.1
 
     for ploc_labels in phys_locs:
-        lims = phys_locs[ploc_labels]['LAF'][c]
+        lims = phys_locs[ploc_labels]['LAF']
         if np.isnan(lims).any() or np.max(lims) < s_start or np.min(lims) > s_end:
             continue
 
@@ -376,20 +381,20 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50, c=None):
 
     # STD Stokes/Anti-stokes intensities
     ax = axes[3]
-    ax.plot(sect.LAF,
-            np.log(sect['Ps'].values),
+    ax.plot(sect_mean.LAF,
+            np.log(sect_mean['Ps'].values),
             label='Ps')
-    ax.plot(sect.LAF,
-            np.log(sect['Pas'].values),
+    ax.plot(sect_mean.LAF,
+            np.log(sect_mean['Pas'].values),
             label='Pas')
 
-    y_mean = np.log(sect['Ps'].mean(dim='LAF').values)
-    y_min = np.min([np.log(sect['Pas'].min().values),
-                    np.log(sect['Ps'].max().values)]) - 0.1
-    y_max = np.max([np.log(sect['Pas'].min().values),
-                    np.log(sect['Ps'].max().values)]) + 0.1
+    y_mean = np.log(sect_mean['Ps'].mean(dim='LAF').values)
+    y_min = np.min([np.log(sect_mean['Pas'].min().values),
+                    np.log(sect_mean['Ps'].max().values)]) - 0.1
+    y_max = np.max([np.log(sect_mean['Pas'].min().values),
+                    np.log(sect_mean['Ps'].max().values)]) + 0.1
     for ploc_labels in phys_locs:
-        lims = phys_locs[ploc_labels]['LAF'][c]
+        lims = phys_locs[ploc_labels]['LAF']
         if (np.isnan(lims).any()
                 or np.max(lims) < s_start
                 or np.min(lims) > s_end):
@@ -417,7 +422,6 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50, c=None):
     ax.set_ylabel(r'$\sigma(P_s), \sigma(P_{as})$')
     ax.set_xlim(s_start, s_end)
     ax.set_xlabel('LAF (m)')
-    fig.suptitle(c + ': ' + ploc)
     fig.tight_layout()
 
     return fig
@@ -672,12 +676,28 @@ def overview(ds,
         ylabel = r'$\sigma_{LAF}$ (power) [-]'
 
     if type == 'noise':
-        noise = pyfocs.noisymoments(ds.cal_temp.values)
+        print('Estimating instrument noise can take some time, especially for longer time slices')
+        var = np.ones_like(ds.LAF) * np.nan
+        noise = np.ones_like(ds.LAF) * np.nan
+
+        # Start here. Build a way to specify the field being plotted.
+        if cal_temp:
+            field = 'cal_temp'
+
+        else:
+            field = 'instr_temp'
+
+        for nlaf, laf in enumerate(ds.LAF):
+            if np.isnan(ds.sel(LAF=laf).cal_temp.values).any():
+                continue
+            var[nlaf], _, noise[nlaf] = pyfocs.noisymoments(ds.cal_temp.sel(LAF=laf).values)
+
+        # noise = pyfocs.noisymoments(ds.cal_temp.values)
         if lims_dict and 'noise' in lims_dict:
             ylims = lims_dict['noise']
         else:
             ylims = [0, 1]
-        ax.plot(ds[indexer], noise, label='Estimated Instrument Noise')
+        ax.plot(ds.LAF, noise, label='Estimated Instrument Noise')
         ylabel = 'Noise (K)'
 
     ax.legend()
