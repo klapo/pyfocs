@@ -15,7 +15,7 @@ def to_datastore(ds, cfg, ref):
                            'Pas': 'ast',
                            'rPs': 'rst',
                            'rPas': 'rast',
-                           'temp': 'TMP',
+                           'temp': 'tmp',
                            }
 
     # Convert to a DataStore object to take advantage of the
