@@ -99,6 +99,11 @@ def config(fn_cfg):
     except KeyError:
         dir_ext = None
 
+    # Verify that the ref_temp_option is recognized. Default to using the
+    # internal reference sensors.
+    if not in_cfg['flags']['ref_temp_option'] in ['external', 'default']:
+        in_cfg['flags']['ref_temp_option'] = 'default'
+
     # External data file
     if in_cfg['flags']['ref_temp_option'] == 'external':
         try:
@@ -154,6 +159,15 @@ def config(fn_cfg):
         # the coming update to the calibration.
         in_cfg['probe1'] = probe1_name
         in_cfg['probe2'] = probe2_name
+    else:
+        # Just return empty strings if no calibration is desired.
+        # Allows other steps to not choke on these variables.
+        try:
+            probe1_name = cfg['dataProperties']['probe1Temperature']
+            probe2_name = cfg['dataProperties']['probe2Temperature']
+        except KeyError:
+            probe1_name = None
+            probe2_name = None
 
     # --------
     # Prepare each requested experiment.

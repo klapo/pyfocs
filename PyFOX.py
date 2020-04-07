@@ -106,14 +106,15 @@ for exp_name in experiment_names:
         # Time step for resampling to a uniform time step
         delta_t = internal_config['resampling_time']
 
+        # Get the reference probe names
+        probe1_name = internal_config['probe1']
+        probe2_name = internal_config['probe2']
+
         # Get the external data to add if we are not using the instrument PT100s
         if internal_config['flags']['ref_temp_option'] == 'external':
             # Get the metdata
             ref_data = xr.open_dataset(internal_config['external_data'])
             ref_data = ref_data.resample(time=delta_t).interpolate('linear')
-
-            probe1_name = internal_config['probe1']
-            probe2_name = internal_config['probe2']
 
         # Find all 'raw' netcdfs within the processed directory,
         # sort them (by date), and process each individually.
@@ -221,6 +222,13 @@ for exp_name in experiment_names:
                 # notify the user.
                 if not (np.size(np.flatnonzero(~np.isnan(dstemp.temp.values))) > 0):
                     print('PT100 and DTS data do not line up in time for ' + raw_nc)
+
+            elif internal_config['flags']['ref_temp_option'] == 'default':
+                if (probe1_name and probe2_name
+                        and 'probe1Temperature' in dstemp.data_vars
+                        and 'probe2Temperature' in dstemp.data_vars):
+                    dstemp = dstemp.rename({'probe1Temperature': probe1_name,
+                                            'probe2Temperature': probe2_name})
 
             # Step loss corrections if they are provided.
             if step_loss_flag:
