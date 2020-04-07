@@ -9,4 +9,4 @@ from .stats import noisymoments, norm_xcorr
 from .check import config
 
 
-__version__ = '0.1.4'
+__version__ = '0.2.1'
