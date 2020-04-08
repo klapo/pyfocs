@@ -8,6 +8,8 @@ dist/
 *.egg-info/
 *.egg
 
+tests/data/*
+
 # due to using tox and pytest
 .tox
 .cache
