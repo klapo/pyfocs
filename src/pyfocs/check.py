@@ -52,8 +52,8 @@ def config(fn_cfg):
         in_cfg['flags']['final_flag'] = in_cfg['flags']['processed_flag']
         del in_cfg['processed_flag']
 
-    flags = ['ref_temp_option', 'write_mode', 'archiving_flag',
-             'archive_read_flag', 'calibrate_flag', 'final_flag']
+    flags = ['write_mode', 'archiving_flag', 'archive_read_flag',
+             'calibrate_flag', 'final_flag']
     if not all([fl in flags for fl in in_cfg['flags']]):
         missing_flags = [fl for fl in in_cfg['flags'] if fl not in flags]
         raise KeyError('Not all flags were found:\n' + '\n'.join(missing_flags))
@@ -118,15 +118,8 @@ def config(fn_cfg):
         # Build the path to the file.
         in_cfg['external_data'] = os.path.join(dir_ext, ext_fname)
 
-    # Prepare calibration relevant parameters.
+    #
     if in_cfg['flags']['calibrate_flag']:
-        # Resampling time
-        try:
-            dt = cfg['dataProperties']['resampling_time']
-        except KeyError:
-            mess = 'A resampling time must be provided when calibrating.'
-            raise KeyError(mess)
-        in_cfg['resampling_time'] = dt
 
         # Calibration probe names
         if in_cfg['flags']['ref_temp_option'] == 'external':
@@ -306,36 +299,46 @@ def config(fn_cfg):
     else:
         in_cfg['cores'] = None
 
-    # Determine the list of location types. If none is provided, find all
-    # unique location types listed in the location library.
-    try:
-        loc_type = cfg['dataProperties']['all_locs']
-        check_loc_library = True
-    except KeyError:
-        loc_type = []
-        try:
-            for l in cfg['location_library']:
-                loc_type.append(cfg['location_library'][l]['loc_type'])
-            loc_type = np.unique(loc_type).tolist()
-            check_loc_library = True
-        except KeyError:
-            print('No location library found, all steps after creating raw' +
-                  ' netcdfs have been disabled.')
-            check_loc_library = False
-            in_cfg['flags']['calibrate_flag'] = False
-            in_cfg['flags']['final_flag'] = False
-        except TypeError:
-            print('No location library found, all steps after creating raw' +
-                  ' netcdfs have been disabled.')
-            check_loc_library = False
-            in_cfg['flags']['calibrate_flag'] = False
-            in_cfg['flags']['final_flag'] = False
-    if 'calibration' not in loc_type and calibrate_flag:
-        loc_type.append('calibration')
-
     # -------------------------------------------------------------------------
     # Labeling sections and physical coordinates
-    if check_loc_library and in_cfg['flags']['final_flag']:
+    # Prepare relevant parameters for finalizing
+    if in_cfg['flags']['final_flag']:
+        # Indicate that we need to check the integrity of the location library.
+        check_loc_library = True
+
+        # Resampling time
+        try:
+            dt = cfg['dataProperties']['resampling_time']
+        except KeyError:
+            mess = 'A resampling time must be provided when finalizing the data.'
+            raise KeyError(mess)
+        in_cfg['resampling_time'] = dt
+
+        # Determine the list of location types. If none is provided, find all
+        # unique location types listed in the location library.
+        # This should be removed in favor of the physical locations argument.
+        # try:
+        #     loc_type = cfg['dataProperties']['all_locs']
+        # except KeyError:
+        #     loc_type = []
+        #     try:
+        #         for l in cfg['location_library']:
+        #             loc_type.append(cfg['location_library'][l]['loc_type'])
+        #         loc_type = np.unique(loc_type).tolist()
+        #     except KeyError:
+        #         mess = 'No location library found but the finalize flag is on.')
+        #         raise KeyError(mess)
+        #     except TypeError:
+        #         mess = 'No location library found but the finalize flag is on.')
+        #         raise KeyError(mess)
+
+        # Remind the user that documenting the calibration has changed.
+        if 'calibration' in loc_type and calibrate_flag:
+            mess = ('Including the calibration locations in the location '
+                    'library is no longer supported.')
+            print(mess)
+
+        # Make sure the physical locations exist.
         try:
             phys_locs = cfg['dataProperties']['phys_locs']
             in_cfg['phys_locs'] = phys_locs
@@ -483,21 +486,3 @@ def config(fn_cfg):
     in_cfg['channelNames'] = cfg['directories']['channelName']
 
     return in_cfg, lib
-
-    # Add:
-    # [x] Resampling time
-    # [x] External data directory/filename
-    # [x] Probe names for calibration
-
-    # Items to unpack in pyfocs
-    # [x] physical locations
-    # [x] experiment_names
-    # [x] coretype
-    # [x] cores
-    # [?] core LAFs
-    # [x] outname_suffix
-    # [x] step_loss_flag, LAF, and corrections
-    # [x] write_mode
-    # [x] channelNames
-    # [ ] cal_mode -> ignore for now until the new calibration method works.
-    # [x] return of None -- custom error message.
