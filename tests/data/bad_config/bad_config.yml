@@ -1,6 +1,0 @@
-# This is a purposefully bad yaml file
-poorly formated: 'yes'
- bad_indent: 'oh no'
-bad_list:
-- item1
- - item2
