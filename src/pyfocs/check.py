@@ -99,56 +99,107 @@ def config(fn_cfg):
     except KeyError:
         dir_ext = None
 
-    # External data file
-    if in_cfg['flags']['ref_temp_option'] == 'external':
-        try:
-            ext_fname = os.path.join(dir_ext,
-                                     cfg['directories']['filename_external'])
-            os.path.isfile=(ext_fname)
-        except KeyError:
-            mess = ('Config file indicates to use external data, but no file '
-                    'was found at:\n' + ext_fname)
-            raise FileNotFoundError(mess)
-
-        # Make sure the file is a netcdf
-        if not ext_fname.endswith('.nc'):
-            mess = ('Config file indicates to use external data, but a '
-                    'netcdf was not found at:\n' + ext_fname)
-            raise FileNotFoundError()
-        # Build the path to the file.
-        in_cfg['external_data'] = os.path.join(dir_ext, ext_fname)
-
-    #
+    # -------------------------------------------------------------------------
+    # Integrity of caibration parameters
     if in_cfg['flags']['calibrate_flag']:
+        probe_names = []
+        cal = cfg['calibration']
 
-        # Calibration probe names
-        if in_cfg['flags']['ref_temp_option'] == 'external':
+        # External data stream for reference probes
+        if cal['external_fields']:
+            # Verify the external data file exists
             try:
-                probe1_name = cfg['dataProperties']['probe1Temperature']
-                probe2_name = cfg['dataProperties']['probe2Temperature']
+                ext_fname = os.path.join(dir_ext,
+                                         cfg['directories']['filename_external'])
+                os.path.isfile=(ext_fname)
+                probe_names.extend(cal['external_fields'])
+                cal['external_flag'] = True
             except KeyError:
-                mess = ('When using external reference temperature probes '
-                        'the probe1Temperature and probe2Temperature fields '
-                        'must be included.')
-                raise KeyError(mess)
+                mess = ('Config file indicates to use external data, but no file '
+                        'was found at:\n' + ext_fname)
+                raise FileNotFoundError(mess)
 
-            # Determine if additional external fields are to be added.
-            try:
-                in_cfg['external_fields'] = cfg['dataProperties']['external_fields']
-            except KeyError:
-                in_cfg['external_fields'] = []
+            # Make sure the file is a netcdf
+            if not ext_fname.endswith('.nc'):
+                mess = ('Config file indicates to use external data, but a '
+                        'netcdf was not found at:\n' + ext_fname)
+                raise FileNotFoundError()
+            # Build the path to the file.
+            in_cfg['external_data'] = os.path.join(dir_ext, ext_fname)
 
-        else:
-            probe1_name = cfg['dataProperties']['probe1Temperature']
-            probe2_name = cfg['dataProperties']['probe2Temperature']
-        # Calibration field
-        in_cfg['calibration'] = copy.deepcopy(cfg['calibration'])
-        # The multiiple labelings of the reference probe will be removed with
-        # the coming update to the calibration.
-        in_cfg['probe1'] = probe1_name
-        in_cfg['probe2'] = probe2_name
+        # Check for built-in probes
+        if cal['builtin_probe_names']['probe1Temperature']:
+            probe_names.append(cal['builtin_probe_names']['probe1Temperature'])
+            cal['builtin_flag'] = True
+        if cal['builtin_probe_names']['probe2Temperature']:
+            probe_names.append(cal['builtin_probe_names']['probe2Temperature'])
+            cal['builtin_flag'] = True
 
-    # --------
+        # Valid options
+        valid_meths = ['ols single',
+                       'wls single',
+                       'ols double',
+                       'wls double',
+                       'single',
+                       'temp_matching']
+        valid_bath_types = ['calibration', 'validation']
+
+        # Method must be supported
+        if cal['method'] not in valid_meths:
+            mess = ('The calibration method, {cm}, is not in the list of '
+                    'supported calibration methods: {vmeths}')
+            raise KeyError(mess.format(valid_meths))
+
+        # Single-ended explicit matrix inversion only accepts 3 calibration baths.
+        if cal['method'] == 'single':
+            cal_baths = [c for c in cal['library'] if cal['library'][c]['type'] == 'calibration']
+            if not len(cal_baths) == 3:
+                mess = ('The explicit matrix inversion for the single-ended '
+                        'fibers must have three reference sections '
+                        'of type "calibration". Found: \n{cref}')
+                raise ValueError(mess.format(cref=cal_baths))
+
+        # Check integrity of each calibration section
+        # Error messages
+        miss_ref_sen_mess = ('The reference sensor, {r}, for {cl} was '
+                             'not in the list of provided sensors: '
+                             '\n{slist}')
+        unkn_cal_mess = ('The calibration type, {ct}, for {cl} is not '
+                         'recognized. Valid options are {valopt}')
+        missing_mess = ('LAF for {cl} was not defined by pair of LAF, '
+                        'Found intsead:\n {lib}')
+
+        for cloc in cal['library']:
+            # Get details for this section
+            calsect = cal['library'][cloc]
+            refsen = calsect['ref_sensor']
+            bath_type = calsect['type']
+
+            # The reference sensor must be listed in the built-in probes or
+            # external sensors list.
+            if refsen not in probe_names:
+                raise KeyError(miss_ref_sen_mess.format(r=refsen,
+                                                        cl=cloc,
+                                                        slist=probe_names))
+            # Bath types must be valid
+            if bath_type not in valid_bath_types:
+                raise KeyError(unkn_cal_mess.format(ct=bath_type,
+                                                    cl=cloc,
+                                                    valopt=valid_bath_types))
+
+            # All locations are defined by a pair of LAFs.
+            assert 'LAF' in calsect, 'No LAFs provided for ' + cloc
+            assert len(calsect['LAF']) == 2, missing_mess.format(cl=cloc,
+                                                                 lib=calsect)
+            if any(np.isnan(calsect['LAF'])):
+                del cal['library'][cloc]
+                print(cloc + ' will not be labeled due to NaNs in LAF. Check library.')
+                continue
+
+         # Calibration field
+        in_cfg['calibration'] = copy.deepcopy(cal)
+
+    # -------------------------------------------------------------------------
     # Prepare each requested experiment.
     for exp_name in experiment_names:
         # Create directories if they don't exist and
@@ -271,9 +322,6 @@ def config(fn_cfg):
         in_cfg[exp_name]['directories']['dirCalibrated'] = dir_cal
         in_cfg[exp_name]['directories']['dirFinal'] = dir_final
         in_cfg[exp_name]['directories']['dirGraphics'] = dir_graphics
-        in_cfg[exp_name]['probe1'] = probe1_name
-        in_cfg[exp_name]['probe2'] = probe2_name
-
 
     # -------------------------------------------------------------------------
     # Integrity of the location library
@@ -284,20 +332,9 @@ def config(fn_cfg):
     except KeyError:
         in_cfg['outname_suffix'] = None
 
-   # Determine fiber type
-    try:
-        in_cfg['coretype'] = cfg['dataProperties']['fiber_type']
-    except KeyError:
-        in_cfg['coretype'] = 'singlecore'
-    assert (in_cfg['coretype'] == 'singlecore' or
-            in_cfg['coretype'] == 'multicore')
-
-    if in_cfg['coretype'] == 'multicore':
-        in_cfg['cores'] = cfg['dataProperties']['cores']
-        for c in in_cfg['cores']:
-            assert len(in_cfg['cores'][c]['LAF']) == 2, 'Cores property must include LAF pair of core limits.'
-    else:
-        in_cfg['cores'] = None
+    # Remind the user that multicore fibers are no longer supported
+    if 'coretype' in in_cfg:
+        raise ValueError('Multicore fibers are no longer supported.')
 
     # -------------------------------------------------------------------------
     # Labeling sections and physical coordinates
@@ -347,18 +384,16 @@ def config(fn_cfg):
                     'labeling physical coordinates is turned on.')
             print(mess)
             raise kerr
+    else:
+        check_loc_library = False
 
     # Error messages for the assert statements.
     missing_mess = ('Coordinates for {ploc} were not defined by pairs of LAF, '
                     'x, y, and z in the location library. Found intsead:\n'
                     '{lib}')
-    missing_mess_mc = ('Coordinates for core {ploc} {co} were not defined '
-                       'by a pairs of LAF in the location library. Found '
-                       'instead:\n {lib}'
-                       )
 
-    # Check the integrity of a single core location library.
-    if check_loc_library and in_cfg['coretype'] == 'singlecore':
+    # Check the integrity of the location library.
+    if check_loc_library:
         for loc_type_cur in loc_type:
             lib[loc_type_cur] = {}
             for l in cfg['location_library']:
@@ -394,60 +429,6 @@ def config(fn_cfg):
         # Make sure that calibration labels are available
         assert 'calibration' in lib, 'Calibration location type is missing'
 
-    # Check the integrity of a multicore location library.
-    elif check_loc_library and in_cfg['coretype'] == 'multicore':
-        try:
-            mess = ('core LAF limits for was poorly formatted. Expected'
-                    ' a list of two LAF values for each core.')
-            assert len(in_cfg['cores'][c]['LAF']) == 2, mess
-        except KeyError:
-            mess = ('Expected to find field "LAF" for {co} listed in '
-                    'dataProperties of config file.')
-            raise KeyError(mess.format(co=c))
-
-        # There is a difference between what makes sense to pass to pyfocs
-        # and what is human readable. To handle that discrepancy we
-        # unfortunately need to repack the dictionary.
-        for c in in_cfg['cores']:
-            lib[c] = {}
-
-            for loc_type_cur in loc_type:
-                lib[c][loc_type_cur] = {}
-
-                for l in cfg['location_library']:
-                    if loc_type_cur == cfg['location_library'][l]['loc_type']:
-                        lib_this_loc = copy.deepcopy(cfg['location_library'][l])
-                        # Debugging lines, delete after more testing.
-                        # print(l)
-                        # print(lib_this_loc)
-                        # print('---------------------------------------')
-                        # Drop any other other cores from the LAF field.
-                        lib[c][loc_type_cur][l] = lib_this_loc
-                        lib[c][loc_type_cur][l]['LAF'] = lib[c][loc_type_cur][l]['LAF'][c]
-
-                        # All locations are defined by a pair of LAFs.
-                        assert 'LAF' in lib[c][loc_type_cur][l], 'No LAFs provided for ' + l
-                        assert len(lib[c][loc_type_cur][l]['LAF']) == 2, missing_mess_mc.format(ploc=l, co=c, lib=lib)
-
-                        # Remove labels that do not have an LAF
-                        if any(np.isnan(lib[c][loc_type_cur][l]['LAF'])):
-                            del lib[c][loc_type_cur][l]
-                            print(l + ' will not be labeled due to NaNs in LAF.')
-                            continue
-
-                        # All physical coordinates are defined by pairs of x, y, z
-                        if (cfg['flags']['final_flag']
-                                and loc_type_cur in phys_locs):
-                            assert 'x_coord' in lib[c][loc_type_cur][l], missing_mess.format(ploc=l, lib=lib[loc_type_cur][l])
-                            assert 'y_coord' in lib[c][loc_type_cur][l], missing_mess.format(ploc=l, lib=lib[loc_type_cur][l])
-                            assert 'z_coord' in lib[c][loc_type_cur][l], missing_mess.format(ploc=l, lib=lib[loc_type_cur][l])
-
-                            assert len(lib[c][loc_type_cur][l]['x_coord']) == 2, missing_mess.format(ploc=l, lib=lib[loc_type_cur][l])
-                            assert len(lib[c][loc_type_cur][l]['y_coord']) == 2, missing_mess.format(ploc=l, lib=lib[loc_type_cur][l])
-                            assert len(lib[c][loc_type_cur][l]['z_coord']) == 2, missing_mess.format(ploc=l, lib=lib[loc_type_cur][l])
-
-            assert 'calibration' in lib[c], 'Calibration location type is missing for core {c}'.format(c=c)
-
     # -------------------------------------------------------------------------
     # Further variables to assess.
 
@@ -473,6 +454,32 @@ def config(fn_cfg):
         step_loss_flag = False
         in_cfg['step_loss'] = {}
         in_cfg['step_loss']['flag'] = step_loss_flag
+
+    # Fiber limits
+    if 'fiber_limits' in cfg['dataProperties']:
+        if cfg['dataProperties']['fiber_limits']['min_limit']:
+            in_cfg['min_fiber_limit'] = cfg['dataProperties']['fiber_limits']['min_limit']
+        else:
+            in_cfg['min_fiber_limit'] = 0
+
+        if cfg['dataProperties']['fiber_limits']['max_limit']:
+            in_cfg['max_fiber_limit'] = cfg['dataProperties']['fiber_limits']['max_limit']
+        else:
+            in_cfg['max_fiber_limit'] = -1
+
+    if 'suffix' in cfg['dataProperties']:
+        in_cfg['suffix'] = cfg['dataProperties']['suffix']
+
+    if ('fiber_limits' in cfg['dataProperties']
+            and 'suffix' not in cfg['dataProperties']):
+        warn = ('Fiber limits were provided without a suffix. This may cause '
+                'issues with overwriting data for multicore fibers.')
+        print(warn)
+
+    if 'min_fiber_limit' not in in_cfg:
+        in_cfg['min_fiber_limit'] = 0
+    if 'max_fiber_limit' not in in_cfg:
+        in_cfg['max_fiber_limit'] = -1
 
     # Determine write mode:
     try:
