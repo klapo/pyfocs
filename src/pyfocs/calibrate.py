@@ -87,32 +87,3 @@ def matrixInversion(dsCal, cfg):
     print('Calibration done...')
 
     return(dsCal, gamma, C, delta_alpha)
-
-
-def timeAvgCalibrate(ds_fine, cfg):
-
-    # Assumed to be in seconds
-    avg_interval = str(cfg['calibration']['averaging_interval'])
-    # Amplitudes of stokes/anti-stokes
-    if 'logPsPas' not in ds_fine:
-        ds_fine['logPsPas'] = np.log(ds_fine.Ps / ds_fine.Pas)
-
-    ds_cal_smooth = ds_fine.resample(time=avg_interval + 's').mean()
-
-    ds_cal_smooth, gamma, C, delta_alpha = matrixInversion(ds_cal_smooth, cfg)
-    ds_cal_smooth['gamma'] = (('time'), gamma)
-    ds_cal_smooth['C'] = (('time'), C)
-    ds_cal_smooth['delta_alpha'] = (('time'), delta_alpha)
-
-    # Interpolate to the fine time step -- is this necessary?
-    if np.size(gamma) > 1 and np.size(C) > 1 and np.size(delta_alpha) > 1:
-        gamma = ds_cal_smooth['gamma'].interp(time=ds_fine.time, kwargs={'fill_value': 'extrapolate'})
-        C = ds_cal_smooth['C'].interp(time=ds_fine.time, kwargs={'fill_value': 'extrapolate'})
-        delta_alpha = ds_cal_smooth['delta_alpha'].interp(time=ds_fine.time, kwargs={'fill_value': 'extrapolate'})
-
-    # Recalculate temperature at the fine time step
-    for n, t in enumerate(ds_fine.time):
-        manualTemp = gamma / (ds_fine['logPsPas'] + C
-                              - delta_alpha * ds_fine.LAF)
-    ds_fine['cal_temp'] = (('time', 'LAF'), manualTemp - 273.15)
-    return ds_fine
