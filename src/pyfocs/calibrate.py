@@ -13,20 +13,10 @@ def matrixInversion(dsCal, cfg):
     refLoc2 = cfg['calibration']['refLoc2']
     refLoc3 = cfg['calibration']['refLoc3']
 
-    try:
-        direction = cfg['calibration']['direction']
-    except KeyError:
-        # Assume a forward direction as this is the most common method.
-        direction = 'forward'
-
     # Assume that the PT100 data is in Celsius
     refT1 = dsCal[refField1] + 273.15
     refT2 = dsCal[refField2] + 273.15
     refT3 = dsCal[refField3] + 273.15
-
-    # For double ended calibration, the reverse pulse needs to have LAF flipped
-    if direction == 'reverse':
-        dsCal['LAF'] = np.flip(dsCal.LAF.values, 0)
 
     section1 = dsCal.swap_dims({'LAF': 'calibration'}).sel(calibration=refLoc1)
     section2 = dsCal.swap_dims({'LAF': 'calibration'}).sel(calibration=refLoc2)
