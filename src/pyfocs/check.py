@@ -56,7 +56,7 @@ def config(fn_cfg):
              'calibrate_flag', 'final_flag']
     if not all([fl in flags for fl in in_cfg['flags']]):
         missing_flags = [fl for fl in in_cfg['flags'] if fl not in flags]
-        raise KeyError('Not all flags were found:\n' + '\n'.join(missing_flags))
+        raise KeyError('Not all flags were found: ' + ' ,'.join(missing_flags))
 
     # --------
     # Check paths that do not vary between experiments.
@@ -136,26 +136,39 @@ def config(fn_cfg):
             cal['builtin_flag'] = True
 
         # Valid options
-        valid_meths = ['ols single',
-                       'wls single',
-                       'ols double',
-                       'wls double',
-                       'single',
-                       'temp_matching']
+        # Single-ended methods
+        single_methods = ['ols single',
+                          'wls single',
+                          'matrix',
+                          ]
+        # Double ended methods
+        double_methods = ['ols double',
+                          'wls double',
+                          'temp_matching']
+        # List of all valid methods
+        valid_meths = single_methods
+        valid_meths.extend(double_methods)
+
+        # Only two valid ways of labeling a bath
         valid_bath_types = ['calibration', 'validation']
 
         # Method must be supported
         if cal['method'] not in valid_meths:
             mess = ('The calibration method, {cm}, is not in the list of '
                     'supported calibration methods: {vmeths}')
-            raise KeyError(mess.format(valid_meths))
+            raise KeyError(mess.format(cm=cal['method'], vmeths=valid_meths))
+
+        if cal['method'] in single_methods:
+            cal['double_ended'] = False
+        elif cal['method'] in double_methods:
+            cal['double_ended'] = True
 
         # Single-ended explicit matrix inversion only accepts 3 calibration baths.
-        if cal['method'] == 'single':
+        if cal['method'] == 'matrix':
             cal_baths = [c for c in cal['library'] if cal['library'][c]['type'] == 'calibration']
             if not len(cal_baths) == 3:
                 mess = ('The explicit matrix inversion for the single-ended '
-                        'fibers must have three reference sections '
+                        'fibers must have exactly three reference sections '
                         'of type "calibration". Found: \n{cref}')
                 raise ValueError(mess.format(cref=cal_baths))
 
