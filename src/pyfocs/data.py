@@ -73,6 +73,59 @@ def to_datastore(ds, config, double):
     return dstore
 
 
+def from_datastore(dstore,
+                   double,
+                   datavars,
+                   coords,
+                   return_cal_params=False):
+    '''
+    Convert the pyfocs version of an xarray dataset into a dtscalibration
+    datastore object.
+
+    '''
+
+    # Dictionaries for converting to dtscalibration names.
+    # Reverse options untested at the moment.
+    if double:
+        varn_conv = {
+            'cal_temp': 'tmpw',
+        }
+    else:
+        varn_conv = {
+            'cal_temp': 'tmpf',
+        }
+
+# For later once I understand how the params are labeled.
+#     if double and return_cal_params:
+#         varnames_conversion.append()
+#     elif not double and return_cal_params:
+#         varnames_conversion.append()
+
+    # Convert 'x' to 'LAF' for naming consistency
+    dstore = dstore.rename({'x': 'LAF'})
+
+    # Create the xr Dataset that will be returned.
+    ds_cal = xr.Dataset({'cal_temp': (('LAF', 'time'), dstore[varn_conv['cal_temp']])},
+                        coords={'time': dstore.time,
+                                'LAF': dstore.LAF,
+                               })
+
+
+    # Pass out all datavars (typically these are the reference probes)
+    for dvar in datavars:
+        ds_cal[dvar] = dstore[dvar]
+
+    # Pass out the ammended attributes
+    ds_cal.attrs['cal_method'] = dstore.attrs['calibration_method']
+    ds_cal.attrs['double_ended'] = double
+
+    # Keep the specified coordinates
+    for c in coords:
+        ds_cal.coords[c] = dstore.coords[c]
+
+    return ds_cal
+
+
 def double_end_dv_clean(ds):
     acc_datavars = ['st', 'ast', 'userAcquisitionTimeFW']
     drop_vars = [dv for dv in ds.data_vars if dv not in acc_datavars and 'x' in ds[dv].coords]
