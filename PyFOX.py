@@ -60,7 +60,7 @@ final_flag = internal_config['flags']['final_flag']
 step_loss_flag = internal_config['step_loss']['flag']
 if step_loss_flag:
     splice_LAF = internal_config['step_loss']['LAF']
-    step_loss_corrections = internal_config['step_loss']['correction']
+    step_loss_corr = internal_config['step_loss']['correction']
 
 # Channels/experiments/output file names
 channelNames = internal_config['channelNames']
@@ -180,29 +180,44 @@ for exp_name in experiment_names:
                 if probe2:
                     dstemp = dstemp.rename({'probe2Temperature': probe2})
 
-            # Step loss corrections if they are provided.
-            if step_loss_flag:
-                # Calculate the log power of the stokes/anti-stokes scattering
-                dstemp['logPsPas'] = np.log(dstemp.Ps / dstemp.Pas)
-                # Correct for any step-losses due to splicing.
-                for spl_num, spl_LAF in enumerate(splice_LAF):
-                    dstemp['logPsPas'] = dstemp.logPsPas.where((dstemp.LAF < spl_LAF),
-                                                               dstemp.logPsPas + step_loss_corrections[spl_num])
-
             # Drop the unnecessary negative LAF indices
             LAFmin = internal_config['min_fiber_limit']
             LAFmax = internal_config['max_fiber_limit']
             dstemp = dstemp.sel(LAF=slice(LAFmin, LAFmax))
             dstemp.attrs['LAF_beg'] = dstemp.LAF.values[0]
+            dstemp.attrs['LAF_end'] = dstemp.LAF.values[-1]
 
-            # Label the calibration locations
-            dstemp = pyfocs.labelLoc_additional(dstemp,
-                                                cal['library'],
-                                                'calibration')
+            # Execute single-ended methods
+            if not cal['double_ended']:
+                # Step loss corrections if they are provided.
+                # @ This step should only be executed for single-ended methods.
+                if step_loss_flag:
+                    # Calculate the log power of the stokes/anti-stokes scattering
+                    dstemp['logPsPas'] = np.log(dstemp.Ps / dstemp.Pas)
+                    # Correct for any step-losses due to splicing.
+                    for spl_num, spl_LAF in enumerate(splice_LAF):
+                        dstemp['logPsPas'] = dstemp.logPsPas.where((dstemp.LAF < spl_LAF),
+                                                                   dstemp.logPsPas + step_loss_corr[spl_num])
 
-            # Calibrate the temperatures.
-            if cal['method'] == 'single':
-                dstemp, _, _, _ = pyfocs.matrixInversion(dstemp, cal)
+                # Calibrate the temperatures.
+                if cal['method'] == 'matrix':
+                    # Label the calibration locations
+                    dstemp = pyfocs.labelLoc_additional(dstemp,
+                                                        cal['library'],
+                                                        'calibration')
+                    cal_baths = [c for c in cal['library']
+                                 if cal['library'][c]['type'] == 'calibration']
+                    # Build the temporary configuration for the explicit
+                    # single-ended matrix inversion.
+                    for ncb, cb in enumerate(cal_baths):
+                        s_ncb = str(ncb)
+                        temp_cfg['refField' + s_ncb] = cal['library'][cb]['ref_sensor']
+                        temp_cfg['refLoc' + s_ncb] = cb
+
+                    dstemp, _, _, _ = pyfocs.matrixInversion(dstemp, temp_cfg)
+
+                if (cal['method'] == 'ols single'
+                        or cal['method'] == 'wls single'):
 
             # Rename the instrument reported temperature
             dstemp = dstemp.rename({'temp': 'instr_temp'})
@@ -221,7 +236,6 @@ for exp_name in experiment_names:
 # -----------------------------------------------------------------------------
 # Finalize with physical coordinates
 # -----------------------------------------------------------------------------
-#%% Final preparation of the DTS dataset
 
 if final_flag:
     print('-------------')

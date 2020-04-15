@@ -5,13 +5,13 @@ import sys
 
 
 def matrixInversion(dsCal, cfg):
-    refField1 = cfg['calibration']['refField1']
-    refField2 = cfg['calibration']['refField2']
-    refField3 = cfg['calibration']['refField3']
+    refField1 = cfg['refField1']
+    refField2 = cfg['refField2']
+    refField3 = cfg['refField3']
 
-    refLoc1 = cfg['calibration']['refLoc1']
-    refLoc2 = cfg['calibration']['refLoc2']
-    refLoc3 = cfg['calibration']['refLoc3']
+    refLoc1 = cfg['refLoc1']
+    refLoc2 = cfg['refLoc2']
+    refLoc3 = cfg['refLoc3']
 
     # Assume that the PT100 data is in Celsius
     refT1 = dsCal[refField1] + 273.15
