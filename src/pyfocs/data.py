@@ -1,13 +1,12 @@
 import dtscalibration as dtscal
+from dtscal.datastore_utils import suggest_cable_shift_double_ended, shift_double_ended, merge_double_ended
 
 
-def to_datastore(ds, cfg, ref):
+def to_datastore(ds, config, double):
     '''
     Convert the pyfocs version of an xarray dataset into a dtscalibration
     datastore object.
     '''
-
-    phys_locs = cfg['location_library']
 
     # Dictionaries for converting to dtscalibration names.
     # Reverse options untested at the moment.
@@ -16,42 +15,158 @@ def to_datastore(ds, cfg, ref):
                            'rPs': 'rst',
                            'rPas': 'rast',
                            'temp': 'tmp',
-                           }
+                          }
 
-    # Convert to a DataStore object to take advantage of the
-    # dtscalibration methods
-    ds = dtscal.DataStore(ds)
-    # Rename 'x' to 'LAF' as this dimension does not allow flexible names.
-    ds = ds.rename({'LAF': 'x'})
-
-    for dvar in ds.data_vars:
-        # DataStore requires dimensions of 'x, time'
+    # Convert to a DataStore object to take advantage of the dtscalibration methods
+    dstore = dtscal.DataStore(ds)
+    # Rename 'x' to 'LAF'
+    dstore = dstore.rename({'LAF': 'x'})
+    # DataStore requires dimensions of 'x, time'
+    for dvar in dstore.data_vars:
         try:
-            dtscal.datastore.check_dims(ds, [dvar], correct_dims=('x', 'time'))
-        except AssertionError:
-            ds[dvar] = ds[dvar].T
-
-        # Convert variable names to those dtscalibration expects.
+            dtscal.datastore_utils.check_dims(dstore, [dvar], correct_dims=('x', 'time'))
+        except AssertionError as e:
+            dstore[dvar] = dstore[dvar].T
         if dvar in varnames_conversion:
-            ds = ds.rename({dvar: varnames_conversion[dvar]})
+            dstore = dstore.rename({dvar: varnames_conversion[dvar]})
 
-    probe_sections = {}
-    # Insert the "sections" variable into the DataStore object.
-    for fields in cfg['dataProperties']:
-        if 'probe' in fields and 'Temperature' in fields:
-            # Assign the reference variable to the datastore object.
-            fn = cfg['dataProperties'][fields]
-            ds[fn] = ref[fn]
+    ds.attrs['cal_method'] = config['calibration']['method']
 
-            probe_sections[fn] = []
-            # Iterate through the calibration reference sections
-            for refsects in cfg['calibration']:
-                if 'refLoc' not in refsects:
-                    continue
-                pl = phys_locs[cfg['calibration'][refsects]]['LAF']
-                probe_sections[fn].append(slice(pl[0], pl[-1]))
+    # Impose a fake acquisition time here
+    timeval = 0
+    timeunit = 's'
+    dt_np = np.timedelta64(timeval, timeunit)
+    if double:
+        dstore['userAcquisitionTimeFW'] = (('time'), np.ones(len(dstore['time'])) * dt_np)
+    else:
+        dstore['userAcquisitionTime'] = (('time'), np.ones(len(dstore['time'])) * dt_np)
 
-    # Now do the datastore sections assignment
-    ds.sections = probe_sections
+    # Build the reference sections
 
-    return ds
+    # Location library of reference sections
+    cal_lib = config['calibration']['library']
+
+    # Probe names
+    probe_names = [cal_lib[cl]['ref_sensor'] for cl in cal_lib]
+    probe_names = np.unique(probe_names)
+
+    # Sections container for the DataStore Object. This object
+    # is a collection of slices with the key given by the reference
+    # sensor name.
+    sections = {}
+    for pr in probe_names:
+        sections[pr] = []
+
+    for cl in cal_lib:
+        pr = cal_lib[cl]['ref_sensor']
+
+        LAF1 = np.min(cal_lib[cl]['LAF'])
+        LAF2 = np.max(cal_lib[cl]['LAF'])
+        if np.isnan(LAF1) or np.isnan(LAF2):
+            continue
+        ref_section = slice(LAF1, LAF2)
+
+        sections[pr].append(ref_section)
+
+    dstore.sections = sections
+
+    return dstore
+
+
+def double_end_dv_clean(ds):
+    acc_datavars = ['st', 'ast', 'userAcquisitionTimeFW']
+    drop_vars = [dv for dv in ds.data_vars if dv not in acc_datavars and 'x' in ds[dv].coords]
+
+    return ds.drop(drop_vars)
+
+
+def merge_single(dstore_fw, dstore_bw, shift_window=20):
+    '''
+    Merge two single-ended channels to a single double-ended configuration.
+    '''
+    # Strip out any data values not expected by datastore
+    dstore_fw = double_end_dv_clean(dstore_fw)
+    dstore_bw = double_end_dv_clean(dstore_bw)
+
+    # Assume that cable length is the same between the two channels.
+    cable_length = dstore_fw.x.max().values
+
+    # dtscal's plotting is broken due to some dependency stuff. Weirdly these exact lines work when I plot outside the dtscalibration package
+    double = merge_double_ended(
+        ds_fw=dstore_fw,
+        ds_bw=dstore_bw,
+        cable_length=cable_length,
+        plot_result=False
+    )
+
+    shift_lims = np.arange(-shift_window, shift_window, 1, dtype=int)
+
+    # Estimate the number of indices to shift the two channels to align them.
+    # I use some overly generous limits for searching
+    # This parameter should be made an optional argument passed to the function.
+    shift1, shift2 = suggest_cable_shift_double_ended(
+        double.isel(time=[0, -1]).compute(),
+        shift_lims,
+        plot_result=False,
+    )
+
+    # If the recommended shifts are identical
+    if shift1 == shift2:
+        shift = shift1
+    # Otherwise use the smaller shift the two lengths should be close to each other.
+    else:
+        mess = ('When merging the single-ended observations into '
+                'a double ended data set the optimal shift was '
+                'found to have two values {s1} and {s2}.\nThe '
+                'smallest value was autoselected.')
+        print(mess.format(s1=shift1, s2=shift2))
+        shift = np.min([shift1, shift2])
+    double = shift_double_ended(double, shift)
+
+    return double
+
+
+def double_calibrate(double, method, keep_fw_bw=False):
+    '''
+    Calibrate a double-ended datastore object.
+    '''
+
+    # Calibrate
+    double.calibration_double_ended(
+        store_tmpw='tmpw',
+        method=method,
+    )
+
+    # Since the confidence intervals, as described in example notebook 16,
+    # are not relevant for atmospheric deployments, we drop everything except temperature.
+    fields_to_drop = ['userAcquisitionTimeFW',
+                      'userAcquisitionTimeBW',
+                      'tmpf_mc_var',
+                      'tmpb_mc_var',
+                      'tmpw_mc_var',
+                      'p_val',
+                      'p_cov',
+                      'st',
+                      'rst',
+                      'ast',
+                      'rast',
+                     ]
+
+    # For internal testing it can be desirable to keep the
+    # forward and backwards channels.
+    if not keep_fw_bw:
+        fields_to_drop.extend(
+            ['tmpb',
+             'tmpf',
+            ]
+        )
+
+    # Drop the variables that conflict with pyfocs.
+    double = double.drop_vars(fields_to_drop, errors='ignore')
+
+    # pyfocs is generally used to process shorter time chunks
+    # Loading the dask object into memory can alleviate slow
+    # operations later when the data is accessed.
+    double.load()
+
+    return double
