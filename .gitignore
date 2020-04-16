@@ -8,7 +8,7 @@ dist/
 *.egg-info/
 *.egg
 
-tests/data/*
+#tests/data/longer_demo/
 
 # due to using tox and pytest
 .tox
