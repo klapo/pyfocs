@@ -74,6 +74,8 @@ def labelLoc_additional(ds, location, loc_type):
                 LAF_single_loc = ds.sel(LAF=location[lc], method='nearest').LAF
                 ds.coords[loc_type].loc[(ds.LAF == LAF_single_loc)] = lc
 
+    ds[loc_type].swap_dims({'LAF': loc_type}).loc[{loc_type: None}] = ''
+
     return ds
 
 
