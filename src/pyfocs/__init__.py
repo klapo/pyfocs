@@ -6,6 +6,6 @@ from .dtsarch import archiver
 from .dts_plots import bath_check, bath_validation, bias_violin
 from .stats import noisymoments, norm_xcorr
 from .check import config
-
+from .data import to_datastore, from_datastore, double_calibrate, merge_single, assign_ref_data
 
 __version__ = '0.2.2'

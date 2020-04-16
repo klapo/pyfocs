@@ -5,7 +5,7 @@ import copy
 import numpy as np
 
 
-def config(fn_cfg):
+def config(fn_cfg, ignore_flags=False):
     '''
     Function checks the basic integrity of a configuration file and returns the
     config dictionary, location library, and physical locations dictionary
@@ -54,9 +54,9 @@ def config(fn_cfg):
 
     flags = ['write_mode', 'archiving_flag', 'archive_read_flag',
              'calibrate_flag', 'final_flag']
-    if not all([fl in flags for fl in in_cfg['flags']]):
+    if not all([fl in in_cfg['flags'] for fl in flags]):
         missing_flags = [fl for fl in in_cfg['flags'] if fl not in flags]
-        raise KeyError('Not all flags were found: ' + ' ,'.join(missing_flags))
+        raise KeyError('Not all flags were found:\n' + '\n'.join(missing_flags))
 
     # --------
     # Check paths that do not vary between experiments.
@@ -99,9 +99,16 @@ def config(fn_cfg):
     except KeyError:
         dir_ext = None
 
+    # Resampling time
+    try:
+        dt = cfg['dataProperties']['resampling_time']
+    except KeyError:
+        dt = None
+    in_cfg['resampling_time'] = dt
+
     # -------------------------------------------------------------------------
     # Integrity of caibration parameters
-    if in_cfg['flags']['calibrate_flag']:
+    if in_cfg['flags']['calibrate_flag'] or ignore_flags:
         probe_names = []
         cal = cfg['calibration']
 
@@ -127,6 +134,9 @@ def config(fn_cfg):
             # Build the path to the file.
             in_cfg['external_data'] = os.path.join(dir_ext, ext_fname)
 
+        else:
+            cal['external_flag'] = False
+
         # Check for built-in probes
         if cal['builtin_probe_names']['probe1Temperature']:
             probe_names.append(cal['builtin_probe_names']['probe1Temperature'])
@@ -146,7 +156,7 @@ def config(fn_cfg):
                           'wls double',
                           'temp_matching']
         # List of all valid methods
-        valid_meths = single_methods
+        valid_meths = copy.deepcopy(single_methods)
         valid_meths.extend(double_methods)
 
         # Only two valid ways of labeling a bath
@@ -162,6 +172,14 @@ def config(fn_cfg):
             cal['double_ended'] = False
         elif cal['method'] in double_methods:
             cal['double_ended'] = True
+            if 'bw_channel' not in cal:
+                mess = ('Double ended methods require a backwards channel.')
+                raise KeyError(mess)
+            if not dt:
+                mess = ('A resampling time must be provided when performing '
+                        'a double ended calibration.')
+                raise ValueError(mess)
+            cal['bw_channel']
 
         # Single-ended explicit matrix inversion only accepts 3 calibration baths.
         if cal['method'] == 'matrix':
@@ -215,6 +233,12 @@ def config(fn_cfg):
     # -------------------------------------------------------------------------
     # Prepare each requested experiment.
     for exp_name in experiment_names:
+        # Check the experiment name:
+        if '_' in exp_name:
+            mess = ('Experiment names cannot contain underscores. '
+                    'This character is reserved by the pyfocs naming scheme.')
+            raise ValueError(mess)
+
         # Create directories if they don't exist and
         # errors if needed data are not found.
 
@@ -352,41 +376,13 @@ def config(fn_cfg):
     # -------------------------------------------------------------------------
     # Labeling sections and physical coordinates
     # Prepare relevant parameters for finalizing
-    if in_cfg['flags']['final_flag']:
+    if in_cfg['flags']['final_flag'] or ignore_flags:
         # Indicate that we need to check the integrity of the location library.
         check_loc_library = True
 
-        # Resampling time
-        try:
-            dt = cfg['dataProperties']['resampling_time']
-        except KeyError:
+        if not dt:
             mess = 'A resampling time must be provided when finalizing the data.'
             raise KeyError(mess)
-        in_cfg['resampling_time'] = dt
-
-        # Determine the list of location types. If none is provided, find all
-        # unique location types listed in the location library.
-        # This should be removed in favor of the physical locations argument.
-        # try:
-        #     loc_type = cfg['dataProperties']['all_locs']
-        # except KeyError:
-        #     loc_type = []
-        #     try:
-        #         for l in cfg['location_library']:
-        #             loc_type.append(cfg['location_library'][l]['loc_type'])
-        #         loc_type = np.unique(loc_type).tolist()
-        #     except KeyError:
-        #         mess = 'No location library found but the finalize flag is on.')
-        #         raise KeyError(mess)
-        #     except TypeError:
-        #         mess = 'No location library found but the finalize flag is on.')
-        #         raise KeyError(mess)
-
-        # Remind the user that documenting the calibration has changed.
-        if 'calibration' in loc_type and calibrate_flag:
-            mess = ('Including the calibration locations in the location '
-                    'library is no longer supported.')
-            print(mess)
 
         # Make sure the physical locations exist.
         try:
@@ -397,6 +393,12 @@ def config(fn_cfg):
                     'labeling physical coordinates is turned on.')
             print(mess)
             raise kerr
+
+        # Remind the user that documenting the calibration has changed.
+        if 'calibration' in phys_locs:
+            mess = ('Including the calibration locations in the location '
+                    'library is no longer supported.')
+            print(mess)
     else:
         check_loc_library = False
 
@@ -407,7 +409,7 @@ def config(fn_cfg):
 
     # Check the integrity of the location library.
     if check_loc_library:
-        for loc_type_cur in loc_type:
+        for loc_type_cur in phys_locs:
             lib[loc_type_cur] = {}
             for l in cfg['location_library']:
                 if loc_type_cur == cfg['location_library'][l]['loc_type']:
@@ -439,8 +441,6 @@ def config(fn_cfg):
         mess = 'No items found in location library.'
         # Returns False if it is emtpy, True if is not.
         assert bool(lib), mess
-        # Make sure that calibration labels are available
-        assert 'calibration' in lib, 'Calibration location type is missing'
 
     # -------------------------------------------------------------------------
     # Further variables to assess.

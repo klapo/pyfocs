@@ -50,7 +50,6 @@ if internal_config is None:
 # Unpack items from the formatted configuration dictionaries.
 # Processing flags
 write_mode = internal_config['write_mode']
-ref_temp_option = internal_config['flags']['ref_temp_option']
 archiving_flag = internal_config['flags']['archiving_flag']
 archive_read_flag = internal_config['flags']['archive_read_flag']
 calibrate_flag = internal_config['flags']['calibrate_flag']
@@ -102,17 +101,13 @@ for exp_name in experiment_names:
         # Grab the options detailing the calibration.
         cal = internal_config['calibration']
 
-        # If we are doing a double ended calibration method we will need to
-        # keep track of which files have been finished.
-        double_ended_methods = ['ols double', 'wls double', 'temp_matching']
-        if cal['method'] in double_ended_methods:
-            finished_files = []
-
         # Get the external data if it was indicated.
         if cal['external_flag']:
             # Get the metdata
             ref_data = xr.open_dataset(internal_config['external_data'])
             ref_data = ref_data.resample(time=delta_t).interpolate('linear')
+        elif not cal['external_flag']:
+            ref_data = None
 
         # Find all 'raw' netcdfs within the processed directory,
         # sort them (by date), and process each individually.
@@ -125,18 +120,24 @@ for exp_name in experiment_names:
         ncfiles.sort()
         ntot = np.size(ncfiles)
         for nraw, raw_nc in enumerate(ncfiles):
-            outname_channel = raw_nc.split('.')[0].split('_')[-2]
+            if cal['double_ended']:
+                outname_channel = 'merged'
+                fw_channel = raw_nc.split('.')[0].split('_')[-2]
+            else:
+                outname_channel = raw_nc.split('.')[0].split('_')[-2]
             outname_date = raw_nc.split('.')[0].split('_')[-1]
 
+            # The file name for the calibrated data
+            outname = '_'.join(filter(None, [exp_name, 'cal',
+                                             outname_channel,
+                                             outname_date,
+                                             outname_suffix,
+                                             ])) + '.nc'
             # Check of the files to create and determine if we are overwriting.
             if write_mode == 'preserve':
                 dir_cal = internal_config[exp_name]['directories']['dirCalibrated']
 
-                outname = '_'.join(filter(None, [exp_name, 'cal',
-                                                 outname_channel,
-                                                 outname_date,
-                                                 outname_suffix,
-                                                 ])) + '.nc'
+
                 if os.path.exists(os.path.join(dir_cal, outname)):
                     skip_flag = True
                     # Determine if we are preserving or overwriting the
@@ -151,46 +152,32 @@ for exp_name in experiment_names:
                 if skip_flag:
                     continue
             # Either the file does not exist or it is to be overwritten.
-            print('Processing ' + outname_date + ' (' + str(nraw + 1)
+            print('Calibrating ' + outname_date + ' (' + str(nraw + 1)
                   + ' of ' + str(ntot) + ')')
 
             # Open up raw file for this interval.
             os.chdir(internal_config[exp_name]['directories']['dirRawNetcdf'])
             dstemp = xr.open_dataset(raw_nc)
 
-            # Add in external reference data. Interpolate to the DTS time.
-            if cal['external_flag']:
-                temp_ref_data = ref_data.reindex_like(dstemp.time,
-                                                      method='nearest')
-
-                for ext_ref in cal['external_fields']:
-                    dstemp[ext_ref] = temp_ref_data[ext_ref]
-
-                # If the bath pt100s and dts do not line up in time,
-                # notify the user.
-                if not (np.size(np.flatnonzero(~np.isnan(dstemp.temp.values))) > 0):
-                    print('PT100 and DTS data do not line up in time for ' + raw_nc)
-
-            # Rename built in probes if they are used.
-            if cal['builtin_flag']:
-                probe1 = cal['builtin_probe_names']['probe1Temperature']
-                probe2 = cal['builtin_probe_names']['probe2Temperature']
-                if probe1:
-                    dstemp = dstemp.rename({'probe1Temperature': probe1})
-                if probe2:
-                    dstemp = dstemp.rename({'probe2Temperature': probe2})
+            # Assign reference data
+            dstemp, probe_names = pyfocs.assign_ref_data(dstemp,
+                                                         cal,
+                                                         ref_data=ref_data)
 
             # Drop the unnecessary negative LAF indices
             LAFmin = internal_config['min_fiber_limit']
             LAFmax = internal_config['max_fiber_limit']
+            if LAFmax == -1:
+                LAFmax = dstemp.LAF.values[-1]
             dstemp = dstemp.sel(LAF=slice(LAFmin, LAFmax))
             dstemp.attrs['LAF_beg'] = dstemp.LAF.values[0]
             dstemp.attrs['LAF_end'] = dstemp.LAF.values[-1]
+            dstemp.attrs['calibration_method'] = cal['method']
 
             # Execute single-ended methods
             if not cal['double_ended']:
                 # Step loss corrections if they are provided.
-                # @ This step should only be executed for single-ended methods.
+                # This step should only be executed for single-ended methods.
                 if step_loss_flag:
                     # Calculate the log power of the stokes/anti-stokes scattering
                     dstemp['logPsPas'] = np.log(dstemp.Ps / dstemp.Pas)
@@ -199,7 +186,8 @@ for exp_name in experiment_names:
                         dstemp['logPsPas'] = dstemp.logPsPas.where((dstemp.LAF < spl_LAF),
                                                                    dstemp.logPsPas + step_loss_corr[spl_num])
 
-                # Calibrate the temperatures.
+                # Calibrate the temperatures using the
+                # explicit matrix inversion.
                 if cal['method'] == 'matrix':
                     # Label the calibration locations
                     dstemp = pyfocs.labelLoc_additional(dstemp,
@@ -207,27 +195,110 @@ for exp_name in experiment_names:
                                                         'calibration')
                     cal_baths = [c for c in cal['library']
                                  if cal['library'][c]['type'] == 'calibration']
-                    # Build the temporary configuration for the explicit
-                    # single-ended matrix inversion.
+                    # Build a temporary configuration dictionary
+                    # for this method.
                     for ncb, cb in enumerate(cal_baths):
                         s_ncb = str(ncb)
                         temp_cfg['refField' + s_ncb] = cal['library'][cb]['ref_sensor']
                         temp_cfg['refLoc' + s_ncb] = cb
 
                     dstemp, _, _, _ = pyfocs.matrixInversion(dstemp, temp_cfg)
+                    # Drop the instrument reported temperature
+                    dstemp = dstemp.drop('temp')
 
                 if (cal['method'] == 'ols single'
                         or cal['method'] == 'wls single'):
+                    dstore = pyfocs.data.to_datastore(dstemp,
+                                                      internal_config,
+                                                      False)
+                    method = cal['method'].split()[0]
+                    dstore.calibration_single_ended(method=method)
+                    dstemp = pyfocs.data.from_datastore(
+                        dstore,
+                        datavars=probe_names
+                    )
 
-            # Rename the instrument reported temperature
-            dstemp = dstemp.rename({'temp': 'instr_temp'})
+            elif cal['double_ended']:
+                method = cal['method'].split()[0]
+                dt = internal_config['resampling_time']
 
-            # Output the calibrated dataset
-            outname = '_'.join(filter(None, [exp_name, 'cal',
-                                             outname_channel,
-                                             outname_date,
-                                             outname_suffix])) + '.nc'
+                # Get the backwards direction.
+                bw_channel = cal['bw_channel']
+                bw_raw_nc = raw_nc.replace(fw_channel,
+                                           bw_channel)
+                bw_dstemp = xr.open_dataset(bw_raw_nc)
+                bw_dstemp, _ = pyfocs.assign_ref_data(bw_dstemp,
+                                                      cal,
+                                                      ref_data=ref_data)
 
+                # Load both into memory to avoid annoying overhead.
+                dstemp.load()
+                bw_dstemp.load()
+
+                # Line up the time stamps approximately.
+                # This step means that the forward channel is
+                # defined as the channel that is sampled first.
+                bw_dstemp['time'] = bw_dstemp['time'] - pd.Timedelta(dt)
+
+                len_fw = len(dstemp.time)
+                len_bw = len(bw_dstemp.time)
+                if not len_fw == len_bw:
+                    len_time_off = len_fw - len_bw
+
+                    if abs(len_time_off) > 2:
+                        # @ Fix this error message to be less bad.
+                        mess = ('The time dimension between the forward and '
+                                'channels is off by more than a small amount.')
+                        raise ValueError(mess)
+
+                    # The logic here is that the forward channel is defined
+                    # by being the channel sampled first. Therefor is the
+                    # forward channel has 1 more time step we go searching in
+                    # the next interval for the missing backwards measurement.
+                    # If the backwards channels has one more measurement, we
+                    # reindex to the forward channel to discard the extra
+                    # observation that belongs to the previous interval.
+
+                    # The backwards channel has more time steps or we can't
+                    # grab more data.
+                    if len_time_off < 0 or (nraw + 1) == ntot:
+                        bw_dstemp = bw_dstemp.reindex_like(
+                            dstemp,
+                            method='nearest')
+
+                    # The forward channel has more time steps.
+                    elif len_time_off > 0 and not (nraw + 1) == ntot:
+                        file_list = ncfiles[nraw:nraw + 1]
+                        file_list = [fl.replace(fw_channel, bw_channel)
+                                     for fl in file_list]
+                        bw_dstemp = xr.open_mfdataset(
+                            file_list,
+                            combine='by_coords')
+                        bw_dstemp.load()
+                        bw_dstemp['time'] = bw_dstemp['time'] - pd.Timedelta(dt)
+                        bw_dstemp = bw_dstemp.reindex_like(
+                            dstemp,
+                            method='nearest')
+                        bw_dstemp, _ = pyfocs.assign_ref_data(bw_dstemp,
+                                                              cal,
+                                                              ref_data=ref_data)
+
+                bw_dstemp = pyfocs.to_datastore(
+                    bw_dstemp,
+                    internal_config,
+                    True)
+                dstemp = pyfocs.to_datastore(
+                    dstemp,
+                    internal_config,
+                    True)
+                dstemp = pyfocs.merge_single(dstemp, bw_dstemp)
+                dstemp = pyfocs.double_calibrate(dstemp, method=method)
+                dstemp = pyfocs.from_datastore(
+                    dstemp,
+                    datavars=probe_names,
+                )
+
+            dstemp.attrs['calibration_method'] = cal['method']
             os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
             dstemp.to_netcdf(outname, engine='netcdf4')
 
@@ -251,6 +322,8 @@ if final_flag:
     # is dropped, leaving behind these variables.
     coords_to_keep = ['xyz', 'time', 'x', 'y', 'z', 'LAF']
     vars_to_keep = ['cal_temp']
+
+    finished_files = []
 
     for exp_name in experiment_names:
         # Find all 'calibrated' netcdfs within the calibrated directory,
@@ -333,4 +406,4 @@ if final_flag:
                 dstemp_ploc.to_netcdf(outname, mode='w')
 
             # Make sure we don't reprocess files.
-            finished_files.extend(nc_cal)
+            finished_files.extend(cal_nc)

@@ -1,5 +1,8 @@
-import dtscalibration as dtscal
-from dtscal.datastore_utils import suggest_cable_shift_double_ended, shift_double_ended, merge_double_ended
+# coding=utf-8
+import dtscalibration
+from dtscalibration.datastore_utils import suggest_cable_shift_double_ended, shift_double_ended, merge_double_ended
+import numpy as np
+import xarray as xr
 
 
 def to_datastore(ds, config, double):
@@ -18,22 +21,20 @@ def to_datastore(ds, config, double):
                           }
 
     # Convert to a DataStore object to take advantage of the dtscalibration methods
-    dstore = dtscal.DataStore(ds)
+    dstore = dtscalibration.DataStore(ds)
     # Rename 'x' to 'LAF'
     dstore = dstore.rename({'LAF': 'x'})
     # DataStore requires dimensions of 'x, time'
     for dvar in dstore.data_vars:
         try:
-            dtscal.datastore_utils.check_dims(dstore, [dvar], correct_dims=('x', 'time'))
+            dtscalibration.datastore_utils.check_dims(dstore, [dvar], correct_dims=('x', 'time'))
         except AssertionError as e:
             dstore[dvar] = dstore[dvar].T
         if dvar in varnames_conversion:
             dstore = dstore.rename({dvar: varnames_conversion[dvar]})
 
-    ds.attrs['cal_method'] = config['calibration']['method']
-
     # Impose a fake acquisition time here
-    timeval = 0
+    timeval = 1
     timeunit = 's'
     dt_np = np.timedelta64(timeval, timeunit)
     if double:
@@ -58,6 +59,8 @@ def to_datastore(ds, config, double):
         sections[pr] = []
 
     for cl in cal_lib:
+        if cal_lib[cl]['type'] == 'validation':
+            continue
         pr = cal_lib[cl]['ref_sensor']
 
         LAF1 = np.min(cal_lib[cl]['LAF'])
@@ -68,15 +71,18 @@ def to_datastore(ds, config, double):
 
         sections[pr].append(ref_section)
 
+    dstore.attrs = ds.attrs
     dstore.sections = sections
+
+    # Last missing attribute
+    dstore.attrs['isDoubleEnded'] = '0'
 
     return dstore
 
 
 def from_datastore(dstore,
-                   double,
-                   datavars,
-                   coords,
+                   datavars=None,
+                   coords=None,
                    return_cal_params=False):
     '''
     Convert the pyfocs version of an xarray dataset into a dtscalibration
@@ -86,7 +92,7 @@ def from_datastore(dstore,
 
     # Dictionaries for converting to dtscalibration names.
     # Reverse options untested at the moment.
-    if double:
+    if dstore.attrs['isDoubleEnded'] == '1':
         varn_conv = {
             'cal_temp': 'tmpw',
         }
@@ -105,23 +111,24 @@ def from_datastore(dstore,
     dstore = dstore.rename({'x': 'LAF'})
 
     # Create the xr Dataset that will be returned.
-    ds_cal = xr.Dataset({'cal_temp': (('LAF', 'time'), dstore[varn_conv['cal_temp']])},
+    ds_cal = xr.Dataset({'cal_temp': (('time', 'LAF'), dstore[varn_conv['cal_temp']].T)},
                         coords={'time': dstore.time,
                                 'LAF': dstore.LAF,
                                })
 
+    # Pass out the ammended attributes
+    del dstore.attrs['_sections']
+    ds_cal.attrs = dstore.attrs
 
     # Pass out all datavars (typically these are the reference probes)
-    for dvar in datavars:
-        ds_cal[dvar] = dstore[dvar]
-
-    # Pass out the ammended attributes
-    ds_cal.attrs['cal_method'] = dstore.attrs['calibration_method']
-    ds_cal.attrs['double_ended'] = double
+    if datavars:
+        for dvar in datavars:
+            ds_cal[dvar] = dstore[dvar]
 
     # Keep the specified coordinates
-    for c in coords:
-        ds_cal.coords[c] = dstore.coords[c]
+    if coords:
+        for c in coords:
+            ds_cal.coords[c] = dstore.coords[c]
 
     return ds_cal
 
@@ -144,7 +151,6 @@ def merge_single(dstore_fw, dstore_bw, shift_window=20):
     # Assume that cable length is the same between the two channels.
     cable_length = dstore_fw.x.max().values
 
-    # dtscal's plotting is broken due to some dependency stuff. Weirdly these exact lines work when I plot outside the dtscalibration package
     double = merge_double_ended(
         ds_fw=dstore_fw,
         ds_bw=dstore_bw,
@@ -158,7 +164,7 @@ def merge_single(dstore_fw, dstore_bw, shift_window=20):
     # I use some overly generous limits for searching
     # This parameter should be made an optional argument passed to the function.
     shift1, shift2 = suggest_cable_shift_double_ended(
-        double.isel(time=[0, -1]).compute(),
+        double.mean(dim='time').compute(),
         shift_lims,
         plot_result=False,
     )
@@ -184,11 +190,27 @@ def double_calibrate(double, method, keep_fw_bw=False):
     Calibrate a double-ended datastore object.
     '''
 
-    # Calibrate
-    double.calibration_double_ended(
-        store_tmpw='tmpw',
-        method=method,
-    )
+    if method == 'ols':
+        # Calibrate
+        double.calibration_double_ended(
+            store_tmpw='tmpw',
+            method=method,
+        )
+    elif method == 'wls':
+        # Estimate the variances
+        st_var, resid = double.variance_stokes(st_label='st')
+        ast_var, _ = double.variance_stokes(st_label='ast')
+        rst_var, _ = double.variance_stokes(st_label='rst')
+        rast_var, _ = double.variance_stokes(st_label='rast')
+
+        # And calibrate
+        double.calibration_double_ended(
+            st_var=st_var,
+            ast_var=ast_var,
+            rst_var=rst_var,
+            rast_var=rast_var,
+            store_tmpw='tmpw',
+            method=method)
 
     # Since the confidence intervals, as described in example notebook 16,
     # are not relevant for atmospheric deployments, we drop everything except temperature.
@@ -223,3 +245,35 @@ def double_calibrate(double, method, keep_fw_bw=False):
     double.load()
 
     return double
+
+
+def assign_ref_data(dstemp, cal, ref_data=None):
+    # List of probe names
+    probe_names = []
+
+    # Add in external reference data. Interpolate to the DTS time.
+    if cal['external_flag']:
+        temp_ref_data = ref_data.reindex_like(dstemp.time,
+                                              method='nearest')
+
+        for ext_ref in cal['external_fields']:
+            dstemp[ext_ref] = temp_ref_data[ext_ref]
+            probe_names.append(ext_ref)
+
+        # If the bath pt100s and dts do not line up in time,
+        # notify the user.
+        if not (np.size(np.flatnonzero(~np.isnan(dstemp.temp.values))) > 0):
+            print('PT100 and DTS data do not line up in time for ' + raw_nc)
+
+    # Rename built in probes if they are used.
+    if cal['builtin_flag']:
+        probe1 = cal['builtin_probe_names']['probe1Temperature']
+        probe2 = cal['builtin_probe_names']['probe2Temperature']
+        if probe1:
+            dstemp = dstemp.rename({'probe1Temperature': probe1})
+            probe_names.append(probe1)
+        if probe2:
+            dstemp = dstemp.rename({'probe2Temperature': probe2})
+            probe_names.append(probe2)
+
+    return dstemp, probe_names
