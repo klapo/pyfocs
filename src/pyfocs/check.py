@@ -58,6 +58,10 @@ def config(fn_cfg, ignore_flags=False):
         missing_flags = [fl for fl in in_cfg['flags'] if fl not in flags]
         raise KeyError('Not all flags were found:\n' + '\n'.join(missing_flags))
 
+    # This flag will trigger true if calibration is on and requests labeling
+    # the data with physical locations (label_data: True)
+    label_data_flag = False
+
     # --------
     # Check paths that do not vary between experiments.
 
@@ -111,6 +115,11 @@ def config(fn_cfg, ignore_flags=False):
     if in_cfg['flags']['calibrate_flag'] or ignore_flags:
         probe_names = []
         cal = cfg['calibration']
+
+        # Label the LAFs using the physical locations library. Will trigger
+        # checking the location library.
+        if 'label_data' in cal and cal['label_data']:
+            label_data_flag = True
 
         # External data stream for reference probes
         if 'external_fields' in cal and cal['external_fields']:
@@ -381,7 +390,7 @@ def config(fn_cfg, ignore_flags=False):
     # -------------------------------------------------------------------------
     # Labeling sections and physical coordinates
     # Prepare relevant parameters for finalizing
-    if in_cfg['flags']['final_flag'] or ignore_flags:
+    if in_cfg['flags']['final_flag'] or label_data_flag or ignore_flags:
         # Indicate that we need to check the integrity of the location library.
         check_loc_library = True
 

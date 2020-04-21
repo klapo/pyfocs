@@ -303,6 +303,18 @@ for exp_name in experiment_names:
                 )
 
             dstemp.attrs['calibration_method'] = cal['method']
+
+            # Assign the calibration and any available locations
+            dstemp = pyfocs.labelLoc_additional(dstemp,
+                                                cal['library'],
+                                                'calibration')
+            if 'phys_locs' in internal_config:
+                for ploc in internal_config['phys_locs']:
+                    # Label all physical locations provided
+                    dstemp = pyfocs.labelLoc_additional(dstemp,
+                                                        lib[ploc],
+                                                        ploc)
+            print(dstemp)
             os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
             dstemp.to_netcdf(outname, engine='netcdf4')
 
