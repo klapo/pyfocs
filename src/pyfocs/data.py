@@ -145,7 +145,7 @@ def double_end_dv_clean(ds):
     return ds.drop(drop_vars)
 
 
-def merge_single(dstore_fw, dstore_bw, shift_window=20):
+def merge_single(dstore_fw, dstore_bw, shift_window=20, fixed_shift=None):
     '''
     Merge two single-ended channels to a single double-ended configuration.
     '''
@@ -163,28 +163,31 @@ def merge_single(dstore_fw, dstore_bw, shift_window=20):
         plot_result=False
     )
 
-    shift_lims = np.arange(-shift_window, shift_window, 1, dtype=int)
+    if not fixed_shift:
+        shift_lims = np.arange(-shift_window, shift_window, 1, dtype=int)
 
-    # Estimate the number of indices to shift the two channels to align them.
-    # I use some overly generous limits for searching
-    # This parameter should be made an optional argument passed to the function.
-    shift1, shift2 = suggest_cable_shift_double_ended(
-        double.mean(dim='time').compute(),
-        shift_lims,
-        plot_result=False,
-    )
+        # Estimate the number of indices to shift the two channels to align them.
+        # I use some overly generous limits for searching
+        # This parameter should be made an optional argument passed to the function.
+        shift1, shift2 = suggest_cable_shift_double_ended(
+            double.mean(dim='time').compute(),
+            shift_lims,
+            plot_result=False,
+        )
 
-    # If the recommended shifts are identical
-    if shift1 == shift2:
-        shift = shift1
-    # Otherwise use the smaller shift the two lengths should be close to each other.
+        # If the recommended shifts are identical
+        if shift1 == shift2:
+            shift = shift1
+        # Otherwise use the smaller shift the two lengths should be close to each other.
+        else:
+            mess = ('When merging the single-ended observations into '
+                    'a double ended data set the optimal shift was '
+                    'found to have two values {s1} and {s2}.\nThe '
+                    'smallest value was autoselected.')
+            print(mess.format(s1=shift1, s2=shift2))
+            shift = np.min([shift1, shift2])
     else:
-        mess = ('When merging the single-ended observations into '
-                'a double ended data set the optimal shift was '
-                'found to have two values {s1} and {s2}.\nThe '
-                'smallest value was autoselected.')
-        print(mess.format(s1=shift1, s2=shift2))
-        shift = np.min([shift1, shift2])
+        shift = fixed_shift
     double = shift_double_ended(double, shift)
 
     return double

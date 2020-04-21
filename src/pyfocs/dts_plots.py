@@ -8,30 +8,30 @@ import scipy
 import importlib
 import pyfocs
 
-sns_spec = importlib.util.find_spec("seaborn")
-sns_found = sns_spec is not None
-if sns_found:
-    import seaborn as sns
-
-
-def plot_env():
-    '''
-    Set the seaborn plotting environment.
-    '''
-    sns_spec = importlib.util.find_spec("seaborn")
-    sns_found = sns_spec is not None
-    if sns_found:
-
-        # Set the plot style from the seaborn library
-        sns.set_style("whitegrid")
-        context = 'paper'
-        sns.set_context(context)
-        plt.rcParams['figure.dpi'] = 200
-        # Define a default color palette (this should be fairly color blind friendly)
-        flatui = ["#3498db", "#FFBF00", "#95a5a6", "#34495e", "#e74c3c", "#9b59b6",]
-        sns.set_palette(sns.color_palette(flatui))
-
-    return
+# sns_spec = importlib.util.find_spec("seaborn")
+# sns_found = sns_spec is not None
+# if sns_found:
+#     import seaborn as sns
+#
+#
+# def plot_env():
+#     '''
+#     Set the seaborn plotting environment.
+#     '''
+#     sns_spec = importlib.util.find_spec("seaborn")
+#     sns_found = sns_spec is not None
+#     if sns_found:
+#
+#         # Set the plot style from the seaborn library
+#         sns.set_style("whitegrid")
+#         context = 'paper'
+#         sns.set_context(context)
+#         plt.rcParams['figure.dpi'] = 200
+#         # Define a default color palette (this should be fairly color blind friendly)
+#         flatui = ["#3498db", "#FFBF00", "#95a5a6", "#34495e", "#e74c3c", "#9b59b6",]
+#         sns.set_palette(sns.color_palette(flatui))
+#
+#     return
 
 def bias_violin(ds, bath_define, plot_var='bias',
                 fig_kwargs=None, title=None, plot_lims=[-0.5, 0.5]):

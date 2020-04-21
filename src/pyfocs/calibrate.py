@@ -77,10 +77,6 @@ def matrixInversion(dsCal, cfg):
         manualTemp[n] = gamma[n] / (dsCal.logPsPas.sel(time=t)
                                     + C[n] - delta_alpha[n] * dsCal.LAF)
 
-    # For double ended calibration, the reverse pulse needs to have LAF flipped
-    if direction == 'reverse':
-        dsCal['LAF'] = np.flip(dsCal.LAF.values, 0)
-
     # Assign calibrated temperature to dataset
     dsCal['cal_temp'] = (('time', 'LAF'), manualTemp - 273.15)
     print('')

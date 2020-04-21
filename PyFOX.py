@@ -197,6 +197,7 @@ for exp_name in experiment_names:
                                  if cal['library'][c]['type'] == 'calibration']
                     # Build a temporary configuration dictionary
                     # for this method.
+                    temp_cfg = {}
                     for ncb, cb in enumerate(cal_baths):
                         s_ncb = str(ncb)
                         temp_cfg['refField' + s_ncb] = cal['library'][cb]['ref_sensor']
@@ -252,7 +253,7 @@ for exp_name in experiment_names:
                         raise ValueError(mess)
 
                     # The logic here is that the forward channel is defined
-                    # by being the channel sampled first. Therefor is the
+                    # by being the channel sampled first. Therefor if the
                     # forward channel has 1 more time step we go searching in
                     # the next interval for the missing backwards measurement.
                     # If the backwards channels has one more measurement, we
@@ -291,7 +292,10 @@ for exp_name in experiment_names:
                     dstemp,
                     internal_config,
                     True)
-                dstemp = pyfocs.merge_single(dstemp, bw_dstemp)
+                dstemp = pyfocs.merge_single(
+                    dstemp,
+                    bw_dstemp,
+                    fixed_shift=cal['fixed_shift'])
                 dstemp = pyfocs.double_calibrate(dstemp, method=method)
                 dstemp = pyfocs.from_datastore(
                     dstemp,

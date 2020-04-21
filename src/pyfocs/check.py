@@ -182,7 +182,15 @@ def config(fn_cfg, ignore_flags=False):
                 mess = ('A resampling time must be provided when performing '
                         'a double ended calibration.')
                 raise ValueError(mess)
-            cal['bw_channel']
+            if 'fixed_shift' in cal:
+                if not isinstance(cal['fixed_shift'], int):
+                    try:
+                        cal['fixed_shift'] = int(cal['fixed_shift'])
+                    except TypeError as te:
+                        print('fixed_shift could not be coerced into an int')
+                        cal['fixed_shift'] = None
+            else:
+                cal['fixed_shift'] = None
 
         # Single-ended explicit matrix inversion only accepts 3 calibration baths.
         if cal['method'] == 'matrix':
