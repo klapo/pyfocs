@@ -66,7 +66,7 @@ setup(
         'pandas',
         'scipy',
         'netcdf4',
-        'xarray',
+        'xarray>=0.15',
         'xmltodict',
         'pyyaml>=5.1',
         'matplotlib>3',
