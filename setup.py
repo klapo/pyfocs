@@ -69,8 +69,8 @@ setup(
         'xarray',
         'xmltodict',
         'pyyaml>=5.1',
-        # 'dirsync',
-        'matplotlib>3'
+        'matplotlib>3',
+        'dtscalibration'
     ],
 
     extras_require={
