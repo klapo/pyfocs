@@ -65,7 +65,12 @@ def to_datastore(ds, config, double):
 
         LAF1 = np.min(cal_lib[cl]['LAF'])
         LAF2 = np.max(cal_lib[cl]['LAF'])
+
+        # This section is poorly formatted
         if np.isnan(LAF1) or np.isnan(LAF2):
+            continue
+        # This section does not exist in the data.
+        if LAF1 < ds.LAF.min().values or LAF2 > ds.LAF.max().values:
             continue
         ref_section = slice(LAF1, LAF2)
 
@@ -257,6 +262,8 @@ def assign_ref_data(dstemp, cal, ref_data=None):
                                               method='nearest')
 
         for ext_ref in cal['external_fields']:
+            mess = ('{ef} was not found in the external reference data.')
+            assert ext_ref in temp_ref_data, mess.format(ef=ext_ref)
             dstemp[ext_ref] = temp_ref_data[ext_ref]
             probe_names.append(ext_ref)
 
