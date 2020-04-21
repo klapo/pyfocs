@@ -113,7 +113,7 @@ def config(fn_cfg, ignore_flags=False):
         cal = cfg['calibration']
 
         # External data stream for reference probes
-        if cal['external_fields']:
+        if 'external_fields' in cal and cal['external_fields']:
             # Verify the external data file exists
             try:
                 ext_fname = os.path.join(dir_ext,
@@ -144,6 +144,9 @@ def config(fn_cfg, ignore_flags=False):
         if cal['builtin_probe_names']['probe2Temperature']:
             probe_names.append(cal['builtin_probe_names']['probe2Temperature'])
             cal['builtin_flag'] = True
+        if (not cal['builtin_probe_names']['probe1Temperature'] and
+                not cal['builtin_probe_names']['probe2Temperature']):
+            cal['builtin_flag'] = False
 
         # Valid options
         # Single-ended methods
@@ -194,11 +197,11 @@ def config(fn_cfg, ignore_flags=False):
         # Error messages
         miss_ref_sen_mess = ('The reference sensor, {r}, for {cl} was '
                              'not in the list of provided sensors: '
-                             '\n{slist}')
+                             '{slist}')
         unkn_cal_mess = ('The calibration type, {ct}, for {cl} is not '
                          'recognized. Valid options are {valopt}')
         missing_mess = ('LAF for {cl} was not defined by pair of LAF, '
-                        'Found intsead:\n {lib}')
+                        'Found intsead: {lib}')
 
         for cloc in cal['library']:
             # Get details for this section
@@ -363,12 +366,6 @@ def config(fn_cfg, ignore_flags=False):
     # -------------------------------------------------------------------------
     # Integrity of the location library
 
-    # Determine if a file suffix was provided.
-    try:
-        in_cfg['outname_suffix'] = cfg['directories']['suffix']
-    except KeyError:
-        in_cfg['outname_suffix'] = None
-
     # Remind the user that multicore fibers are no longer supported
     if 'coretype' in in_cfg:
         raise ValueError('Multicore fibers are no longer supported.')
@@ -480,11 +477,14 @@ def config(fn_cfg, ignore_flags=False):
         else:
             in_cfg['max_fiber_limit'] = -1
 
-    if 'suffix' in cfg['dataProperties']:
-        in_cfg['suffix'] = cfg['dataProperties']['suffix']
+    # Determine if a file suffix was provided.
+    if 'suffix' in cfg['directories']:
+        in_cfg['outname_suffix'] = cfg['directories']['suffix']
+    else:
+        in_cfg['outname_suffix'] = None
 
     if ('fiber_limits' in cfg['dataProperties']
-            and 'suffix' not in cfg['dataProperties']):
+            and not in_cfg['outname_suffix']):
         warn = ('Fiber limits were provided without a suffix. This may cause '
                 'issues with overwriting data for multicore fibers.')
         print(warn)
