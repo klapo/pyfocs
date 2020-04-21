@@ -105,7 +105,7 @@ for exp_name in experiment_names:
         if cal['external_flag']:
             # Get the metdata
             ref_data = xr.open_dataset(internal_config['external_data'])
-            ref_data = ref_data.resample(time=delta_t).interpolate('linear')
+            # ref_data = ref_data.resample(time=delta_t).interpolate('linear')
         elif not cal['external_flag']:
             ref_data = None
 
