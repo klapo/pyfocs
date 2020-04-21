@@ -94,7 +94,7 @@ def bath_validation(ds, bath_define, bath_lims=None, plot_var='bias',
     Bart-like  plots of bath biases and power anomaly.
     '''
     # Set the plotting environment
-    plot_env()
+    # plot_env()
     if plot_var == 'bias':
         label_text = 'Bias (K)'
         if not bath_lims:
@@ -218,7 +218,7 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50):
 
     '''
     # Set the plotting environment
-    plot_env()
+    # plot_env()
     # Limits of the section to be plotted
     start = np.min(phys_locs[ploc]['LAF'])
     end = np.max(phys_locs[ploc]['LAF'])

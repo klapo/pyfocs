@@ -1,0 +1,336 @@
+directories:
+  # path to where all the dts data is located. Change this for running the
+  # example.
+  local:
+    # dir_pre: /PATH/TO/EXAMPLE_DIRECTORY/
+    dir_pre: /Users/karllapo/gdrive/python/packages/pyfocs/tests/data/
+
+  # Names of the Subdirectories for all the processing steps.
+  # Cannot start with a '/' as this signifies an absolute path and will ignore
+  # the dir_pre as a result.
+  raw_xml: raw_xml
+  archive: archived
+  raw_netcdf: raw_netcdf
+  calibrated: calibrated
+  final: final
+  graphics: graphics
+
+  # This need to be full a path as it won't use the local/remote
+  # directory prefix.
+  # external: FULL/PATH/TO/EXAMPLE/DEMO/EXTERNAL/
+  external: /Users/karllapo/gdrive/python/packages/pyfocs/tests/data/multifiledemo/external/
+  filename_external: pyfox_smpl_reftemp.nc
+
+  # List the experiments that should be processed.
+  experiment_names:
+  # Use a single file to do the CI and pytests
+    - singlefiledemo
+  # Uncomment the below line to run the full demo.
+  # - multicore_demo
+  # Name of the channels to process.
+  channelName:
+  - channel 1
+  # Append this to the file name
+  suffix: twistedpair_p2_matrix
+
+archive:
+  # Delete the raw xml files after creating the archive?
+  cleanup_flag: False
+  # Options:
+  #     archiving - All data is archived
+  #     active - The mode to use when archiving data that is being actively
+  #              observed
+  mode: archiving
+  # Interval (in minutes) over which to archive the raw xml files.
+  archiveInterval: 5
+
+calibration:
+  builtin_probe_names:
+    probe1Temperature:
+    probe2Temperature:
+  external_fields:
+    - warmProbe
+    - coldProbe
+
+  # Valid calibration types:
+  #   - ols single
+  #   - wls single
+  #   - ols double
+  #   - wls double
+  #   - matrix
+  #   - temp_matching
+  method: matrix
+
+  library:
+    warmfar_p2:
+      long name: warm bath far p2
+      type: calibration
+      ref_sensor: warmProbe
+      LAF:
+      - 1296.75
+      - 1299.75
+    warmnear_p2:
+      long name: warm bath near p2
+      type: calibration
+      ref_sensor: warmProbe
+      LAF:
+      - 667.75
+      - 670.75
+    coldfar_p2:
+      long name: cold bath far p2
+      type: calibration
+      ref_sensor: coldProbe
+      LAF:
+      - 1291.5
+      - 1294.25
+    coldnear_p2:
+      long name: cold bath near p2
+      type: calibration
+      ref_sensor: coldProbe
+      LAF:
+      - 673.25
+      - 676.25
+
+dataProperties:
+  # Using standard (non-POSIX) notation, indicate the number of hours from UTC.
+  # If the DTS specifies a timezone, this is only used to align the external
+  # data stream with the DTS. +1 = CET, -5 = East Coast USA
+  UTC_offset: 1
+
+  # Can be specified as [integer][min or s], e.g., 1s or 5min. Used to put the
+  # time stamps on a regular interval. Adapt to the DTS measurement interval
+  # to avoid many NaNs.
+  resampling_time: 5s
+
+  # Correcting for step-losses at a splice
+  # Splice LAF. All data after this point on the fiber will have
+  # "step_loss_correction" added to the log(Ps/Pas) power. This corrected
+  # power will be used in the calibration.
+  step_loss_LAF:
+      # p1:
+      #     - 544
+
+  # Step-loss corrections to log(Ps/Pas) in dB
+  step_loss_correction:
+      # p1:
+      #     - 0.002
+
+  fiber_limits:
+    # twisted pair 1 = 0, 655
+    # twisted pair 2 = 655, 1305
+    min_limit: 0
+    max_limit: 1305
+
+  # Locations in the 'phys_locs' category will be given physical coordinates
+  # and stored as a separate dataset from the each other in the 'final' dataset.
+  phys_locs:
+  - unheated
+  # - heated
+
+flags:
+  # True - raw .xml data compressed into archives of length 'archiveInterval'
+  # False - if archives already exist
+  archiving_flag: True
+  # Read the archived files ancd create the 'raw_netCDF'
+  archive_read_flag: True
+  # create the calibrated files from the processed files
+  calibrate_flag: True
+  # Finalize the dataset with physical coordinates
+  final_flag: True
+
+  # Write mode
+  # 'preserve'  - preserve the existing files and skip that step.
+  # 'overwrite' - The files are overwritten (default).
+  write_mode: overwrite
+
+# The location library is necessary for calibration (where are the baths) and
+# for the `final` processing step of assigning physical coordinates to the data.
+# A data dimension will be created for each unique 'loc_type' in the
+# calibration step.
+location_library:
+  # @ turn into p1/p2 locations
+  IR_NE1_p1:
+    long name: Inner Rim NE_1
+    loc_type: unheated
+    x_coord:
+    - 41.0214943022
+    - 14.4325330958
+    y_coord:
+    - -52.794504504
+    - -1.3068035296
+    z_coord:
+    - -0.343686413
+    - -0.6787816808
+    LAF:
+    - 109.3
+    - 167.0
+  IR_NE1_p2:
+    long name: Inner Rim NE_1
+    loc_type: unheated
+    x_coord:
+    - 41.0214943022
+    - 14.4325330958
+    y_coord:
+    - -52.794504504
+    - -1.3068035296
+    z_coord:
+    - -0.343686413
+    - -0.6787816808
+    LAF:
+    - 1206.4
+    - 1148.7
+
+  IR_NE2_p1:
+    long name: Inner Rim NE_2
+    loc_type: unheated
+    x_coord:
+    - 14.4325330958
+    - -26.7645385868
+    y_coord:
+    - -1.3068035296
+    - 78.5897269757
+    z_coord:
+    - -0.6787816808
+    - -1.181748422
+    LAF:
+    - 168.8
+    - 258.5
+  IR_NE2_p2:
+    long name: Inner Rim NE_2
+    loc_type: unheated
+    x_coord:
+    - 14.4325330958
+    - -26.7645385868
+    y_coord:
+    - -1.3068035296
+    - 78.5897269757
+    z_coord:
+    - -0.6787816808
+    - -1.181748422
+    LAF:
+    - 1146.9
+    - 1057.1
+
+  IR_NW_p1:
+    long name: Inner Rim NW
+    loc_type: unheated
+    x_coord:
+    - -26.7645385868
+    - -66.5941415328
+    y_coord:
+    - 78.5897269757
+    - 34.8314798443
+    z_coord:
+    - -1.181748422
+    - -0.7263298983
+    LAF:
+    - 271.0
+    - 330.0
+  IR_NW_p2:
+    long name: Inner Rim NW
+    loc_type: unheated
+    x_coord:
+    - -26.7645385868
+    - -66.5941415328
+    y_coord:
+    - 78.5897269757
+    - 34.8314798443
+    z_coord:
+    - -1.181748422
+    - -0.7263298983
+    LAF:
+    - 1044.6
+    - 985.5
+
+  IR_SW2_p1:
+    long name: Inner Rim SW_2
+    loc_type: unheated
+    x_coord:
+    - -66.5941415328
+    - -34.858
+    y_coord:
+    - 34.8314798443
+    - -27.056
+    z_coord:
+    - -0.7263298983
+    - -0.044
+    LAF:
+    - 342.0
+    - 412.0
+  IR_SW2_p2:
+    long name: Inner Rim SW_2
+    loc_type: unheated
+    x_coord:
+    - -66.5941415328
+    - -34.858
+    y_coord:
+    - 34.8314798443
+    - -27.056
+    z_coord:
+    - -0.7263298983
+    - -0.044
+    LAF:
+    - 973.0
+    - 903.0
+
+  IR_SW1_p1:
+    long name: Inner Rim SW_1
+    loc_type: unheated
+    x_coord:
+    - -34.858
+    - 1.6805086328
+    y_coord:
+    - -27.056
+    - -97.8381536941
+    z_coord:
+    - -0.044
+    - 0.7507475516
+    LAF:
+    - 413.0
+    - 492.0
+  IR_SW1_p2:
+    long name: Inner Rim SW_1
+    loc_type: unheated
+    x_coord:
+    - -34.858
+    - 1.6805086328
+    y_coord:
+    - -27.056
+    - -97.8381536941
+    z_coord:
+    - -0.044
+    - 0.7507475516
+    LAF:
+    - 902.0
+    - 823.0
+
+  IR_SE_p1:
+    long name: Inner Rim SE
+    loc_type: unheated
+    x_coord:
+    - 1.6805086328
+    - 41.0214943022
+    y_coord:
+    - -97.8381536941
+    - -52.794504504
+    z_coord:
+    - 0.7507475516
+    - -0.343686413
+    LAF:
+    - 505.0
+    - 564.0
+  IR_SE_p2:
+    long name: Inner Rim SE
+    loc_type: unheated
+    x_coord:
+    - 1.6805086328
+    - 41.0214943022
+    y_coord:
+    - -97.8381536941
+    - -52.794504504
+    z_coord:
+    - 0.7507475516
+    - -0.343686413
+    LAF:
+    - 811.0
+    - 751.0

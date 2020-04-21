@@ -2,7 +2,8 @@ directories:
   # path to where all the dts data is located. Change this for running the
   # example.
   local:
-    dir_pre: /PATH/TO/EXAMPLE_DIRECTORY/
+    # dir_pre: /PATH/TO/EXAMPLE_DIRECTORY/
+    dir_pre: /Users/karllapo/gdrive/python/packages/pyfocs/tests/data/
 
   # Names of the Subdirectories for all the processing steps.
   # Cannot start with a '/' as this signifies an absolute path and will ignore
@@ -16,20 +17,21 @@ directories:
 
   # This need to be full a path as it won't use the local/remote
   # directory prefix.
-  external: FULL/PATH/TO/EXAMPLE/DEMO/EXTERNAL/
+  # external: FULL/PATH/TO/EXAMPLE/DEMO/EXTERNAL/
+  external: /Users/karllapo/gdrive/python/packages/pyfocs/tests/data/multifiledemo/external/
   filename_external: pyfox_smpl_reftemp.nc
 
   # List the experiments that should be processed.
   experiment_names:
   # Use a single file to do the CI and pytests
-    - single_file_demo
+    # - singlefiledemo
   # Uncomment the below line to run the full demo.
-  # - multicore_demo
+  - multifiledemo
   # Name of the channels to process.
   channelName:
   - channel 1
   # Append this to the file name
-  suffix:
+  suffix: twistedpair_tempmatching
 
 archive:
   # Delete the raw xml files after creating the archive?
@@ -49,88 +51,98 @@ calibration:
   external_fields:
     - warmProbe
     - coldProbe
-  method: wls single
+
+  # Valid calibration types:
+  #   - ols single
+  #   - wls single
+  #   - ols double
+  #   - wls double
+  #   - matrix
+  #   - temp_matching
+  method: ols single
 
   library:
     warmfar_p1:
       long name: warm bath far p1
       type: calibration
-      ref_sensor: warmprobe
+      ref_sensor: warmProbe
       LAF:
       - 645.5
       - 647.5
     warmfar_p2:
       long name: warm bath far p2
       type: calibration
+      ref_sensor: warmProbe
       LAF:
       - 1296.75
       - 1299.75
     warmfar_ss:
       long name: warm bath far ss
       type: calibration
+      ref_sensor: warmProbe
       LAF:
       - 2690.0
       - 2692.5
     warmnear_p1:
       long name: warm bath near p1
       type: calibration
-      ref_sensor: warmprobe
+      ref_sensor: warmProbe
       LAF:
       - 16.9
       - 18.9
     warmnear_p2:
       long name: warm bath near p2
       type: calibration
-      ref_sensor: warmprobe
+      ref_sensor: warmProbe
       LAF:
       - 667.75
       - 670.75
     warmnear_ss:
       long name: warm bath near ss
       type: calibration
-      ref_sensor: warmprobe
+      ref_sensor: warmProbe
       LAF:
       - 1308.6
       - 1310.6
     coldfar_p1:
       long name: cold bath far p1
       type: calibration
-      ref_sensor: coldprobe
+      ref_sensor: coldProbe
       LAF:
       - 640.1
       - 642.2
     coldfar_p2:
       long name: cold bath far p2
       type: calibration
-      ref_sensor: coldprobe
+      ref_sensor: coldProbe
       LAF:
       - 1291.5
       - 1294.25
     coldfar_ss:
       long name: cold bath far ss
       type: calibration
-      ref_sensor: coldprobe
+      ref_sensor: coldProbe
       LAF:
       - 2685.4
       - 2687.7
     coldnear_p1:
       long name: cold bath near p1
       type: calibration
-      ref_sensor: coldprobe
+      ref_sensor: coldProbe
       LAF:
       - 22.2
       - 24.2
     coldnear_p2:
       long name: cold bath near p2
       type: calibration
-      ref_sensor: coldprobe
+      ref_sensor: coldProbe
       LAF:
       - 673.25
       - 676.25
     coldnear_ss:
       long name: cold bath near ss
       type: calibration
-      ref_sensor: coldprobe
+      ref_sensor: coldProbe
       LAF:
       - 1313.2
       - 1315.5
@@ -162,8 +174,8 @@ dataProperties:
   fiber_limits:
     # twisted pair 1 = 0, 655
     # twisted pair 2 = 655, 1305
-    min_fiber_limit: 0
-    max_fiber_limit: 1305
+    min_limit: 0
+    max_limit: 1305
 
   # Locations in the 'phys_locs' category will be given physical coordinates
   # and stored as a separate dataset from the each other in the 'final' dataset.
@@ -174,7 +186,7 @@ dataProperties:
 flags:
   # True - raw .xml data compressed into archives of length 'archiveInterval'
   # False - if archives already exist
-  archiving_flag: True
+  archiving_flag: False
   # Read the archived files ancd create the 'raw_netCDF'
   archive_read_flag: True
   # create the calibrated files from the processed files
@@ -192,271 +204,8 @@ flags:
 # A data dimension will be created for each unique 'loc_type' in the
 # calibration step.
 location_library:
-  OR_NE1_Un:
-    long name: Outer Rim NE_1, Unheated
-    loc_type: unheated
-    x_coord:
-    - 29.8986187879
-    - 72.8545423073
-    y_coord:
-    - 18.5597864889
-    - -60.5183317812
-    z_coord:
-    - -1.1452547597
-    - -0.3636317936
-    LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 1451.5
-      - 1361.5
-  OR_NE1_H:
-    long name: Outer Rim NE_1, Heated
-    loc_type: heated
-    x_coord:
-    - 29.8986187879
-    - 72.8545423073
-    y_coord:
-    - 18.5597864889
-    - -60.5183317812
-    z_coord:
-    - -1.1452547597
-    - -0.3636317936
-    LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 2321.0
-      - 2411.0
-  OR_NE2_Un:
-    long name: Outer Rim NE_2, Unheated
-    loc_type: unheated
-    x_coord:
-    - -23.3710430861
-    - 29.8986187879
-    y_coord:
-    - 117.4613011181
-    - 18.5597864889
-    z_coord:
-    - -1.771742547
-    - -1.1452547597
-    LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 1565.0
-      - 1453.0
-  OR_NE2_H:
-    long name: Outer Rim NE_2, Heated
-    loc_type: heated
-    x_coord:
-    - -23.3710430861
-    - 29.8986187879
-    y_coord:
-    - 117.4613011181
-    - 18.5597864889
-    z_coord:
-    - -1.771742547
-    - -1.1452547597
-    LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 2207.0
-      - 2319.5
-  OR_NW_Un:
-    long name: Outer Rim NW, Unheated
-    loc_type: unheated
-    x_coord:
-    - -93.1536244388
-    - -23.3710430861
-    y_coord:
-    - 38.9810664313
-    - 117.4613011181
-    z_coord:
-    - -0.641232386
-    - -1.771742547
-    LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 1671.9
-      - 1567.0
-  OR_NW_H:
-    long name: Outer Rim NW, Heated
-    loc_type: heated
-    x_coord:
-    - -93.1536244388
-    - -23.3710430861
-    y_coord:
-    - 38.9810664313
-    - 117.4613011181
-    z_coord:
-    - -0.641232386
-    - -1.771742547
-    LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 2100.5
-      - 2205.5
-  OR_SW2_Un:
-    long name: Outer Rim SW_2, Unheated
-    loc_type: unheated
-    x_coord:
-    - -55.4500460601
-    - -93.1536244388
-    y_coord:
-    - -36.9661319609
-    - 38.9810664313
-    z_coord:
-    - 0.0877310645
-    - -0.641232386
-    LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 1758.0
-      - 1673.5
-  OR_SW2_H:
-    long name: Outer Rim SW_2, Heated
-    loc_type: heated
-    x_coord:
-    - -55.4500460601
-    - -93.1536244388
-    y_coord:
-    - -36.9661319609
-    - 38.9810664313
-    z_coord:
-    - 0.0877310645
-    - -0.641232386
-    LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 2014.5
-      - 2099.0
-  OR_SW1_Un:
-    long name: Outer Rim SW_1, Unheated
-    loc_type: unheated
-    x_coord:
-    - -1.360200858
-    - -55.4500460601
-    y_coord:
-    - -144.4621084832
-    - -36.9661319609
-    z_coord:
-    - 1.1003147469
-    - 0.0877310645
-    LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 1880.0
-      - 1759.6
-  OR_SW1_H:
-    long name: Outer Rim SW_1, Heated
-    loc_type: heated
-    x_coord:
-    - -1.360200858
-    - -55.4500460601
-    y_coord:
-    - -144.4621084832
-    - -36.9661319609
-    z_coord:
-    - 1.1003147469
-    - 0.0877310645
-    LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 1892.5
-      - 2012.5
-  OR_SE_Un:
-    long name: Outer Rim SE, Unheated
-    loc_type: unheated
-    x_coord:
-    - 72.8545423073
-    - -1.360200858
-    y_coord:
-    - -60.5183317812
-    - -144.4621084832
-    z_coord:
-    - -0.3636317936
-    - 1.1003147469
-    LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 2639.5
-      - 2527.5
-  OR_SE_H:
-    long name: Outer Rim SE, Heated
-    loc_type: heated
-    x_coord:
-    - 72.8545423073
-    - -1.360200858
-    y_coord:
-    - -60.5183317812
-    - -144.4621084832
-    z_coord:
-    - -0.3636317936
-    - 1.1003147469
-    LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 2412.5
-      - 2524.5
-  IR_NE1:
+  # @ turn into p1/p2 locations
+  IR_NE1_p1:
     long name: Inner Rim NE_1
     loc_type: unheated
     x_coord:
@@ -469,16 +218,25 @@ location_library:
     - -0.343686413
     - -0.6787816808
     LAF:
-      p1:
-      - 109.3
-      - 167.0
-      p2:
-      - 1206.4
-      - 1148.7
-      ss:
-      - .nan
-      - .nan
-  IR_NE2:
+    - 109.3
+    - 167.0
+  IR_NE1_p2:
+    long name: Inner Rim NE_1
+    loc_type: unheated
+    x_coord:
+    - 41.0214943022
+    - 14.4325330958
+    y_coord:
+    - -52.794504504
+    - -1.3068035296
+    z_coord:
+    - -0.343686413
+    - -0.6787816808
+    LAF:
+    - 1206.4
+    - 1148.7
+
+  IR_NE2_p1:
     long name: Inner Rim NE_2
     loc_type: unheated
     x_coord:
@@ -491,16 +249,25 @@ location_library:
     - -0.6787816808
     - -1.181748422
     LAF:
-      p1:
-      - 168.8
-      - 258.5
-      p2:
-      - 1146.9
-      - 1057.1
-      ss:
-      - .nan
-      - .nan
-  IR_NW:
+    - 168.8
+    - 258.5
+  IR_NE2_p2:
+    long name: Inner Rim NE_2
+    loc_type: unheated
+    x_coord:
+    - 14.4325330958
+    - -26.7645385868
+    y_coord:
+    - -1.3068035296
+    - 78.5897269757
+    z_coord:
+    - -0.6787816808
+    - -1.181748422
+    LAF:
+    - 1146.9
+    - 1057.1
+
+  IR_NW_p1:
     long name: Inner Rim NW
     loc_type: unheated
     x_coord:
@@ -513,16 +280,25 @@ location_library:
     - -1.181748422
     - -0.7263298983
     LAF:
-      p1:
-      - 271.0
-      - 330.0
-      p2:
-      - 1044.6
-      - 985.5
-      ss:
-      - .nan
-      - .nan
-  IR_SW2:
+    - 271.0
+    - 330.0
+  IR_NW_p2:
+    long name: Inner Rim NW
+    loc_type: unheated
+    x_coord:
+    - -26.7645385868
+    - -66.5941415328
+    y_coord:
+    - 78.5897269757
+    - 34.8314798443
+    z_coord:
+    - -1.181748422
+    - -0.7263298983
+    LAF:
+    - 1044.6
+    - 985.5
+
+  IR_SW2_p1:
     long name: Inner Rim SW_2
     loc_type: unheated
     x_coord:
@@ -535,16 +311,25 @@ location_library:
     - -0.7263298983
     - -0.044
     LAF:
-      p1:
-      - 342.0
-      - 412.0
-      p2:
-      - 973.0
-      - 903.0
-      ss:
-      - .nan
-      - .nan
-  IR_SW1:
+    - 342.0
+    - 412.0
+  IR_SW2_p2:
+    long name: Inner Rim SW_2
+    loc_type: unheated
+    x_coord:
+    - -66.5941415328
+    - -34.858
+    y_coord:
+    - 34.8314798443
+    - -27.056
+    z_coord:
+    - -0.7263298983
+    - -0.044
+    LAF:
+    - 973.0
+    - 903.0
+
+  IR_SW1_p1:
     long name: Inner Rim SW_1
     loc_type: unheated
     x_coord:
@@ -557,16 +342,25 @@ location_library:
     - -0.044
     - 0.7507475516
     LAF:
-      p1:
-      - 413.0
-      - 492.0
-      p2:
-      - 902.0
-      - 823.0
-      ss:
-      - .nan
-      - .nan
-  IR_SE:
+    - 413.0
+    - 492.0
+  IR_SW1_p2:
+    long name: Inner Rim SW_1
+    loc_type: unheated
+    x_coord:
+    - -34.858
+    - 1.6805086328
+    y_coord:
+    - -27.056
+    - -97.8381536941
+    z_coord:
+    - -0.044
+    - 0.7507475516
+    LAF:
+    - 902.0
+    - 823.0
+
+  IR_SE_p1:
     long name: Inner Rim SE
     loc_type: unheated
     x_coord:
@@ -579,34 +373,20 @@ location_library:
     - 0.7507475516
     - -0.343686413
     LAF:
-      p1:
-      - 505.0
-      - 564.0
-      p2:
-      - 811.0
-      - 751.0
-      ss:
-      - .nan
-      - .nan
-  Splice1:
-    long name: Splice1
-    loc_type: splice
+    - 505.0
+    - 564.0
+  IR_SE_p2:
+    long name: Inner Rim SE
+    loc_type: unheated
     x_coord:
-    - .nan
-    - .nan
+    - 1.6805086328
+    - 41.0214943022
     y_coord:
-    - .nan
-    - .nan
+    - -97.8381536941
+    - -52.794504504
     z_coord:
-    - .nan
-    - .nan
+    - 0.7507475516
+    - -0.343686413
     LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - .nan
-      - .nan
+    - 811.0
+    - 751.0
