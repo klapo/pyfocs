@@ -76,7 +76,7 @@ def to_datastore(ds, config, double):
 
         sections[pr].append(ref_section)
 
-    dstore.attrs = ds.attrs
+    dstore.attrs.update(ds.attrs)
     dstore.sections = sections
 
     # Last missing attribute
