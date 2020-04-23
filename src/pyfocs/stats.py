@@ -52,25 +52,10 @@ def noisymoments(x, maxlag=10):
     return var, Sk, noisevar
 
 
-def norm_xcorr(x1, x2, lag=None, remove_mean=False, scaleopt='unbiased'):
+def norm_xcorr(x1, x2, lag=None, remove_mean=False, scaleopt='none'):
     '''
-    Function for estimating statistics from noisy time series
-    Utilises the methods originally proposed in
-    Lenschow, D. H., V. Wulfmeyer, and C. Senff (2000),
-    Measuring second- through fourth-order moments in noisy data,
-    J. Atmos. Oceanic Technol., 17, 1330-1347.
-    https://doi.org/10.1175/1520-0426(2000)017<1330:MSTFOM>2.0.CO;2
-    INPUT:
-     x = data matrix, rows contain different time series (e.g. u, v, T)
-         and columns data points from different time steps
-    OUTPUT:
-     var = variance estimates, different variables at different rows
-     Sk = skewness estimates, different variables at different rows
-     Ku = kurtosis estimates, different variables at different rows
-     noisevar = noise variance estimates, different variables at different rows
-
-     Adapted from code written by O. Peltola to python, Feb 2020
-     '''
+    Normalized cross correlations
+    '''
     if remove_mean:
         x1 = x1 - np.nanmean(x1)
         x2 = x2 - np.nanmean(x2)
@@ -100,6 +85,8 @@ def norm_xcorr(x1, x2, lag=None, remove_mean=False, scaleopt='unbiased'):
         return norm_xcorr
     elif not type(lag) == int:
         raise TypeError('lag must be an int')
+
+    return norm_xcorr
 
 
 def block_diff(da, indexer, window_size, step_size):
@@ -135,5 +122,5 @@ def block_diff(da, indexer, window_size, step_size):
 
     # Re-index to the original DataArray
     bdiff_xr = bdiff_xr.reindex_like(da)
-    
+
     return bdiff_xr
