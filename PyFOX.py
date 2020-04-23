@@ -314,7 +314,6 @@ for exp_name in experiment_names:
                     dstemp = pyfocs.labelLoc_additional(dstemp,
                                                         lib[ploc],
                                                         ploc)
-            print(dstemp)
             os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
             dstemp.to_netcdf(outname, engine='netcdf4')
 
@@ -348,7 +347,15 @@ if final_flag:
         # @ONLY LOOK FOR THE SUFFIX ID FROM THE CONFIG.
         os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
         contents = os.listdir()
-        ncfiles = [file for file in contents if '.nc' in file and 'cal' in file]
+        if outname_suffix:
+            ncfiles = [file for file in contents
+                if '.nc' in file
+                and 'cal' in file
+                and outname_suffix in file]
+        else:
+            ncfiles = [file for file in contents
+                if '.nc' in file
+                and 'cal' in file]            
         ncfiles.sort()
         ntot = np.size(ncfiles)
 
