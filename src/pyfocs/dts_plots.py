@@ -8,30 +8,6 @@ import scipy
 import importlib
 import pyfocs
 
-# sns_spec = importlib.util.find_spec("seaborn")
-# sns_found = sns_spec is not None
-# if sns_found:
-#     import seaborn as sns
-#
-#
-# def plot_env():
-#     '''
-#     Set the seaborn plotting environment.
-#     '''
-#     sns_spec = importlib.util.find_spec("seaborn")
-#     sns_found = sns_spec is not None
-#     if sns_found:
-#
-#         # Set the plot style from the seaborn library
-#         sns.set_style("whitegrid")
-#         context = 'paper'
-#         sns.set_context(context)
-#         plt.rcParams['figure.dpi'] = 200
-#         # Define a default color palette (this should be fairly color blind friendly)
-#         flatui = ["#3498db", "#FFBF00", "#95a5a6", "#34495e", "#e74c3c", "#9b59b6",]
-#         sns.set_palette(sns.color_palette(flatui))
-#
-#     return
 
 def bias_violin(ds, bath_define, plot_var='bias',
                 fig_kwargs=None, title=None, plot_lims=[-0.5, 0.5]):
@@ -39,9 +15,6 @@ def bias_violin(ds, bath_define, plot_var='bias',
     Violinplots of bath biases showing the distribution over both time and
     space.
     '''
-
-    # Set the plotting environment
-    plot_env()
 
     if fig_kwargs is None:
         fig_kwargs = dict()
@@ -93,8 +66,7 @@ def bath_validation(ds, bath_define, bath_lims=None, plot_var='bias',
     '''
     Bart-like  plots of bath biases and power anomaly.
     '''
-    # Set the plotting environment
-    # plot_env()
+
     if plot_var == 'bias':
         label_text = 'Bias (K)'
         if not bath_lims:
@@ -217,8 +189,7 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50):
     OUTPUTS:
 
     '''
-    # Set the plotting environment
-    # plot_env()
+
     # Limits of the section to be plotted
     start = np.min(phys_locs[ploc]['LAF'])
     end = np.max(phys_locs[ploc]['LAF'])
@@ -428,7 +399,7 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50):
 
 
 def bath_check(ds,
-               bath_define,
+               callib,
                lims_dict=None,
                fig_kwargs=None,
                title=None,
@@ -440,16 +411,24 @@ def bath_check(ds,
 
     INPUTS:
         ds - xarray object following pyfocs protocol
-        bath_define - dictionary defining the bath
+        callib - The calibration library dictionary from pyfocs.config.check
         laf_lims - LAF padding to include for visual inspection, default is 2m.
+        include_temp - a boolean flag indicating if temperature should be
+            plottted.
+        title - string for the suptitle
+        fig_kwargs - dictionary of figure keywords
+    RETURNS:
+        figure handle for the created plot
     '''
 
-    # 1st row = bias in instrument reported temperature
+    # 1st row = bias in instrument reported temperature (if requested)
     # 2nd row = power anomaly
     # 3rd row = standard deviation of power
     # 4th row = spatial derivative of power
 
-    colr = sns.xkcd_rgb['purple']
+    # I like purple and orange
+    colr_cal = 'xkcd:purple'
+    colr_val = 'xkcd:orange'
 
     # Determine if there are any figure keywords to pass
     if fig_kwargs is None:
@@ -463,10 +442,11 @@ def bath_check(ds,
     else:
         numrows = 3
 
-    numcols = len(bath_define)
+    numcols = len(callib)
 
     # Generate the figure
-    fig, axes = plt.subplots(numrows, numcols,
+    fig, axes = plt.subplots(numrows,
+                             numcols,
                              **fig_kwargs)
     axes = np.atleast_2d(axes)
     print(np.shape(axes))
@@ -494,8 +474,13 @@ def bath_check(ds,
     spacedim = spacedim[0]
 
     # Grab just this bath
-    for bnum, bname in enumerate(bath_define):
-        probename = bath_define[bname]
+    for bnum, bname in enumerate(callib):
+        probename = callib[bname]['ref_sensor']
+        type = callib[bname]['type']
+        if type == 'calibration':
+            colr = colr_cal
+        elif type == 'validation':
+            colr = colr_val
         axcol = axes[:, bnum]
 
         ds = ds.swap_dims({spacedim: 'calibration'})
@@ -507,12 +492,15 @@ def bath_check(ds,
                                            bath_end + laf_lims)})
 
         # How is temperature named?
-        if 'instr_temp' not in ds.data_vars:
-            try:
-                ds = ds.rename({'temp': 'instr_temp'})
-            except KeyError:
-                print('Expected to find temp or instr_temp fields.')
-                raise KeyError
+        if 'cal_temp' in ds.data_vars:
+            temp_var = 'cal_temp'
+        elif 'temp' in ds.data_vars:
+            temp_var = 'temp'
+        elif 'instr_temp' in ds.data_vars:
+            temp_var = 'instr_temp'
+        else:
+            print('Expected to find cal_temp, instr_temp, or temp data variable.')
+            raise KeyError
 
         # Plot the temperature bias if it was requested
         axind = 0
@@ -523,8 +511,8 @@ def bath_check(ds,
                             -20, 60, edgecolor='k',
                             facecolor='0.9', alpha=0.8)
             ax.plot(bathplus.LAF,
-                    bathplus.mean(dim='time').instr_temp,
-                    'o-', color=colr, label='Instr. temp')
+                    bathplus.mean(dim='time')[temp_var],
+                    'o-', color=colr, label=temp_var)
 
             probeval = bath[probename].mean(dim='time')
             ax.plot([bath_start, bath_end],
@@ -534,8 +522,11 @@ def bath_check(ds,
             ylims = bath[probename].mean(dim='time').values
             ylims = ylims + np.array(bath_lims['temp'])
             ax.set_ylim(ylims)
-            ax.legend()
-            ax.set_ylabel('Instr. temperature (C)')
+            if ax.is_first_col():
+                ax.legend()
+                ax.set_ylabel('Temperature (C)')
+            if ax.is_first_row():
+                ax.set_title(type + ': ' + bname)
 
         # Power anomaly
         ax = axcol[0 + axind]
@@ -557,10 +548,12 @@ def bath_check(ds,
 
         ax.set_xlim(bath_start - laf_lims, bath_end + laf_lims)
         ax.set_ylim(bath_lims['power_anom'])
-        ax.set_ylabel(r'$log(\frac{Ps}{Pas}) - \overline{log(\frac{Ps}{Pas})}$')
-        ax.set_xlabel('LAF (m)')
+        if ax.is_first_col():
+            ax.set_ylabel(r'$log(\frac{Ps}{Pas}) - \overline{log(\frac{Ps}{Pas})}$')
         ax.xaxis.set_major_locator(MultipleLocator(1))
         ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
+        if ax.is_first_row():
+            ax.set_title(type + ': ' + bname)
 
         # Standard deviation of power
         ax = axcol[1 + axind]
@@ -572,8 +565,8 @@ def bath_check(ds,
 
         ax.set_xlim(bath_start - laf_lims, bath_end + laf_lims)
         ax.set_ylim(bath_lims['power_std'])
-        ax.set_ylabel(r'$\sigma_{time}(log(\frac{Ps}{Pas}))$')
-        ax.set_xlabel('LAF (m)')
+        if ax.is_first_col():
+            ax.set_ylabel(r'$\sigma_{time}(log(\frac{Ps}{Pas}))$')
         ax.xaxis.set_major_locator(MultipleLocator(1))
         ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
 
@@ -593,7 +586,8 @@ def bath_check(ds,
 
         ax.set_xlim(bath_start - laf_lims, bath_end + laf_lims)
         ax.set_ylim(bath_lims['power_deriv'])
-        ax.set_ylabel(r'$\frac{dlog(\frac{Ps}{Pas})}{dLAF}$')
+        if ax.is_first_col():
+            ax.set_ylabel(r'$\frac{dlog(\frac{Ps}{Pas})}{dLAF}$')
         ax.set_xlabel('LAF (m)')
         ax.xaxis.set_major_locator(MultipleLocator(1))
         ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
