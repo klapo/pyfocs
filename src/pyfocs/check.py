@@ -97,7 +97,7 @@ def config(fn_cfg, ignore_flags=False):
         # Check for empty yaml lists (assigned NoneType)
         if dir_ext is not None:
             # check if the external data directory exists, error if not
-            if (not os.path.exists(dir_ext)) and (cfg['flags']['ref_temp_option']):
+            if (not os.path.exists(dir_ext)):
                 raise FileNotFoundError('External data directory not found at\n'
                                         + dir_ext)
     except KeyError:
@@ -123,26 +123,31 @@ def config(fn_cfg, ignore_flags=False):
 
         # External data stream for reference probes
         if 'external_fields' in cal and cal['external_fields']:
-            # Verify the external data file exists
-            try:
+            # Verify if the external data was provided and exists
+            if dir_ext:
                 ext_fname = os.path.join(dir_ext,
                                          cfg['directories']['filename_external'])
-                os.path.isfile=(ext_fname)
-                probe_names.extend(cal['external_fields'])
-                cal['external_flag'] = True
-            except KeyError:
-                mess = ('Config file indicates to use external data, but no file '
-                        'was found at:\n' + ext_fname)
-                raise FileNotFoundError(mess)
+                if os.path.isfile(ext_fname):
+                    # Make sure the file is a netcdf
+                    if not ext_fname.endswith('.nc'):
+                        mess = ('Config file indicates to use external data, '
+                                'but a netcdf was not found at: ' + ext_fname)
+                        raise FileNotFoundError()
 
-            # Make sure the file is a netcdf
-            if not ext_fname.endswith('.nc'):
-                mess = ('Config file indicates to use external data, but a '
-                        'netcdf was not found at:\n' + ext_fname)
-                raise FileNotFoundError()
-            # Build the path to the file.
-            in_cfg['external_data'] = os.path.join(dir_ext, ext_fname)
+                    # Build the path to the file.
+                    in_cfg['external_data'] = os.path.join(dir_ext, ext_fname)
 
+                    probe_names.extend(cal['external_fields'])
+                    cal['external_flag'] = True
+
+                else:
+                    mess = ('Config file indicates to use external data, but no file '
+                            'was found at: ' + ext_fname)
+                    print(mess)
+                    raise FileNotFoundError()
+            # Both situations mean that no external data should be processed.
+            else:
+                cal['external_flag'] = False
         else:
             cal['external_flag'] = False
 
@@ -156,6 +161,10 @@ def config(fn_cfg, ignore_flags=False):
         if (not cal['builtin_probe_names']['probe1Temperature'] and
                 not cal['builtin_probe_names']['probe2Temperature']):
             cal['builtin_flag'] = False
+
+        if not cal['builtin_flag'] and not cal['external_flag']:
+            print('No reference data was provided for calibration. Exiting.')
+            return None, None
 
         # Valid options
         # Single-ended methods
