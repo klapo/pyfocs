@@ -6,7 +6,7 @@ import pandas as pd
 from scipy import stats
 
 
-def labelLoc_additional(ds, location, loc_type):
+def labelLoc_additional(ds, location, loc_type, dim='LAF'):
     '''
     Assign location tags to an xarray Dataset containing DTS data.
 
@@ -26,20 +26,19 @@ def labelLoc_additional(ds, location, loc_type):
         return ds
 
     # Pre-alloate the new coordinates that are to be assigned.
-    ds.coords[loc_type] = (('LAF'), [None] * ds.LAF.size)
+    ds.coords[loc_type] = ((dim), [None] * ds[dim].size)
     ds.attrs[loc_type] = ';'.join(list(location.keys()))
 
     # Loop over all labels and find where they exist in the LAF domain.
     for lc in location:
         # If we've been handed a formatted location library then we know we
         # have a tuple of points.
-        if 'LAF' in location[lc]:
-            LAF1 = min(location[lc]['LAF'])
-            LAF2 = max(location[lc]['LAF'])
+        if dim in location[lc]:
+            x1 = min(location[lc][dim])
+            x2 = max(location[lc][dim])
             # Grab the LAF coordinate for ease of reference
-            LAF = ds.coords['LAF']
-            ds.coords[loc_type].loc[dict(LAF=LAF[(LAF > LAF1) &
-                                                 (LAF < LAF2)])] = lc
+            x = ds.coords[dim]
+            ds.coords[loc_type].loc[{dim: x[(x > x1) & (x < x2)]}] = lc
         else:
             # We were handed a dictionary with tuples.
             shape = np.shape(location[lc])
@@ -51,30 +50,28 @@ def labelLoc_additional(ds, location, loc_type):
             # For non-continuous label locations, loop through each labeled section
             if np.size(shape) > 1:
                 for loc_num in np.arange(0, max(shape)):
-                    LAF1 = min(location[lc][loc_num])
-                    LAF2 = max(location[lc][loc_num])
+                    x1 = min(location[lc][loc_num])
+                    x2 = max(location[lc][loc_num])
                     # Grab the LAF coordinate for ease of reference
-                    LAF = ds.coords['LAF']
-                    ds.coords[loc_type].loc[dict(LAF=LAF[(LAF > LAF1) &
-                                                         (LAF < LAF2)])] = lc
+                    x = ds.coords[dim]
+                    ds.coords[loc_type].loc[{dim: x[(x > x1) & (x < x2)]}] = lc
 
             # The label locations occur only once in the LAF domain.
             elif np.size(shape) == 1:
                 if np.size(location[lc]) > 1:
-                    LAF1 = min(location[lc])
-                    LAF2 = max(location[lc])
+                    x1 = min(location[lc])
+                    x2 = max(location[lc])
                     # Grab the LAF coordinate for ease of reference
-                    LAF = ds.coords['LAF']
-                    ds.coords[loc_type].loc[dict(LAF=LAF[(LAF > LAF1) &
-                                                         (LAF < LAF2)])] = lc
+                    x = ds.coords[dim]
+                    ds.coords[loc_type].loc[{dim: x[(x > x1) & (x < x2)]}] = lc
 
             # It is a single item element (i.e., a point) to label. Find the
             # nearest point to label.
             else:
-                LAF_single_loc = ds.sel(LAF=location[lc], method='nearest').LAF
-                ds.coords[loc_type].loc[(ds.LAF == LAF_single_loc)] = lc
+                single_loc = ds.sel({dim: location[lc]}, method='nearest')[dim]
+                ds.coords[loc_type].loc[(ds[dim] == single_loc)] = lc
 
-    ds[loc_type].swap_dims({'LAF': loc_type}).loc[{loc_type: None}] = ''
+    ds[loc_type].swap_dims({dim: loc_type}).loc[{loc_type: None}] = ''
 
     return ds
 
