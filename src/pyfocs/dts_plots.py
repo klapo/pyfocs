@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 from matplotlib.ticker import (MultipleLocator,
                                FormatStrFormatter)
+from matplotlib.patches import Patch
 import matplotlib.colors as colors
 import numpy as np
 from .xr_helper import swap_sel
@@ -8,9 +9,15 @@ import scipy
 import importlib
 import pyfocs
 
+from matplotlib.lines import Line2D
 
-def bias_violin(ds, bath_define, plot_var='bias',
-                fig_kwargs=None, title=None, plot_lims=[-0.5, 0.5]):
+
+def bias_violin(ds,
+                callib,
+                plot_var='bias',
+                fig_kwargs=None,
+                title=None,
+                plot_lims=None):
     '''
     Violinplots of bath biases showing the distribution over both time and
     space.
@@ -25,16 +32,26 @@ def bias_violin(ds, bath_define, plot_var='bias',
     if title:
         ax.set_title(title)
 
-    val_max = np.nanmax(plot_lims)
-    val_min = np.nanmin(plot_lims)
+    colr_cal = 'xkcd:purple'
+    colr_val = 'xkcd:orange'
 
-    for bn_num, bn in enumerate(bath_define):
-        bath = swap_sel(ds, 'LAF', 'calibration', bn)
+    for bn_num, bn in enumerate(callib):
+        try:
+            bath = swap_sel(ds, 'LAF', 'calibration', bn)
+        except KeyError:
+            continue
+
+        ref = callib[bn]['ref_sensor']
+        type = callib[bn]['type']
+        if type == 'calibration':
+            colr = colr_cal
+        elif type == 'validation':
+            colr = colr_val
 
         if plot_var == 'bias':
-            val = (bath.cal_temp - bath[bath_define[bn]])
-            val_max = np.max([val_max, val.max().values])
-            val_min = np.min([val_min, val.min().values])
+            val = (bath.cal_temp - bath[ref])
+            val_max = val.max().values
+            val_min = val.min().values
 
         violin_parts = ax.violinplot(val.values.flatten(),
                                      [bn_num],
@@ -45,7 +62,7 @@ def bias_violin(ds, bath_define, plot_var='bias',
                 )
 
         for pc in violin_parts['bodies']:
-            pc.set_facecolor('0.5')
+            pc.set_facecolor(colr)
             pc.set_edgecolor('black')
             pc.set_alpha(1)
         for comp in violin_parts:
@@ -53,10 +70,22 @@ def bias_violin(ds, bath_define, plot_var='bias',
                 continue
             violin_parts[comp].set_color('black')
 
-    ax.set_ylim(val_min, val_max)
+    if not plot_lims:
+        ax.set_ylim(val_min, val_max)
+    else:
+        ax.set_ylim(np.min(plot_lims), np.max(plot_lims))
     ax.set_ylabel(r'Bias ($^{\circ}$C)')
-    ax.set_xticks(np.arange(len(bath_define)))
-    ax.set_xticklabels(bath_define.keys())
+    ax.set_xticks(np.arange(len(callib)))
+    ax.set_xticklabels(callib.keys())
+
+    # Custom legend for validation vs calibration bath types
+    legend_elements = [Patch(facecolor=colr_cal,
+                             edgecolor='k',
+                             label='cal'),
+                       Patch(facecolor=colr_val,
+                             edgecolor='k',
+                             label='val'),]
+    ax.legend(handles=legend_elements, loc='best')
 
     return fig
 
@@ -170,7 +199,12 @@ def bath_validation(ds, bath_define, bath_lims=None, plot_var='bias',
     return fig
 
 
-def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50):
+def dts_loc_plot(ploc,
+                 phys_locs,
+                 ds,
+                 lin_fit=False,
+                 offset=50,
+                 fig_kwargs=None):
     '''
     Plot the given location's mean and standard deviation of log(Ps/Pas) and
     stokes and anti-stokes intensities. This is used to verify that a given
@@ -197,17 +231,24 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50):
     s_start = start - offset
     s_end = end + offset
 
+    if not fig_kwargs:
+        fig_kwargs = dict()
+
+    if 'figsize' not in fig_kwargs:
+        fig_kwargs['figsize'] = (6, 12)
+
     # Only continue if an LAF is found
     if np.isnan(s_start) or np.isnan(s_end):
-        print('LAFs for ' + ploc + ' return a NaN value.')
+        print('LAFs for ' + ploc + ' returned a NaN value.')
         return
-    fig, axes = plt.subplots(4, 1, figsize=(10, 15), sharex=True)
+    fig, axes = plt.subplots(3, 1, sharex=True, **fig_kwargs)
 
     # Derive the useful quantities
     sect = ds.sel(LAF=slice(s_start, s_end))
     sect['logPsPas'] = np.log(sect.Ps / sect.Pas)
     sect_mean = sect.mean(dim='time')
-    sect_var = sect.std(dim='time')
+    sect_ps_var = sect_mean['Ps'].rolling(LAF=10, center=True).std()
+    sect_pas_var = sect_mean['Pas'].rolling(LAF=50, center=True).std()
 
     # Just the data within the section-of-interest for linear fitting.
     fit_sect = sect.sel(LAF=slice(start, end))
@@ -263,46 +304,8 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50):
     ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
     ax.xaxis.set_minor_locator(MultipleLocator(2))
 
-    # Std(Log(Ps/Pas))
+    # Mean log(Stokes) and log(Anti-stokes)
     ax = axes[1]
-    ax.plot(sect.LAF,
-            sect_var['logPsPas'].values)
-
-    y_mean = sect_var['logPsPas'].mean(dim='LAF').values
-    y_min = sect_var['logPsPas'].min().values
-    y_max = sect_var['logPsPas'].max().values
-
-    # In future updates this line could be merged with the above instances
-    for ploc_labels in phys_locs:
-        lims = phys_locs[ploc_labels]['LAF']
-        if (np.isnan(lims).any()
-                or np.max(lims) < s_start
-                or np.min(lims) > s_end):
-            continue
-
-        text_y_loc = y_mean + (y_max - y_mean) / 2
-        if np.max(lims) > s_end:
-            text_x_loc = np.min(lims)
-        elif np.min(lims) < s_start:
-            text_x_loc = s_start
-        else:
-            text_x_loc = np.mean(lims)
-
-        ax.text(text_x_loc, text_y_loc, ploc_labels)
-        ax.fill_between(lims, 0, 4000,
-                        edgecolor='k',
-                        facecolor='0.9',
-                        alpha=0.8)
-
-    ax.set_ylim(y_min, y_max)
-    ax.set_ylabel('std(log(Ps/Pas))')
-    ax.xaxis.grid(True, which='minor')
-    ax.xaxis.set_major_locator(MultipleLocator(10))
-    ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
-    ax.xaxis.set_minor_locator(MultipleLocator(2))
-
-    # Mean Stokes/Anti-stokes intensities
-    ax = axes[2]
     ax.plot(sect_mean.LAF,
             np.log(sect_mean['Ps'].values),
             label='Ps')
@@ -316,9 +319,9 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50):
         Pas_m, Pas_b, _, _, _ = scipy.stats.linregress(fit_sect.LAF,
                                                        np.log(fit_sect['Pas'].values))
         ax.plot(sect.LAF, Ps_b + Ps_m * sect.LAF.values, '--',
-                label='Ps fit')
+                label=r'$log(P_s)$ fit')
         ax.plot(sect.LAF, Pas_b + Pas_m * sect.LAF.values, '--',
-                label='Pas fit')
+                label=r'$log(P_{as})$ fit')
 
     y_mean = np.log(sect_mean['Ps'].mean(dim='LAF').values)
     y_min = np.log(sect_mean['Pas'].min().values) - 0.1
@@ -343,27 +346,28 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50):
                         facecolor='0.9',
                         alpha=0.8)
     ax.set_ylim(y_min, y_max)
-    ax.set_ylabel(r'$P_s, P_{as}$ Backscatter Intensities [-]')
+    ax.set_ylabel(r'$log(P_s), log(P_{as})$ Backscatter Intensities [-]')
     ax.legend(loc='lower left')
     ax.xaxis.grid(True, which='minor')
     ax.xaxis.set_major_locator(MultipleLocator(10))
     ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
     ax.xaxis.set_minor_locator(MultipleLocator(2))
 
-    # STD Stokes/Anti-stokes intensities
-    ax = axes[3]
-    ax.plot(sect_mean.LAF,
-            np.log(sect_mean['Ps'].values),
-            label='Ps')
-    ax.plot(sect_mean.LAF,
-            np.log(sect_mean['Pas'].values),
-            label='Pas')
+    # Spatial variances in stokes and anti-stokes intensities
+    ax = axes[2]
+    # ax.plot(sect_ps_var.LAF,
+    #         sect_ps_var.values,
+    #         label='$P_s$')
+    # ax.plot(sect_pas_var.LAF,
+    #         sect_pas_var.values,
+    #         label='$P_{as}$')
+    var_ratio = (sect_ps_var / sect_pas_var)
+    ax.plot(sect_ps_var.LAF,
+            var_ratio.values)
 
-    y_mean = np.log(sect_mean['Ps'].mean(dim='LAF').values)
-    y_min = np.min([np.log(sect_mean['Pas'].min().values),
-                    np.log(sect_mean['Ps'].max().values)]) - 0.1
-    y_max = np.max([np.log(sect_mean['Pas'].min().values),
-                    np.log(sect_mean['Ps'].max().values)]) + 0.1
+    y_mean = var_ratio.mean(dim='LAF').values
+    y_min = var_ratio.min().values - 0.1
+    y_max = var_ratio.max().values + 0.1
     for ploc_labels in phys_locs:
         lims = phys_locs[ploc_labels]['LAF']
         if (np.isnan(lims).any()
@@ -388,9 +392,10 @@ def dts_loc_plot(ploc, phys_locs, ds, lin_fit=False, offset=50):
     ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
     ax.xaxis.set_minor_locator(MultipleLocator(2))
 
-    ax.legend(loc='lower left')
+    # ax.legend(loc='upper left')
     ax.set_ylim(y_min, y_max)
-    ax.set_ylabel(r'$\sigma(P_s), \sigma(P_{as})$')
+    # ax.set_ylabel(r'$\sigma(P_s), \sigma(P_{as})$')
+    ax.set_ylabel('$\sigma_{x}(P_s) / \sigma_{x}(P_{as})$ [-]')
     ax.set_xlim(s_start, s_end)
     ax.set_xlabel('LAF (m)')
     fig.tight_layout()

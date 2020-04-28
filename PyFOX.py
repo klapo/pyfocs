@@ -199,7 +199,7 @@ for exp_name in experiment_names:
                     # for this method.
                     temp_cfg = {}
                     for ncb, cb in enumerate(cal_baths):
-                        s_ncb = str(ncb)
+                        s_ncb = str(ncb + 1)
                         temp_cfg['refField' + s_ncb] = cal['library'][cb]['ref_sensor']
                         temp_cfg['refLoc' + s_ncb] = cb
 
@@ -344,7 +344,6 @@ if final_flag:
         # Find all 'calibrated' netcdfs within the calibrated directory,
         # sort them by date, suffix, and process each individually.
 
-        # @ONLY LOOK FOR THE SUFFIX ID FROM THE CONFIG.
         os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
         contents = os.listdir()
         if outname_suffix:
@@ -355,7 +354,7 @@ if final_flag:
         else:
             ncfiles = [file for file in contents
                 if '.nc' in file
-                and 'cal' in file]            
+                and 'cal' in file]
         ncfiles.sort()
         ntot = np.size(ncfiles)
 
