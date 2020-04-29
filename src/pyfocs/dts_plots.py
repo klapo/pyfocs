@@ -8,12 +8,13 @@ from .xr_helper import swap_sel
 import scipy
 import importlib
 import pyfocs
+import copy
 
 from matplotlib.lines import Line2D
 
 
 def bias_violin(ds,
-                callib,
+                in_callib,
                 plot_var='bias',
                 fig_kwargs=None,
                 title=None,
@@ -22,6 +23,13 @@ def bias_violin(ds,
     Violinplots of bath biases showing the distribution over both time and
     space.
     '''
+    # Prep the calibration library by removing baths not in the data.
+    callib = copy.deepcopy(in_callib)
+    for bn_num, bn in enumerate(in_callib):
+        try:
+            _ = swap_sel(ds, 'LAF', 'calibration', bn)
+        except KeyError:
+            del callib[bn]
 
     if fig_kwargs is None:
         fig_kwargs = dict()
@@ -90,11 +98,18 @@ def bias_violin(ds,
     return fig
 
 
-def bath_validation(ds, bath_define, bath_lims=None, plot_var='bias',
+def bath_validation(ds, in_callib, bath_lims=None, plot_var='bias',
                     fig_kwargs=None, title=None):
     '''
     Bart-like  plots of bath biases and power anomaly.
     '''
+    callib = copy.deepcopy(in_callib)
+    # Prep the calibration library by removing baths not in the data.
+    for bn_num, bn in enumerate(in_callib):
+        try:
+            _ = swap_sel(ds, 'LAF', 'calibration', bn)
+        except KeyError:
+            del callib[bn]
 
     if plot_var == 'bias':
         label_text = 'Bias (K)'
@@ -117,7 +132,7 @@ def bath_validation(ds, bath_define, bath_lims=None, plot_var='bias',
 
     widths = [1., 5, 0.25]
     spec = fig.add_gridspec(ncols=3,
-                            nrows=len(bath_define) + 1,
+                            nrows=len(callib) + 1,
                             width_ratios=widths,
                             hspace=0.18, wspace=0.15,
                             )
@@ -130,13 +145,15 @@ def bath_validation(ds, bath_define, bath_lims=None, plot_var='bias',
     ax_time = fig.add_subplot(spec[0, 1])
     ax_LAFs = []
     ax_maps = []
-    for bn_num, bn in enumerate(bath_define):
+    for bn_num, bn in enumerate(callib):
         ax_LAFs.append(fig.add_subplot(spec[bn_num + 1, 0]))
         ax_maps.append(fig.add_subplot(spec[bn_num + 1, 1]))
     ax_maps[-1].get_shared_x_axes().join(ax_maps[-1], ax_time, )
 
     # Characterize each bath's calibration
-    for bn_num, bn in enumerate(bath_define):
+    for bn_num, bn in enumerate(callib):
+        ref = callib[bn]['ref_sensor']
+        type = callib[bn]['type']
 
         # Handle the axes for this bath
         ax_LAF = ax_LAFs[bn_num]
@@ -147,7 +164,7 @@ def bath_validation(ds, bath_define, bath_lims=None, plot_var='bias',
         bath_start = bath.LAF.min()
         bath_end = bath.LAF.max()
         if plot_var == 'bias':
-            val = (bath.cal_temp - bath[bath_define[bn]])
+            val = (bath.cal_temp - bath[ref])
         # Create the power anomaly
         if plot_var == 'power':
             val = bath.logPsPas - bath.logPsPas.mean(dim='LAF')
@@ -608,8 +625,7 @@ def overview(ds,
              indexer='LAF',
              fig_kwargs=None,
              title=None,
-             instr_temp=True,
-             cal_temp=True,
+             temp_field_name='cal_temp',
              type='temperature'
             ):
     '''
@@ -622,8 +638,7 @@ def overview(ds,
         title - optional string, name for the plot
         indexer - name of the spatial indexer. If not provided assumes the
             the spatial indexer is called 'LAF'.
-        instr_temp - Include the instrument reported temperatures. Default it True.
-        cal_temp - Include the calibrated temperatures. Default is True.
+        temp_field_name - 'cal_temp' (default), 'instr_temp', or 'both'
         fig_kwards - keywords to pass to the figure creation command.
     '''
 
@@ -655,11 +670,13 @@ def overview(ds,
 
     if type == 'temperature':
         # Instrument reported temperature
-        ax.plot(ds.LAF, ds.instr_temp.mean(dim='time'),
-                label='Instrument reported temperature')
+        if temp_field_name == 'instr_temp' or temp_field_name == 'both':
+            ax.plot(ds.LAF, ds.instr_temp.mean(dim='time'),
+                    label='Instrument reported temperature')
         # Calibrated temperature
-        ax.plot(ds.LAF, ds.cal_temp.mean(dim='time'),
-                label='Calibrated temperature')
+        if temp_field_name == 'cal_temp' or temp_field_name == 'both':
+            ax.plot(ds.LAF, ds.cal_temp.mean(dim='time'),
+                    label='Calibrated temperature')
         ylabel = 'Temperature (C)'
 
     if type == 'variance':
@@ -680,18 +697,16 @@ def overview(ds,
         noise = np.ones_like(ds.LAF) * np.nan
 
         # Start here. Build a way to specify the field being plotted.
-        if cal_temp:
-            field = 'cal_temp'
-
-        else:
-            field = 'instr_temp'
+        if temp_field_name == 'cal_temp':
+            field = temp_field_name
+        elif temp_field_name == 'instr_temp':
+            field = temp_field_name
 
         for nlaf, laf in enumerate(ds.LAF):
-            if np.isnan(ds.sel(LAF=laf).cal_temp.values).any():
+            if np.isnan(ds.sel(LAF=laf)[field].values).any():
                 continue
-            var[nlaf], _, noise[nlaf] = pyfocs.noisymoments(ds.cal_temp.sel(LAF=laf).values)
+            var[nlaf], _, noise[nlaf] = pyfocs.noisymoments(ds[field].sel(LAF=laf).values)
 
-        # noise = pyfocs.noisymoments(ds.cal_temp.values)
         if lims_dict and 'noise' in lims_dict:
             ylims = lims_dict['noise']
         else:
