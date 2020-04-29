@@ -169,13 +169,15 @@ for exp_name in experiment_names:
             LAFmax = internal_config['max_fiber_limit']
             if LAFmax == -1:
                 LAFmax = dstemp.LAF.values[-1]
-            dstemp = dstemp.sel(LAF=slice(LAFmin, LAFmax))
-            dstemp.attrs['LAF_beg'] = dstemp.LAF.values[0]
-            dstemp.attrs['LAF_end'] = dstemp.LAF.values[-1]
-            dstemp.attrs['calibration_method'] = cal['method']
 
             # Execute single-ended methods
             if not cal['double_ended']:
+                # Apply fiber limits
+                dstemp = dstemp.sel(LAF=slice(LAFmin, LAFmax))
+                dstemp.attrs['LAF_beg'] = dstemp.LAF.values[0]
+                dstemp.attrs['LAF_end'] = dstemp.LAF.values[-1]
+                dstemp.attrs['calibration_method'] = cal['method']
+
                 # Step loss corrections if they are provided.
                 # This step should only be executed for single-ended methods.
                 if step_loss_flag:
@@ -296,6 +298,33 @@ for exp_name in experiment_names:
                     dstemp,
                     bw_dstemp,
                     fixed_shift=cal['fixed_shift'])
+
+                # Apply fiber limits after merging.
+                dstemp = dstemp.sel(x=slice(LAFmin, LAFmax))
+                dstemp.attrs['LAF_beg'] = dstemp.x.values[0]
+                dstemp.attrs['LAF_end'] = dstemp.x.values[-1]
+                dstemp.attrs['calibration_method'] = cal['method']
+
+                # If the LAF is to be adjusted we must address the sections.
+                sections = copy.deepcopy(dstemp.sections)
+                for probe in sections:
+                    delete_index = []
+                    for nsect, probe_s in enumerate(sections[probe]):
+                        if probe_s.start > LAFmax or probe_s.stop > LAFmax:
+                            delete_index.append(nsect)
+                        if probe_s.start < LAFmin or probe_s.stop < LAFmin:
+                            delete_index.append(nsect)
+
+                    # Delete from the last index to the beginning so that the index always works.
+                    delete_index.sort()
+                    delete_index.reverse()
+                    for d in delete_index:
+                        del sections[probe][d]
+
+                # Rebuild the sections
+                dstemp.sections = sections
+
+                # Finally, we can calibrate.
                 dstemp = pyfocs.double_calibrate(dstemp, method=method)
                 dstemp = pyfocs.from_datastore(
                     dstemp,
