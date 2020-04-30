@@ -162,14 +162,15 @@ dataProperties:
   fiber_limits:
     # twisted pair 1 = 0, 655
     # twisted pair 2 = 655, 1305
-    min_fiber_limit: 0
-    max_fiber_limit: 1305
+    # stainless steel > 1305
+    min_fiber_limit: 1305
+    max_fiber_limit: -1
 
   # Locations in the 'phys_locs' category will be given physical coordinates
   # and stored as a separate dataset from the each other in the 'final' dataset.
   phys_locs:
   - unheated
-  # - heated
+  - heated
 
 flags:
   # True - raw .xml data compressed into archives of length 'archiveInterval'
@@ -205,15 +206,8 @@ location_library:
     - -1.1452547597
     - -0.3636317936
     LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 1451.5
-      - 1361.5
+    - 1451.5
+    - 1361.5
   OR_NE1_H:
     long name: Outer Rim NE_1, Heated
     loc_type: heated
@@ -227,15 +221,8 @@ location_library:
     - -1.1452547597
     - -0.3636317936
     LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 2321.0
-      - 2411.0
+    - 2321.0
+    - 2411.0
   OR_NE2_Un:
     long name: Outer Rim NE_2, Unheated
     loc_type: unheated
@@ -249,15 +236,8 @@ location_library:
     - -1.771742547
     - -1.1452547597
     LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 1565.0
-      - 1453.0
+    - 1565.0
+    - 1453.0
   OR_NE2_H:
     long name: Outer Rim NE_2, Heated
     loc_type: heated
@@ -271,15 +251,8 @@ location_library:
     - -1.771742547
     - -1.1452547597
     LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 2207.0
-      - 2319.5
+    - 2207.0
+    - 2319.5
   OR_NW_Un:
     long name: Outer Rim NW, Unheated
     loc_type: unheated
@@ -293,15 +266,8 @@ location_library:
     - -0.641232386
     - -1.771742547
     LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 1671.9
-      - 1567.0
+    - 1671.9
+    - 1567.0
   OR_NW_H:
     long name: Outer Rim NW, Heated
     loc_type: heated
@@ -315,15 +281,8 @@ location_library:
     - -0.641232386
     - -1.771742547
     LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 2100.5
-      - 2205.5
+    - 2100.5
+    - 2205.5
   OR_SW2_Un:
     long name: Outer Rim SW_2, Unheated
     loc_type: unheated
@@ -337,15 +296,8 @@ location_library:
     - 0.0877310645
     - -0.641232386
     LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 1758.0
-      - 1673.5
+    - 1758.0
+    - 1673.5
   OR_SW2_H:
     long name: Outer Rim SW_2, Heated
     loc_type: heated
@@ -359,15 +311,8 @@ location_library:
     - 0.0877310645
     - -0.641232386
     LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 2014.5
-      - 2099.0
+    - 2014.5
+    - 2099.0
   OR_SW1_Un:
     long name: Outer Rim SW_1, Unheated
     loc_type: unheated
@@ -381,15 +326,8 @@ location_library:
     - 1.1003147469
     - 0.0877310645
     LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 1880.0
-      - 1759.6
+    - 1880.0
+    - 1759.6
   OR_SW1_H:
     long name: Outer Rim SW_1, Heated
     loc_type: heated
@@ -403,15 +341,8 @@ location_library:
     - 1.1003147469
     - 0.0877310645
     LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 1892.5
-      - 2012.5
+    - 1892.5
+    - 2012.5
   OR_SE_Un:
     long name: Outer Rim SE, Unheated
     loc_type: unheated
@@ -425,15 +356,8 @@ location_library:
     - -0.3636317936
     - 1.1003147469
     LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 2639.5
-      - 2527.5
+    - 2639.5
+    - 2527.5
   OR_SE_H:
     long name: Outer Rim SE, Heated
     loc_type: heated
@@ -447,166 +371,5 @@ location_library:
     - -0.3636317936
     - 1.1003147469
     LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - 2412.5
-      - 2524.5
-  IR_NE1:
-    long name: Inner Rim NE_1
-    loc_type: unheated
-    x_coord:
-    - 41.0214943022
-    - 14.4325330958
-    y_coord:
-    - -52.794504504
-    - -1.3068035296
-    z_coord:
-    - -0.343686413
-    - -0.6787816808
-    LAF:
-      p1:
-      - 109.3
-      - 167.0
-      p2:
-      - 1206.4
-      - 1148.7
-      ss:
-      - .nan
-      - .nan
-  IR_NE2:
-    long name: Inner Rim NE_2
-    loc_type: unheated
-    x_coord:
-    - 14.4325330958
-    - -26.7645385868
-    y_coord:
-    - -1.3068035296
-    - 78.5897269757
-    z_coord:
-    - -0.6787816808
-    - -1.181748422
-    LAF:
-      p1:
-      - 168.8
-      - 258.5
-      p2:
-      - 1146.9
-      - 1057.1
-      ss:
-      - .nan
-      - .nan
-  IR_NW:
-    long name: Inner Rim NW
-    loc_type: unheated
-    x_coord:
-    - -26.7645385868
-    - -66.5941415328
-    y_coord:
-    - 78.5897269757
-    - 34.8314798443
-    z_coord:
-    - -1.181748422
-    - -0.7263298983
-    LAF:
-      p1:
-      - 271.0
-      - 330.0
-      p2:
-      - 1044.6
-      - 985.5
-      ss:
-      - .nan
-      - .nan
-  IR_SW2:
-    long name: Inner Rim SW_2
-    loc_type: unheated
-    x_coord:
-    - -66.5941415328
-    - -34.858
-    y_coord:
-    - 34.8314798443
-    - -27.056
-    z_coord:
-    - -0.7263298983
-    - -0.044
-    LAF:
-      p1:
-      - 342.0
-      - 412.0
-      p2:
-      - 973.0
-      - 903.0
-      ss:
-      - .nan
-      - .nan
-  IR_SW1:
-    long name: Inner Rim SW_1
-    loc_type: unheated
-    x_coord:
-    - -34.858
-    - 1.6805086328
-    y_coord:
-    - -27.056
-    - -97.8381536941
-    z_coord:
-    - -0.044
-    - 0.7507475516
-    LAF:
-      p1:
-      - 413.0
-      - 492.0
-      p2:
-      - 902.0
-      - 823.0
-      ss:
-      - .nan
-      - .nan
-  IR_SE:
-    long name: Inner Rim SE
-    loc_type: unheated
-    x_coord:
-    - 1.6805086328
-    - 41.0214943022
-    y_coord:
-    - -97.8381536941
-    - -52.794504504
-    z_coord:
-    - 0.7507475516
-    - -0.343686413
-    LAF:
-      p1:
-      - 505.0
-      - 564.0
-      p2:
-      - 811.0
-      - 751.0
-      ss:
-      - .nan
-      - .nan
-  Splice1:
-    long name: Splice1
-    loc_type: splice
-    x_coord:
-    - .nan
-    - .nan
-    y_coord:
-    - .nan
-    - .nan
-    z_coord:
-    - .nan
-    - .nan
-    LAF:
-      p1:
-      - .nan
-      - .nan
-      p2:
-      - .nan
-      - .nan
-      ss:
-      - .nan
-      - .nan
+    - 2412.5
+    - 2524.5
