@@ -402,6 +402,11 @@ def config(fn_cfg, ignore_flags=False):
     if in_cfg['flags']['final_flag'] or label_data_flag or ignore_flags:
         # Indicate that we need to check the integrity of the location library.
         check_loc_library = True
+        if 'phys_locs_labeling' in cfg['dataProperties']:
+            if cfg['dataProperties']['phys_locs_labeling'] == 'stacked':
+                stacked = True
+        else:
+            stacked = False
 
         if not dt:
             mess = 'A resampling time must be provided when finalizing the data.'
@@ -431,7 +436,7 @@ def config(fn_cfg, ignore_flags=False):
                     '{lib}')
 
     # Check the integrity of the location library.
-    if check_loc_library:
+    if check_loc_library and not stacked:
         for loc_type_cur in phys_locs:
             lib[loc_type_cur] = {}
             for l in cfg['location_library']:
@@ -456,6 +461,39 @@ def config(fn_cfg, ignore_flags=False):
                         assert len(lib[loc_type_cur][l]['x_coord']) == 2, missing_mess.format(ploc=l, lib=lib[loc_type_cur][l])
                         assert len(lib[loc_type_cur][l]['y_coord']) == 2, missing_mess.format(ploc=l, lib=lib[loc_type_cur][l])
                         assert len(lib[loc_type_cur][l]['z_coord']) == 2, missing_mess.format(ploc=l, lib=lib[loc_type_cur][l])
+
+            if not bool(lib[loc_type_cur]):
+                print(loc_type_cur + ' was not found in location library.')
+
+        # Asserts that lib is an iterable list with stuff in it.
+        mess = 'No items found in location library.'
+        # Returns False if it is emtpy, True if is not.
+        assert bool(lib), mess
+
+    elif check_loc_library and stacked:
+        for loc_type_cur in phys_locs:
+            lib[loc_type_cur] = {}
+            for l in cfg['location_library'][loc_type_cur]:
+                lib[loc_type_cur][l] = cfg['location_library'][loc_type_cur][l]
+
+                # All locations are defined by a pair of LAFs.
+                assert 'LAF' in lib[loc_type_cur][l], 'No LAFs provided for ' + l
+                assert len(lib[loc_type_cur][l]['LAF']) == 2, missing_mess.format(ploc=l, lib=lib[loc_type_cur][l])
+                if any(np.isnan(lib[loc_type_cur][l]['LAF'])):
+                    del lib[loc_type_cur][l]
+                    print(l + ' will not be labeled due to NaNs in LAF. Check library.')
+                    continue
+
+                # All physical coordinates are defined by pairs of x, y, z
+                if (cfg['flags']['final_flag']
+                        and loc_type_cur in phys_locs):
+                    assert 'x_coord' in lib[loc_type_cur][l], missing_mess.format(ploc=l, lib=lib[loc_type_cur][l])
+                    assert 'y_coord' in lib[loc_type_cur][l], missing_mess.format(ploc=l, lib=lib[loc_type_cur][l])
+                    assert 'z_coord' in lib[loc_type_cur][l], missing_mess.format(ploc=l, lib=lib[loc_type_cur][l])
+
+                    assert len(lib[loc_type_cur][l]['x_coord']) == 2, missing_mess.format(ploc=l, lib=lib[loc_type_cur][l])
+                    assert len(lib[loc_type_cur][l]['y_coord']) == 2, missing_mess.format(ploc=l, lib=lib[loc_type_cur][l])
+                    assert len(lib[loc_type_cur][l]['z_coord']) == 2, missing_mess.format(ploc=l, lib=lib[loc_type_cur][l])
 
             if not bool(lib[loc_type_cur]):
                 print(loc_type_cur + ' was not found in location library.')
@@ -506,6 +544,10 @@ def config(fn_cfg, ignore_flags=False):
     # Determine if a file suffix was provided.
     if 'suffix' in cfg['directories']:
         in_cfg['outname_suffix'] = cfg['directories']['suffix']
+        if '_' in in_cfg['outname_suffix']:
+            mess = ('File suffixes cannot contain underscores. '
+                    'This character is reserved by the pyfocs naming scheme.')
+            raise ValueError(mess)
     else:
         in_cfg['outname_suffix'] = None
 
