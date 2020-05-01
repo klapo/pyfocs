@@ -76,6 +76,11 @@ def to_datastore(ds, config, double):
 
         sections[pr].append(ref_section)
 
+    if not [ref for pr in sections for ref in sections[pr]]:
+        mess = ('No reference sections of type calibration were found. '
+                'Verify the calibration library.')
+        print(mess)
+        raise ValueError
     dstore.attrs.update(ds.attrs)
     dstore.sections = sections
 
