@@ -214,7 +214,7 @@ def interp_section(
     # Interpolate s2 to s1's x coordinates for the section
     s1 = s1.swap_dims({'LAF': 'x'})
     s2 = s2.swap_dims({'LAF': 'x'})
-    sub_s2 = s2.interp(x=sub_s1.x.values)
+    sub_s2 = s2.interp(x=sub_s1.x.values).swap_dims({'x': 'LAF'})
 
     # Return the adjusted LAF values based on aligning s2 to s1
     LAFmin = float(sub_s2.LAF.min().values)
