@@ -56,7 +56,7 @@ def norm_xcorr(x1, x2, lag=None, remove_mean=False, scaleopt='none'):
     '''
     Normalized cross correlations
     '''
-    if remove_mean or if scaleopt=='coef':
+    if remove_mean or scaleopt=='coef':
         x1 = x1 - np.nanmean(x1)
         x2 = x2 - np.nanmean(x2)
 

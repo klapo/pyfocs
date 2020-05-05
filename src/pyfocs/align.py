@@ -3,6 +3,7 @@ from scipy import stats
 import xarray as xr
 import matplotlib.pyplot as plt
 import copy
+import pyfocs
 
 
 def section_shift_x(
@@ -328,7 +329,15 @@ def interp_section(
     return sub_s1, sub_s2, fn_lib
 
 
-def section_limits(s1, s2, fn_lib, ploc1, ploc2, label, plot_results=False):
+def section_limits(
+    s1,
+    s2,
+    fn_lib,
+    ploc1,
+    ploc2,
+    label,
+    plot_results=False,
+    temp_field='cal_temp'):
     '''
     Similar to interp_section, but without interpolation. Requires output from
     `section_shift_x`. Useful only for the first view of mapping locations.
