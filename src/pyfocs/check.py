@@ -544,7 +544,7 @@ def config(fn_cfg, ignore_flags=False):
     # Determine if a file suffix was provided.
     if 'suffix' in cfg['directories']:
         in_cfg['outname_suffix'] = cfg['directories']['suffix']
-        if '_' in in_cfg['outname_suffix']:
+        if in_cfg['outname_suffix'] and '_' in in_cfg['outname_suffix']:
             mess = ('File suffixes cannot contain underscores. '
                     'This character is reserved by the pyfocs naming scheme.')
             raise ValueError(mess)
