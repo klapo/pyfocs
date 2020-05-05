@@ -56,7 +56,7 @@ def norm_xcorr(x1, x2, lag=None, remove_mean=False, scaleopt='none'):
     '''
     Normalized cross correlations
     '''
-    if remove_mean:
+    if remove_mean or if scaleopt=='coef':
         x1 = x1 - np.nanmean(x1)
         x2 = x2 - np.nanmean(x2)
 
@@ -75,6 +75,9 @@ def norm_xcorr(x1, x2, lag=None, remove_mean=False, scaleopt='none'):
     elif scaleopt == 'none':
         # Return the unscaled, raw cross correlations.
         full_norm = 1
+    else:
+        print('Unrecognized scaleopt')
+        raise ValueError
 
     norm_xcorr = np.correlate(x1, x2, "full") / full_norm
 
