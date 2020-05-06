@@ -232,12 +232,18 @@ def dtsPhysicalCoords_3d(ds, location):
         LAF1 = min(location[l]['LAF'])
         LAF2 = max(location[l]['LAF'])
         # We must account for the data flipped relative to the coordinates.
+        # When using automatic section alignment the LAF values can no longer
+        # be trusted to have an order we can use for assigning the reverse flag.
+        # Instead we rely on the reverse attribute.
         reverse = False
-        if location[l]['LAF'][0] > location[l]['LAF'][1]:
+        if 'reverse' in ds.attrs:
+            reverse = ds.attrs['reverse']
+
+        elif location[l]['LAF'][0] > location[l]['LAF'][1]:
             reverse = True
 
         # Extract out just the section in question
-        section = ds.loc[dict(LAF=LAF[(LAF > LAF1) & (LAF < LAF2)])]
+        section = ds.loc[dict(LAF=LAF[(LAF >= LAF1) & (LAF <= LAF2)])]
         # Determine the orientation of the fiber. If
         # LAF decreases with distance along the section
         # flip the array.
@@ -255,12 +261,12 @@ def dtsPhysicalCoords_3d(ds, location):
         (z_int, dz) = np.linspace(z[0], z[1], num=num_LAF, retstep=True)
 
         # Crude check for the mapping's consistency.
-        d = (dx**2 + dy**2 + dz**2)**(0.5)
-        if np.abs(d - dLAF) > 0.5 * dLAF:
+        d = ((dx)**2 + (dy)**2 + (dz)**2)**(0.5)
+        if np.abs(np.abs(d) - np.abs(dLAF)) > np.abs(0.5 * dLAF):
             delta_str = ('\ndx = ' + str(dx)
                          + '\n' + 'dy = ' + str(dy)
                          + '\n' + 'dz = ' + str(dz)
-                         + '\n' + 'total = ' + str(dz)
+                         + '\n' + 'total = ' + str(d)
                          + '\n' + 'dLAF = ' + str(dLAF))
             raise ValueError('Mapping problem detected for '
                              + location[l]['long name']

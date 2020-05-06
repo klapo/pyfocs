@@ -12,6 +12,7 @@ from tkinter import filedialog
 import copy
 import csv
 import sys
+# import matplotlib.pyplot as plt
 
 # UBT's package for handling dts data
 import pyfocs
@@ -343,6 +344,8 @@ for exp_name in experiment_names:
                     dstemp = pyfocs.labelLoc_additional(dstemp,
                                                         lib[ploc],
                                                         ploc)
+
+            # @ Store the calibration decisions here.
             os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
             dstemp.to_netcdf(outname, engine='netcdf4')
 
@@ -358,6 +361,7 @@ if final_flag:
     print(' ')
 
     phys_locs = internal_config['phys_locs']
+    align_locations = internal_config['align_locations']
 
     # Time step for resampling to a uniform time step
     delta_t = internal_config['resampling_time']
@@ -436,25 +440,91 @@ if final_flag:
             dstemp.attrs['dt']  = dt
             dstemp.attrs['dLAF'] = dLAF
 
-            for ploc in phys_locs:
-                # Relabel the locations. This allows locations to
-                # change after calibrating, as the calibration only
-                # cares about the location of the reference baths.
-                dstemp_ploc = pyfocs.labelLoc_additional(dstemp,
-                                                        lib[ploc],
-                                                        ploc)
+            # Use the automatic alignment between sections to map one
+            # location onto another.
+            if align_locations:
+                common_sections = internal_config['common_sections']
+                unique_sections = internal_config['unique_sections']
+                locs_to_match = internal_config['location_matching']
 
-                # Assign physical labels
-                dstemp_ploc = pyfocs.labeler.dtsPhysicalCoords_3d(dstemp_ploc,
-                                                                  lib[ploc])
+                # @ Rename s1, s2 etc to `to` and `from` for consistent naming.
+                for map_from, map_to in locs_to_match.items():
+                    s1_list = []
+                    s2_list = []
+                    for section, shift in common_sections[map_from].items():
+                        s1, s2, _ = pyfocs.interp_section(
+                            dstemp, lib, map_to, map_from, section,
+                            fixed_shift=shift,
+                            dl=10, plot_results=True)
 
-                # Output each location type as a separate final file.
-                outname = '_'.join(filter(None, [exp_name, 'final',
-                                                 outname_date,
-                                                 outname_suffix,
-                                                 ploc])) + '.nc'
-                os.chdir(internal_config[exp_name]['directories']['dirFinal'])
-                dstemp_ploc.to_netcdf(outname, mode='w')
+                        # plt.gcf().savefig('.'.join((cal_nc, section)) + '.jpg')
+
+                        s1.coords[map_to] = section
+                        s2.coords[map_from] = section
+
+                        s1_list.append(s1)
+                        s2_list.append(s2)
+
+                    ds_ploc1 = xr.concat(s1_list, dim='LAF')
+                    ds_ploc1 = ds_ploc1.drop('x')
+                    ds_ploc1 = pyfocs.labeler.dtsPhysicalCoords_3d(ds_ploc1,
+                                                                   lib[map_to])
+
+                    ds_ploc2 = xr.concat(s2_list, dim='LAF')
+                    ds_ploc2 = ds_ploc2.drop('x')
+                    ds_ploc2 = pyfocs.labeler.dtsPhysicalCoords_3d(ds_ploc2,
+                                                                   lib[map_from])
+
+                    # If they are not the same size then this step failed.
+                    if not ds_ploc1.xyz.size == ds_ploc2.xyz.size:
+                        print(map_from + ' and ' + map_to + ' were not successfully mapped to each other.')
+                        print('==================')
+                        print(map_to)
+                        print(ds_ploc1)
+                        print('==================')
+                        print(map_from)
+                        print(ds_ploc2)
+                        raise ValueError
+
+                    # Output each location type as a separate final file.
+                    os.chdir(internal_config[exp_name]['directories']['dirFinal'])
+                    outname_ploc1 = '_'.join(filter(None, [exp_name, 'final',
+                                                           outname_date,
+                                                           outname_suffix,
+                                                           map_to])) + '.nc'
+                    outname_ploc2 = '_'.join(filter(None, [exp_name, 'final',
+                                                           outname_date,
+                                                           outname_suffix,
+                                                           map_from])) + '.nc'
+
+                    # @ Convert boolean attributes to 0/1
+                    del ds_ploc1.attrs['reverse']
+                    del ds_ploc2.attrs['reverse']
+                    ds_ploc1.to_netcdf(outname_ploc1, mode='w')
+                    ds_ploc2.to_netcdf(outname_ploc2, mode='w')
+
+                    # @ Label unique locations
+
+            else:
+                for ploc in phys_locs:
+                    # Relabel the locations. This allows locations to
+                    # change after calibrating, as the calibration only
+                    # cares about the location of the reference baths.
+                    dstemp_ploc = pyfocs.labelLoc_additional(dstemp,
+                                                            lib[ploc],
+                                                            ploc)
+
+                    # Assign physical labels
+                    dstemp_ploc = pyfocs.labeler.dtsPhysicalCoords_3d(dstemp_ploc,
+                                                                      lib[ploc])
+
+                    # Output each location type as a separate final file.
+                    outname = '_'.join(filter(None, [exp_name, 'final',
+                                                     outname_date,
+                                                     outname_suffix,
+                                                     ploc])) + '.nc'
+                    os.chdir(internal_config[exp_name]['directories']['dirFinal'])
+                    dstemp_ploc.to_netcdf(outname, mode='w')
 
             # Make sure we don't reprocess files.
             finished_files.extend(cal_nc)

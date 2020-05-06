@@ -12,6 +12,7 @@ def section_shift_x(
     ploc1,
     ploc2,
     label,
+    fixed_shift=None,
     dl=4,
     lag=50,
     temp_field='cal_temp',
@@ -25,22 +26,26 @@ def section_shift_x(
         ploc1 - string, name of the physical location to map ploc2 onto.
         ploc2 - string, name of the physical location to be mapped onto ploc1.
         label - string, name of the section to be aligned.
+        fixed_shift - float, a fixed distance to shift ploc2.
         dl - float, estimate of artifact distance to use when aligning
         lag - float, number of shift indices, modified by restep.
         temp_field - string, name of the temperature field in ds.
         plot_results - boolean
-        restep - int, allows finer shifting of ploc1 and ploc2 instead of by
-            integer indices.
+        restep - int, Multiplicative factor for the number of steps per LAF to
+            subsample both sections. This parameter allows finer shifting of
+            ploc1 and ploc2 instead of by integer indices.
     Outputs:
         s1 - xarray Dataset, data mapped by ploc1 and label
         s2_shift - xarray Dataset, data aligned to ploc1 for ploc2 and label
-        shift - int, number of indices that s2_shift was shifted by. Modified
-            by the value given by restep.
+        shift_x - float, meters that s2_shift was shifted by. Alignment at
+            sub-dLAF steps is possible with the restep option.
         c - numpy array, cross-correlation of s1 and s2
         lags - numpy array, lags corresponding to the cross correlation
     '''
     lims_s1 = fn_lib[ploc1][label]['LAF']
     lims_s2 = fn_lib[ploc2][label]['LAF']
+
+    fn_lib = copy.deepcopy(fn_lib)
 
     # Determine which sections need to be flipped
     if lims_s1[0] > lims_s1[1]:
@@ -78,49 +83,61 @@ def section_shift_x(
     if len(s1.LAF.values) < len(s2.LAF.values):
         s2 = s2.isel(LAF=slice(0, len(s1.LAF.values)))
 
-    # Interpolate to a fine 'x' scale to allow non-integer dLAF adjustments
-    if restep:
-        num_steps = len(s1.LAF.values) * restep
-        x_new = np.linspace(s1.x[0].values, s1.x[-1].values, num_steps)
-        s1_vals = s1.swap_dims({'LAF': 'x'})
-        s1_vals = s1_vals.interp(x=x_new, method='linear')
+    if not fixed_shift:
+        # Interpolate to a fine 'x' scale to allow non-integer dLAF adjustments
+        if restep:
+            num_steps = len(s1.LAF.values) * restep
+            x_new = np.linspace(s1.x[0].values, s1.x[-1].values, num_steps)
+            s1_vals = s1.swap_dims({'LAF': 'x'})
+            s1_vals = s1_vals.interp(x=x_new, method='linear')
 
-        x_new = np.linspace(s2.x[0].values, s2.x[-1].values, num_steps)
-        s2_vals = s2.swap_dims({'LAF': 'x'})
-        s2_vals = s2_vals.interp(x=x_new, method='linear')
+            x_new = np.linspace(s2.x[0].values, s2.x[-1].values, num_steps)
+            s2_vals = s2.swap_dims({'LAF': 'x'})
+            s2_vals = s2_vals.interp(x=x_new, method='linear')
 
-        # Use the time mean to remove the effect of instrument noise on the lag analysis.
-        s1_vals = s1_vals[temp_field].mean(dim='time').values
-        s2_vals = s2_vals[temp_field].mean(dim='time').values
+            # Use the time mean to remove the effect of instrument noise on the lag analysis.
+            s1_vals = s1_vals[temp_field].mean(dim='time').values
+            s2_vals = s2_vals[temp_field].mean(dim='time').values
+
+        else:
+            # Use the time mean to remove the effect of instrument noise on the lag analysis.
+            s1_vals = s1[temp_field].mean(dim='time').values
+            s2_vals = s2[temp_field].mean(dim='time').values
+            restep = 1
+
+        if s1_reverse:
+            s1_vals = np.flip(s1_vals)
+        if s2_reverse:
+            s2_vals = np.flip(s2_vals)
+
+        # Find the index with the maximum correlation
+        if not lag:
+            lag = int(np.min([len(s1_vals) * restep, len(s2_vals) * restep]) // 2)
+        lags = np.arange(-lag, lag + 1)
+        c = pyfocs.stats.norm_xcorr(
+            s1_vals,
+            s2_vals,
+            scaleopt='coef',
+            remove_mean=True,
+            lag=lag)
+        max_corr = np.argmax(c)
+        shift = lags[max_corr]
+        dlaf, _ = stats.mode(np.diff(ds.LAF.values))
+        shift_x = shift * dlaf / restep
 
     else:
-        # Use the time mean to remove the effect of instrument noise on the lag analysis.
-        s1_vals = s1[temp_field].mean(dim='time').values
-        s2_vals = s2[temp_field].mean(dim='time').values
+        dlaf, _ = stats.mode(np.diff(ds.LAF.values))
+        shift_x = fixed_shift
         restep = 1
+        c = 0
+        lags = np.arange(-lag, lag + 1)
 
-    if s1_reverse:
-        s1_vals = np.flip(s1_vals)
-    if s2_reverse:
-        s2_vals = np.flip(s2_vals)
-
-    # Find the index with the maximum correlation
-    if not lag:
-        lag = int(np.min([len(s1_vals) * restep, len(s2_vals) * restep]) // 2)
-    lags = np.arange(-lag, lag + 1)
-    c = pyfocs.stats.norm_xcorr(
-        s1_vals,
-        s2_vals,
-        scaleopt='coef',
-        remove_mean=True,
-        lag=lag)
-    max_corr = np.argmax(c)
-    shift = lags[max_corr]
+    # Convert lags from indices to meters
+    lags = lags * dlaf / restep
 
     # Shift the relative index to align the two sections
-    dlaf, _ = stats.mode(np.diff(ds.LAF.values))
     s2_shift = copy.deepcopy(s2)
-    s2_shift['x'] = s2_shift.x + shift * dlaf / restep
+    s2_shift['x'] = s2_shift.x + shift_x
 
     s1.attrs['reverse'] = s1_reverse
     s2_shift.attrs['reverse'] = s2_reverse
@@ -131,11 +148,11 @@ def section_shift_x(
         ax.plot(lags, c)
 
         ax.set_ylabel('Correlation [-]')
-        ax.set_xlabel('Shift [indices]')
-        ax.plot([shift, shift], [c.min(), c.max()], color='0.5')
+        ax.set_xlabel('Shift [m]')
+        ax.plot([shift_x, shift_x], [c.min(), c.max()], color='0.5')
         ax.set_ylim(c.min(), c.max())
-        ax.set_xlim(-lag, lag)
-        ax.text(0.15, 0.85, 'max correlation at shift ' + str(shift), transform=ax.transAxes)
+        ax.set_xlim(np.min(lags), np.max(lags))
+        ax.text(0.15, 0.85, 'max correlation at shift ' + str(shift_x), transform=ax.transAxes)
         ax.set_title('a) Cross-correlation')
 
         ax = axes[1]
@@ -160,7 +177,7 @@ def section_shift_x(
 
         fig.tight_layout()
 
-    return s1, s2_shift, shift, c, lags
+    return s1, s2_shift, shift_x, c, lags
 
 
 def interp_section(
@@ -169,6 +186,7 @@ def interp_section(
     ploc1,
     ploc2,
     label,
+    fixed_shift=None,
     dl=4,
     plot_results=False,
     temp_field='cal_temp',
@@ -196,12 +214,14 @@ def interp_section(
             and interpolated sections. Note: These LAF values will not
             necessarily correspond to equal length sections.
     '''
+    fn_lib = copy.deepcopy(fn_lib)
 
     # Determine the shift to apply
-    s1, s2, shift, c, lags = section_shift_x(ds, fn_lib, ploc1, ploc2,
-                                             label, restep=restep, dl=dl,
-                                             temp_field=temp_field,
-                                             plot_results=False)
+    s1, s2, shift_x, c, lags = section_shift_x(ds, fn_lib, ploc1, ploc2,
+                                               label, restep=restep, dl=dl,
+                                               temp_field=temp_field,
+                                               plot_results=False,
+                                               fixed_shift=fixed_shift)
 
     # In order to avoid flipping the orientation of s2 to match s1
     # through the interpolation step we use a "reverse flag".
@@ -211,10 +231,14 @@ def interp_section(
     # The actual section for verifying a uniform length
     loc_s1 = fn_lib[ploc1][label]['LAF']
     sub_s1 = s1.sel(LAF=slice(np.min(loc_s1), np.max(loc_s1)))
+
     # Interpolate s2 to s1's x coordinates for the section
     s1 = s1.swap_dims({'LAF': 'x'})
     s2 = s2.swap_dims({'LAF': 'x'})
     sub_s2 = s2.interp(x=sub_s1.x.values).swap_dims({'x': 'LAF'})
+
+    # The interp command causes s2 to take on s1's properties.
+    sub_s2.attrs['reverse'] = sub_s1.attrs['reverse']
 
     # Return the adjusted LAF values based on aligning s2 to s1
     LAFmin = float(sub_s2.LAF.min().values)
@@ -229,7 +253,14 @@ def interp_section(
             fig_kwargs = dict()
         if 'figsize' not in fig_kwargs:
             fig_kwargs['figsize'] = (10, 4)
-        fig, axes = plt.subplots(3, 1, **fig_kwargs)
+
+        # No cross-correlation is perfomed when providing a fixed_shift
+        if fixed_shift:
+            num_rows = 2
+            fig, axes = plt.subplots(num_rows, 1, **fig_kwargs)
+        else:
+            num_rows = 3
+            fig, axes = plt.subplots(num_rows, 1, **fig_kwargs)
 
         if 'time' in s1.coords:
             s1 = s1.mean(dim='time')
@@ -238,23 +269,22 @@ def interp_section(
             s2 = s2.mean(dim='time')
             sub_s2_mean = sub_s2.mean(dim='time')
 
-        ax = axes[0]
-        dlaf, _ = stats.mode(np.diff(ds.LAF.values))
-        # Convert lags to physical offset
-        lags = lags * dlaf / restep
-        shift = float(shift * dlaf / restep)
-        ax.plot(lags, c)
+        ax_ind = 0
+        if not fixed_shift:
+            ax = axes[ax_ind]
+            ax_ind = ax_ind + 1
+            ax.plot(lags, c)
 
-        ax.set_ylabel('Correlation [-]')
-        ax.set_xlabel('Shift [m]')
-        ax.plot([shift, shift], [c.min(), c.max()], color='0.5')
-        ax.set_ylim(c.min(), c.max())
-        ax.set_xlim(np.min(lags), np.max(lags))
-        ax.text(0.15, 0.85, 'max correlation at shift ' + str(shift) + 'm', transform=ax.transAxes)
-        ax.set_title('a) Cross-correlation between ' + ploc1 + ' and ' + ploc2, loc='left')
+            ax.set_ylabel('Correlation [-]')
+            ax.set_xlabel('Shift [m]')
+            ax.plot([shift_x, shift_x], [c.min(), c.max()], color='0.5')
+            ax.set_ylim(c.min(), c.max())
+            ax.set_xlim(np.min(lags), np.max(lags))
+            ax.text(0.15, 0.85, 'max correlation at shift ' + str(shift_x) + 'm', transform=ax.transAxes)
+            ax.set_title('a) Cross-correlation between ' + ploc1 + ' and ' + ploc2, loc='left')
 
         # Interpolated and shifted data
-        ax = axes[1]
+        ax = axes[0 + ax_ind]
         delta_T = (s1[temp_field].max() - s1[temp_field].min()) / 10
 
         colr1_interp = 'xkcd:blue'
@@ -293,7 +323,7 @@ def interp_section(
         ax.set_ylim(s1[temp_field].min() - delta_T, s1[temp_field].max() + delta_T)
 
         # Spatial derivative for verifying section boundaries
-        ax = axes[2]
+        ax = axes[1 + ax_ind]
         ax.plot(s1.differentiate(coord='x').x,
                 s1[temp_field].differentiate(coord='x').T,
                 marker='o', label=ploc1, color=colr1_orig)

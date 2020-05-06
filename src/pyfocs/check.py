@@ -504,6 +504,71 @@ def config(fn_cfg, ignore_flags=False):
         assert bool(lib), mess
 
     # -------------------------------------------------------------------------
+    # Section matching
+    if 'location_matching' in cfg['dataProperties'] and stacked:
+        # Pre-allocate dictionaries
+        location_matching = {}
+        fixed_shift = {}
+        unique_sections = {}
+        # The matching is structured as mapping from one location to another.
+        # As in the heated locations are mapped to the unheated locations.
+
+        # Get a list of common sections that both locations share and sections
+        # unique to each location.
+        for map_from in cfg['dataProperties']['location_matching']:
+            map_to = cfg['dataProperties']['location_matching'][map_from]['map_to']
+            if map_to not in lib or map_from not in lib:
+                print('Location types to be matched were not found in the location library.')
+                raise KeyError
+            location_matching[map_from] = map_to
+            common_sections = list(set(lib[map_to]).intersection(set(lib[map_from])))
+
+            # If we did not find any common sections that is a problem.
+            if not common_sections:
+                print(map_to + ' and ' + map_from + ' do not have common section names.')
+                raise KeyError
+
+            unique_map_to = list(set(lib[map_to]).difference(set(lib[map_from])))
+            unique_map_from = list(set(lib[map_from]).difference(set(lib[map_to])))
+
+            # Extend the unique sections in the map_to location
+            if map_to in unique_sections:
+                unique_sections[map_to].extend(unique_map_to)
+            else:
+                unique_sections[map_to] = unique_map_to
+            unique_sections[map_from] = unique_map_from
+
+            # Verify that the common sections are given a fixed_shift value
+            f_shift = cfg['dataProperties']['location_matching'][map_from]['fixed_shift']
+            assert all([isinstance(s, (float, int)) for f, s in f_shift.items()]), 'Fixed shifts must be a number.'
+
+            # Returns None (False) if there is a difference in the sets. This
+            # logic dictates that the section label in fixed_shift exists in
+            # the location library and that all shared sections in the location
+            # library are given a fixed_shift.
+            if not set(common_sections).symmetric_difference(set(f_shift)):
+                mess = ('All sections common to {map_from} and {map_to} '
+                        ' should be given a fixed_shift value.')
+                print(mess.format(map_from=map_from, map_to=map_to))
+            fixed_shift[map_from] = f_shift
+
+        in_cfg['align_locations'] = True
+        in_cfg['location_matching'] = location_matching
+        in_cfg['common_sections'] = fixed_shift
+        in_cfg['unique_sections'] = unique_sections
+
+    # Require the location library to be in stacked format.
+    elif 'location_matching' in cfg['dataProperties'] and not stacked:
+        mess = ('When including the location_mapping option, the location '
+                'library must be in stacked form and phys_locs_labeling in '
+                'dataProperties must be set to stacked.')
+        print(mess)
+        raise ValueError
+    # No matching here.
+    else:
+        in_cfg['align_locations'] = False
+
+    # -------------------------------------------------------------------------
     # Further variables to assess.
 
     # Step loss corrections
