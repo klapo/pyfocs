@@ -8,7 +8,7 @@ def prandtl(temp):
     Source:  http://www.engineeringtoolbox.com/air-properties-d_156.html
     '''
     # Units check
-    if (np.max(temp) and np.min(temp)) < 150:
+    if (np.nanmax(temp) and np.nanmin(temp)) < 150:
         temp = temp + 273.15
         print('Converted air temperature from Celsius to Kelvin.')
 
@@ -23,7 +23,7 @@ def kinematicViscosity(temp):
     '''
 
     # Units check
-    if (np.max(temp) and np.min(temp)) < 150:
+    if (np.nanmax(temp) and np.nanmin(temp)) < 150:
         temp = temp + 273.15
         print('Converted air temperature from Celsius to Kelvin.')
 
@@ -39,7 +39,7 @@ def thermalConductivity(temp):
     '''
 
     # Units check
-    if (np.max(temp) and np.min(temp)) < 150:
+    if (np.nanmax(temp) and np.nanmin(temp)) < 150:
         temp = temp + 273.15
         print('Converted air temperature from Celsius to Kelvin.')
 
@@ -47,16 +47,19 @@ def thermalConductivity(temp):
     return(k)
 
 
-def calculate(dts, power, heat_ln, unheat_ln):
+def calculate(heated, unheated, power):
     '''
     Inputs:
-        dts - xarray object of dts observations. Assumed to have be in physical units, not LAF.
-        power - Power applied to the fiber in W/m
-        heat_ln - Location name of the heated segment
-        unheat_ln - Location name of the unheated segment
-
+        heated - xarray object of dts observations. Assumed to have be in physical units, not LAF.
+        unheated - xarray object of dts observations. Assumed to have be in physical units, not LAF.
+        power - Power applied to the fiber in W/m. Must either be a single
+            number or a DataArray with the same coordinates as heated and
+            unheated.
     Outputs:
     '''
+
+    # Power should either be a float or an array that is a function of LAF
+    # @ check that the above statement is True.
 
     # Constants coefficients
     offset = 0  # unused
@@ -75,16 +78,13 @@ def calculate(dts, power, heat_ln, unheat_ln):
     m = 0.5
     npr = 0.37
 
-    # size of the dataset
-    len_time = dts.time.size
-
     ########
     # Diffeerence between the heated and unheated fibers.
     # mean(Heated(t) + Heated(t+1) - Unheated(t) - Unheated(t+1)) / 2
     # Future development could include using a smoother/more sophisticated derivative estimate.
-    heated = dts.sel(loc_general=heat_ln)
-    unheated = dts.sel(loc_general=unheat_ln)
     delta = (heated - unheated)
+    # size of the dataset
+    # len_time = dts.time.size
     # Resampling/averaging/smoothing should be done by the user.
     #     delta = (heated.isel(time=slice(0, len_time-1)).values
     #              + heated.isel(time=slice(1, len_time)).values
@@ -94,18 +94,18 @@ def calculate(dts, power, heat_ln, unheat_ln):
     ########
     # Time-derivative
     # Determine the size of the time step from the data (assumes a regular interval).
-    dt = dts.time.diff(dim='time').median(dim='time').values
+    dt = heated.time.diff(dim='time').median(dim='time').values
     # Convert to seconds for SI.
     dt = pd.Timedelta(dt).total_seconds()
     # Difference between each time step for the provided dataset.
-    deltaT_dt_heat = (heated.diff(dim='time')).values / dt
-    deltaT_dt_unheat = (unheated.diff(dim='time')).values / dt
+    deltaT_dt_heat = (heated.diff(dim='time')) / dt
+    deltaT_dt_unheat = (unheated.diff(dim='time')) / dt
 
     ########
     # Align the heated/unheated datasets with the differenced datasets
     heated = heated.reindex_like(heated.diff(dim='time'))
     unheated = unheated.reindex_like(unheated.diff(dim='time'))
-    delta = delta.reindex_like(delta.diff(dim='time')).values
+    delta = delta.reindex_like(delta.diff(dim='time'))
 
     ########
     # Radiation components
