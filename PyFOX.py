@@ -349,6 +349,7 @@ for exp_name in experiment_names:
             # @ Store the calibration decisions here.
             os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
             dstemp.to_netcdf(outname, engine='netcdf4')
+            dstemp.close()
 
             print('')
 
@@ -368,8 +369,9 @@ if final_flag:
     delta_t = internal_config['resampling_time']
 
     # Time limits for processing only a subsection
-    tstart = pd.Timestamp(internal_config['tstart'])
-    tstop = pd.Timestamp(internal_config['tstop'])
+    if internal_config['time_limits']['flag']:
+        tstart = pd.Timestamp(internal_config['tstart'])
+        tstop = pd.Timestamp(internal_config['tstop'])
 
     # When finalizing the dataset all extraneous coordinates and data
     # is dropped, leaving behind these variables.
@@ -412,8 +414,9 @@ if final_flag:
             # Open each calibrated file.
             os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
             dstemp = xr.open_dataset(cal_nc)
-            if (pd.Timestamp(dstemp.time.min()) < tstart
-                    or pd.Timestamp(dstemp.time.max()) > tstop):
+            if (internal_config['time_limits']['flag'] and
+                    (pd.Timestamp(dstemp.time.min().values) < tstart
+                    or pd.Timestamp(dstemp.time.max().values) > tstop)):
                 print('Outside time bounds. skipping...')
                 dstemp.close()
                 continue

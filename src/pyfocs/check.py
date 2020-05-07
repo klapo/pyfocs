@@ -546,10 +546,12 @@ def config(fn_cfg, ignore_flags=False):
             # logic dictates that the section label in fixed_shift exists in
             # the location library and that all shared sections in the location
             # library are given a fixed_shift.
-            if not set(common_sections).symmetric_difference(set(f_shift)):
+            if not set(common_sections).symmetric_difference(set(f_shift.keys())):
                 mess = ('All sections common to {map_from} and {map_to} '
-                        ' should be given a fixed_shift value.')
+                        'should be given a fixed_shift value.')
                 print(mess.format(map_from=map_from, map_to=map_to))
+                print('Sections found in location library: ' + str(common_sections))
+                print('Sections found in fixed_shift: ' + str(f_shift))
             fixed_shift[map_from] = f_shift
 
         in_cfg['align_locations'] = True
@@ -567,6 +569,17 @@ def config(fn_cfg, ignore_flags=False):
     # No matching here.
     else:
         in_cfg['align_locations'] = False
+
+    # -------------------------------------------------------------------------
+    # Time limits
+    if 'time_limits' in cfg['dataProperties']:
+        in_cfg['time_limits'] = {}
+        in_cfg['time_limits']['flag'] = True
+        in_cfg['time_limits']['tstart'] = cfg['dataProperties']['time_limits']['tstart']
+        in_cfg['time_limits']['tstop'] = cfg['dataProperties']['time_limits']['tstop']
+    else:
+        in_cfg['time_limits'] = {}
+        in_cfg['time_limits']['flag'] = False
 
     # -------------------------------------------------------------------------
     # Further variables to assess.
