@@ -252,6 +252,7 @@ def dtsPhysicalCoords_3d(ds, location):
                 print('Expected cal_temp to have shape of (time, LAF)')
                 raise ValueError
             section['cal_temp'] = (('time', 'LAF'), np.flip(section['cal_temp'].values, axis=1))
+            section.coords['LAF'] = np.flip(section.LAF.values)
 
         # Interpolate each coordinate into a line
         num_LAF = np.size(section.LAF.values)
