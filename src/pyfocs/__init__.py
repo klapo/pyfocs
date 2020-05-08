@@ -8,5 +8,6 @@ from .stats import noisymoments, norm_xcorr
 from .check import config
 from .data import to_datastore, from_datastore, double_calibrate, merge_single, assign_ref_data
 from .align import section_limits, interp_section, section_shift_x
+from .wind_speed import calculate
 
 __version__ = '0.3.1'
