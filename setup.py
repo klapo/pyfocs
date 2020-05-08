@@ -23,7 +23,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='pyfocs',
-    version='0.2.1',
+    version='0.3.1',
     license='MIT',
     description='Processing of meteorological FODS data.',
     long_description=long_description,
@@ -66,11 +66,11 @@ setup(
         'pandas',
         'scipy',
         'netcdf4',
-        'xarray',
+        'xarray>=0.15',
         'xmltodict',
         'pyyaml>=5.1',
-        # 'dirsync',
-        'matplotlib>3'
+        'matplotlib>3',
+        'dtscalibration'
     ],
 
     extras_require={

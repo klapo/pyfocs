@@ -5,28 +5,18 @@ import sys
 
 
 def matrixInversion(dsCal, cfg):
-    refField1 = cfg['calibration']['refField1']
-    refField2 = cfg['calibration']['refField2']
-    refField3 = cfg['calibration']['refField3']
+    refField1 = cfg['refField1']
+    refField2 = cfg['refField2']
+    refField3 = cfg['refField3']
 
-    refLoc1 = cfg['calibration']['refLoc1']
-    refLoc2 = cfg['calibration']['refLoc2']
-    refLoc3 = cfg['calibration']['refLoc3']
-
-    try:
-        direction = cfg['calibration']['direction']
-    except KeyError:
-        # Assume a forward direction as this is the most common method.
-        direction = 'forward'
+    refLoc1 = cfg['refLoc1']
+    refLoc2 = cfg['refLoc2']
+    refLoc3 = cfg['refLoc3']
 
     # Assume that the PT100 data is in Celsius
     refT1 = dsCal[refField1] + 273.15
     refT2 = dsCal[refField2] + 273.15
     refT3 = dsCal[refField3] + 273.15
-
-    # For double ended calibration, the reverse pulse needs to have LAF flipped
-    if direction == 'reverse':
-        dsCal['LAF'] = np.flip(dsCal.LAF.values, 0)
 
     section1 = dsCal.swap_dims({'LAF': 'calibration'}).sel(calibration=refLoc1)
     section2 = dsCal.swap_dims({'LAF': 'calibration'}).sel(calibration=refLoc2)
@@ -87,42 +77,9 @@ def matrixInversion(dsCal, cfg):
         manualTemp[n] = gamma[n] / (dsCal.logPsPas.sel(time=t)
                                     + C[n] - delta_alpha[n] * dsCal.LAF)
 
-    # For double ended calibration, the reverse pulse needs to have LAF flipped
-    if direction == 'reverse':
-        dsCal['LAF'] = np.flip(dsCal.LAF.values, 0)
-
     # Assign calibrated temperature to dataset
     dsCal['cal_temp'] = (('time', 'LAF'), manualTemp - 273.15)
     print('')
     print('Calibration done...')
 
     return(dsCal, gamma, C, delta_alpha)
-
-
-def timeAvgCalibrate(ds_fine, cfg):
-
-    # Assumed to be in seconds
-    avg_interval = str(cfg['calibration']['averaging_interval'])
-    # Amplitudes of stokes/anti-stokes
-    if 'logPsPas' not in ds_fine:
-        ds_fine['logPsPas'] = np.log(ds_fine.Ps / ds_fine.Pas)
-
-    ds_cal_smooth = ds_fine.resample(time=avg_interval + 's').mean()
-
-    ds_cal_smooth, gamma, C, delta_alpha = matrixInversion(ds_cal_smooth, cfg)
-    ds_cal_smooth['gamma'] = (('time'), gamma)
-    ds_cal_smooth['C'] = (('time'), C)
-    ds_cal_smooth['delta_alpha'] = (('time'), delta_alpha)
-
-    # Interpolate to the fine time step -- is this necessary?
-    if np.size(gamma) > 1 and np.size(C) > 1 and np.size(delta_alpha) > 1:
-        gamma = ds_cal_smooth['gamma'].interp(time=ds_fine.time, kwargs={'fill_value': 'extrapolate'})
-        C = ds_cal_smooth['C'].interp(time=ds_fine.time, kwargs={'fill_value': 'extrapolate'})
-        delta_alpha = ds_cal_smooth['delta_alpha'].interp(time=ds_fine.time, kwargs={'fill_value': 'extrapolate'})
-
-    # Recalculate temperature at the fine time step
-    for n, t in enumerate(ds_fine.time):
-        manualTemp = gamma / (ds_fine['logPsPas'] + C
-                              - delta_alpha * ds_fine.LAF)
-    ds_fine['cal_temp'] = (('time', 'LAF'), manualTemp - 273.15)
-    return ds_fine

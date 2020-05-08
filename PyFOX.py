@@ -12,6 +12,7 @@ from tkinter import filedialog
 import copy
 import csv
 import sys
+# import matplotlib.pyplot as plt
 
 # UBT's package for handling dts data
 import pyfocs
@@ -50,7 +51,6 @@ if internal_config is None:
 # Unpack items from the formatted configuration dictionaries.
 # Processing flags
 write_mode = internal_config['write_mode']
-ref_temp_option = internal_config['flags']['ref_temp_option']
 archiving_flag = internal_config['flags']['archiving_flag']
 archive_read_flag = internal_config['flags']['archive_read_flag']
 calibrate_flag = internal_config['flags']['calibrate_flag']
@@ -60,21 +60,17 @@ final_flag = internal_config['flags']['final_flag']
 step_loss_flag = internal_config['step_loss']['flag']
 if step_loss_flag:
     splice_LAF = internal_config['step_loss']['LAF']
-    step_loss_corrections = internal_config['step_loss']['correction']
+    step_loss_corr = internal_config['step_loss']['correction']
 
 # Channels/experiments/output file names
 channelNames = internal_config['channelNames']
 experiment_names = internal_config['experiment_names']
 outname_suffix = internal_config['outname_suffix']
 
-# Cores (mostly relevant to multicore fibers)
-coretype = internal_config['coretype']
-cores = internal_config['cores']
-
 # -----------------------------------------------------------------------------
 # Archive and create raw netcdfs
 # -----------------------------------------------------------------------------
-#%% Archive/read the raw xml files
+# %% Archive/read the raw xml files
 for exp_name in experiment_names:
     print('-------------')
     print(exp_name)
@@ -103,18 +99,16 @@ for exp_name in experiment_names:
     # --------------------------------------------------------------------------
     if calibrate_flag:
 
-        # Time step for resampling to a uniform time step
-        delta_t = internal_config['resampling_time']
+        # Grab the options detailing the calibration.
+        cal = internal_config['calibration']
 
-        # Get the reference probe names
-        probe1_name = internal_config['probe1']
-        probe2_name = internal_config['probe2']
-
-        # Get the external data to add if we are not using the instrument PT100s
-        if internal_config['flags']['ref_temp_option'] == 'external':
+        # Get the external data if it was indicated.
+        if cal['external_flag']:
             # Get the metdata
             ref_data = xr.open_dataset(internal_config['external_data'])
-            ref_data = ref_data.resample(time=delta_t).interpolate('linear')
+            # ref_data = ref_data.resample(time=delta_t).interpolate('linear')
+        elif not cal['external_flag']:
+            ref_data = None
 
         # Find all 'raw' netcdfs within the processed directory,
         # sort them (by date), and process each individually.
@@ -127,188 +121,241 @@ for exp_name in experiment_names:
         ncfiles.sort()
         ntot = np.size(ncfiles)
         for nraw, raw_nc in enumerate(ncfiles):
-            outname_channel = raw_nc.split('.')[0].split('_')[-2]
+            if cal['double_ended']:
+                outname_channel = 'merged'
+                fw_channel = raw_nc.split('.')[0].split('_')[-2]
+            else:
+                outname_channel = raw_nc.split('.')[0].split('_')[-2]
             outname_date = raw_nc.split('.')[0].split('_')[-1]
 
+            # The file name for the calibrated data
+            outname = '_'.join(filter(None, [exp_name, 'cal',
+                                             outname_channel,
+                                             outname_date,
+                                             outname_suffix,
+                                             ])) + '.nc'
             # Check of the files to create and determine if we are overwriting.
             if write_mode == 'preserve':
                 dir_cal = internal_config[exp_name]['directories']['dirCalibrated']
-                # Output file name creation.
-                if coretype == 'multicore':
-                    for c in cores:
-                        outname_core = c
-                        outname = '_'.join(filter(None, [exp_name, 'cal',
-                                                         outname_channel,
-                                                         outname_date,
-                                                         outname_suffix,
-                                                         outname_core])) + '.nc'
-                        # If the file exists indicate that we are to skip
-                        # this file.
-                        if os.path.exists(os.path.join(dir_cal, outname)):
-                            skip_flag = True
-                            # Determine if we are preserving or overwriting the
-                            # existing files.
-                            print('Preserving existing netcdf ' + outname
-                                  + ' (' + str(nraw + 1)
-                                  + ' of ' + str(ntot) + ')')
-                        # If one of the core files does not exist, exit the
-                        # loop and continue.
-                        else:
-                            skip_flag = False
-                            continue
 
-                elif coretype == 'singlecore':
-                    outname_core = None
-                    outname = '_'.join(filter(None, [exp_name, 'cal',
-                                                     outname_channel,
-                                                     outname_date,
-                                                     outname_suffix,
-                                                     outname_core])) + '.nc'
-                    if os.path.exists(os.path.join(dir_cal, outname)):
-                        skip_flag = True
-                        # Determine if we are preserving or overwriting the
-                        # existing files.
-                        print('Preserving existing netcdf ' + outname
-                              + ' (' + str(nraw + 1)
-                              + ' of ' + str(ntot) + ')')
-                    else:
-                        skip_flag = False
+                if os.path.exists(os.path.join(dir_cal, outname)):
+                    skip_flag = True
+                    # Determine if we are preserving or overwriting the
+                    # existing files.
+                    print('Preserving existing netcdf ' + outname
+                          + ' (' + str(nraw + 1)
+                          + ' of ' + str(ntot) + ')')
+                else:
+                    skip_flag = False
 
                 # The calibrated file exists, do not process and calibrate.
                 if skip_flag:
                     continue
             # Either the file does not exist or it is to be overwritten.
-            print('Processing ' + outname_date + ' (' + str(nraw + 1)
+            print('Calibrating ' + outname_date + ' (' + str(nraw + 1)
                   + ' of ' + str(ntot) + ')')
 
             # Open up raw file for this interval.
             os.chdir(internal_config[exp_name]['directories']['dirRawNetcdf'])
             dstemp = xr.open_dataset(raw_nc)
 
-            # Resample to a common time stamp interval with the reference/bath
-            # instruments. Do this using a linear interpolation.
+            # Assign reference data
+            dstemp, probe_names = pyfocs.assign_ref_data(dstemp,
+                                                         cal,
+                                                         ref_data=ref_data)
 
-            # Round to the nearest time interval
-            dt_start = pd.Timestamp(dstemp.time.values[0]).round(delta_t)
-            dt_end = pd.Timestamp(dstemp.time.values[-1]).round(delta_t)
+            # Drop the unnecessary negative LAF indices
+            LAFmin = internal_config['min_fiber_limit']
+            LAFmax = internal_config['max_fiber_limit']
+            if LAFmax == -1:
+                LAFmax = dstemp.LAF.values[-1]
 
-            # Catch a weird edge case for a single time step.
-            if not dt_start == dt_end:
-                # Create a regular interval time stamp index
-                reg_time_pd = pd.date_range(start=dt_start,
-                                            end=dt_end,
-                                            freq=delta_t)
-                dstemp = dstemp.interp(time=reg_time_pd,
-                                       kwargs={'fill_value': 'extrapolate'})
-
-            # Add a delta t attribute
-            dstemp.attrs['dt'] = delta_t
-
-            # Add in external reference data here
-            if internal_config['flags']['ref_temp_option'] == 'external':
-                temp_ref_data = ref_data.reindex_like(dstemp.time,
-                                                      method='nearest',
-                                                      tolerance=1)
-
-                dstemp[probe1_name] = temp_ref_data[probe1_name]
-                dstemp[probe2_name] = temp_ref_data[probe2_name]
-
-                # Add additional external data for this data stream.
-                if internal_config['external_fields']:
-                    for ext_dat in internal_config['external_fields']:
-                        dstemp[ext_dat] = temp_ref_data[ext_dat]
-
-                # If the bath pt100s and dts do not line up in time,
-                # notify the user.
-                if not (np.size(np.flatnonzero(~np.isnan(dstemp.temp.values))) > 0):
-                    print('PT100 and DTS data do not line up in time for ' + raw_nc)
-
-            elif internal_config['flags']['ref_temp_option'] == 'default':
-                if (probe1_name and probe2_name
-                        and 'probe1Temperature' in dstemp.data_vars
-                        and 'probe2Temperature' in dstemp.data_vars):
-                    dstemp = dstemp.rename({'probe1Temperature': probe1_name,
-                                            'probe2Temperature': probe2_name})
-
-            # Step loss corrections if they are provided.
-            if step_loss_flag:
-                # Calculate the log power of the stokes/anti-stokes scattering
-                dstemp['logPsPas'] = np.log(dstemp.Ps / dstemp.Pas)
-                # Correct for any step-losses due to splicing.
-                for spl_num, spl_LAF in enumerate(splice_LAF):
-                    dstemp['logPsPas'] = dstemp.logPsPas.where((dstemp.LAF < spl_LAF),
-                                                               dstemp.logPsPas + step_loss_corrections[spl_num])
-
-            # Split up multicore data
-            if coretype == 'multicore':
-                for c in cores:
-                    dstemp_core = dstemp
-
-                    # Drop the unnecessary negative LAF indices
-                    core_LAF_start = cores[c]['LAF'][0]
-                    core_LAF_end = cores[c]['LAF'][-1]
-                    dstemp_core = dstemp_core.sel(LAF=(slice(core_LAF_start, core_LAF_end)))
-                    dstemp_core.attrs['LAF_beg'] = core_LAF_start
-                    dstemp_core.attrs['LAF_end'] = core_LAF_end
-
-                    # Location labels
-                    for loc_type_cur in lib[c]:
-                        dstemp_core = pyfocs.labelLoc_additional(dstemp_core,
-                                                                 lib[c][loc_type_cur],
-                                                                 loc_type_cur)
-                    # Converting to a netcdf ruins this step unfortunately.
-                    # dstemp_core.attrs['loc_general_long'] = dict((l, config_user['loc_general'][l]['long name'])
-
-                    dstemp_core, _, _, _ = pyfocs.matrixInversion(dstemp_core,
-                                                                  internal_config)
-
-                    # Rename the instrument reported temperature field
-                    dstemp_core = dstemp_core.rename({'temp': 'instr_temp'})
-                    dstemp_core.coords['core'] = c
-
-                    # Output the calibrated dataset
-                    outname_core = c
-                    outname = '_'.join(filter(None, [exp_name, 'cal',
-                                                     outname_channel,
-                                                     outname_date,
-                                                     outname_suffix,
-                                                     outname_core])) + '.nc'
-                    os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
-                    dstemp_core.to_netcdf(outname, engine='netcdf4')
-
-            elif coretype == 'singlecore':
-                # Drop the unnecessary negative LAF indices
-                dstemp = dstemp.sel(LAF=slice(0, None))
+            # Execute single-ended methods
+            if not cal['double_ended']:
+                # Apply fiber limits
+                dstemp = dstemp.sel(LAF=slice(LAFmin, LAFmax))
                 dstemp.attrs['LAF_beg'] = dstemp.LAF.values[0]
+                dstemp.attrs['LAF_end'] = dstemp.LAF.values[-1]
+                dstemp.attrs['calibration_method'] = cal['method']
 
-                # Location labels
-                for loc_type_cur in lib:
-                    # lib_laf = {l: lib[loc_type_cur][l]['LAF'] for l in lib[loc_type_cur]}
+                # Step loss corrections if they are provided.
+                # This step should only be executed for single-ended methods.
+                if step_loss_flag:
+                    # Calculate the log power of the stokes/anti-stokes scattering
+                    dstemp['logPsPas'] = np.log(dstemp.Ps / dstemp.Pas)
+                    # Correct for any step-losses due to splicing.
+                    for spl_num, spl_LAF in enumerate(splice_LAF):
+                        dstemp['logPsPas'] = dstemp.logPsPas.where((dstemp.LAF < spl_LAF),
+                                                                   dstemp.logPsPas + step_loss_corr[spl_num])
+
+                # Calibrate the temperatures using the
+                # explicit matrix inversion.
+                if cal['method'] == 'matrix':
+                    # Label the calibration locations
                     dstemp = pyfocs.labelLoc_additional(dstemp,
-                                                        lib[loc_type_cur],
-                                                        loc_type_cur)
+                                                        cal['library'],
+                                                        'calibration')
+                    cal_baths = [c for c in cal['library']
+                                 if cal['library'][c]['type'] == 'calibration']
+                    # Build a temporary configuration dictionary
+                    # for this method.
+                    temp_cfg = {}
+                    for ncb, cb in enumerate(cal_baths):
+                        s_ncb = str(ncb + 1)
+                        temp_cfg['refField' +
+                            s_ncb] = cal['library'][cb]['ref_sensor']
+                        temp_cfg['refLoc' + s_ncb] = cb
 
-                # Calibrate the temperatures.
-                dstemp, _, _, _ = pyfocs.matrixInversion(dstemp, internal_config)
-                dstemp = dstemp.rename({'temp': 'instr_temp'})
+                    dstemp, _, _, _ = pyfocs.matrixInversion(dstemp, temp_cfg)
+                    # Drop the instrument reported temperature
+                    dstemp = dstemp.drop('temp')
 
-                # Output the calibrated dataset
-                outname_core = None
-                outname = '_'.join(filter(None, [exp_name, 'cal',
-                                                 outname_channel,
-                                                 outname_date,
-                                                 outname_suffix,
-                                                 outname_core])) + '.nc'
+                if (cal['method'] == 'ols single'
+                        or cal['method'] == 'wls single'):
+                    dstore = pyfocs.data.to_datastore(dstemp,
+                                                      internal_config,
+                                                      False)
+                    method = cal['method'].split()[0]
+                    dstore.calibration_single_ended(method=method)
+                    dstemp = pyfocs.data.from_datastore(
+                        dstore,
+                        datavars=probe_names
+                    )
 
-                os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
-                dstemp.to_netcdf(outname, engine='netcdf4')
+            elif cal['double_ended']:
+                method = cal['method'].split()[0]
+                dt = internal_config['resampling_time']
+
+                # Get the backwards direction.
+                bw_channel = cal['bw_channel']
+                bw_raw_nc = raw_nc.replace(fw_channel,
+                                           bw_channel)
+                bw_dstemp = xr.open_dataset(bw_raw_nc)
+                bw_dstemp, _ = pyfocs.assign_ref_data(bw_dstemp,
+                                                      cal,
+                                                      ref_data=ref_data)
+
+                # Load both into memory to avoid annoying overhead.
+                dstemp.load()
+                bw_dstemp.load()
+
+                # Line up the time stamps approximately.
+                # This step means that the forward channel is
+                # defined as the channel that is sampled first.
+                bw_dstemp['time'] = bw_dstemp['time'] - pd.Timedelta(dt)
+
+                len_fw = len(dstemp.time)
+                len_bw = len(bw_dstemp.time)
+                if not len_fw == len_bw:
+                    len_time_off = len_fw - len_bw
+
+                    if abs(len_time_off) > 2:
+                        # @ Fix this error message to be less bad.
+                        mess = ('The time dimension between the forward and '
+                                'channels is off by more than a small amount.')
+                        raise ValueError(mess)
+
+                    # The logic here is that the forward channel is defined
+                    # by being the channel sampled first. Therefor if the
+                    # forward channel has 1 more time step we go searching in
+                    # the next interval for the missing backwards measurement.
+                    # If the backwards channels has one more measurement, we
+                    # reindex to the forward channel to discard the extra
+                    # observation that belongs to the previous interval.
+
+                    # The backwards channel has more time steps or we can't
+                    # grab more data.
+                    if len_time_off < 0 or (nraw + 1) == ntot:
+                        bw_dstemp = bw_dstemp.reindex_like(
+                            dstemp,
+                            method='nearest')
+
+                    # The forward channel has more time steps.
+                    elif len_time_off > 0 and not (nraw + 1) == ntot:
+                        file_list = ncfiles[nraw:nraw + 1]
+                        file_list = [fl.replace(fw_channel, bw_channel)
+                                     for fl in file_list]
+                        bw_dstemp = xr.open_mfdataset(
+                            file_list,
+                            combine='by_coords')
+                        bw_dstemp.load()
+                        bw_dstemp['time'] = bw_dstemp['time'] - \
+                            pd.Timedelta(dt)
+                        bw_dstemp = bw_dstemp.reindex_like(
+                            dstemp,
+                            method='nearest')
+                        bw_dstemp, _ = pyfocs.assign_ref_data(bw_dstemp,
+                                                              cal,
+                                                              ref_data=ref_data)
+
+                bw_dstemp = pyfocs.to_datastore(
+                    bw_dstemp,
+                    internal_config,
+                    True)
+                dstemp = pyfocs.to_datastore(
+                    dstemp,
+                    internal_config,
+                    True)
+                dstemp = pyfocs.merge_single(
+                    dstemp,
+                    bw_dstemp,
+                    fixed_shift=cal['fixed_shift'])
+
+                # Apply fiber limits after merging.
+                dstemp = dstemp.sel(x=slice(LAFmin, LAFmax))
+                dstemp.attrs['LAF_beg'] = dstemp.x.values[0]
+                dstemp.attrs['LAF_end'] = dstemp.x.values[-1]
+                dstemp.attrs['calibration_method'] = cal['method']
+
+                # If the LAF is to be adjusted we must address the sections.
+                sections = copy.deepcopy(dstemp.sections)
+                for probe in sections:
+                    delete_index = []
+                    for nsect, probe_s in enumerate(sections[probe]):
+                        if probe_s.start > LAFmax or probe_s.stop > LAFmax:
+                            delete_index.append(nsect)
+                        if probe_s.start < LAFmin or probe_s.stop < LAFmin:
+                            delete_index.append(nsect)
+
+                    # Delete from the last index to the beginning so that the index always works.
+                    delete_index.sort()
+                    delete_index.reverse()
+                    for d in delete_index:
+                        del sections[probe][d]
+
+                # Rebuild the sections
+                dstemp.sections = sections
+
+                # Finally, we can calibrate.
+                dstemp = pyfocs.double_calibrate(dstemp, method=method)
+                dstemp = pyfocs.from_datastore(
+                    dstemp,
+                    datavars=probe_names,
+                )
+
+            dstemp.attrs['calibration_method'] = cal['method']
+
+            # Assign the calibration and any available locations
+            dstemp = pyfocs.labelLoc_additional(dstemp,
+                                                cal['library'],
+                                                'calibration')
+            if 'phys_locs' in internal_config:
+                for ploc in internal_config['phys_locs']:
+                    # Label all physical locations provided
+                    dstemp = pyfocs.labelLoc_additional(dstemp,
+                                                        lib[ploc],
+                                                        ploc)
+
+            # @ Store the calibration decisions here.
+            os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
+            dstemp.to_netcdf(outname, engine='netcdf4')
+            dstemp.close()
 
             print('')
 
 # -----------------------------------------------------------------------------
 # Finalize with physical coordinates
 # -----------------------------------------------------------------------------
-#%% Final preparation of the DTS dataset
 
 if final_flag:
     print('-------------')
@@ -316,23 +363,38 @@ if final_flag:
     print(' ')
 
     phys_locs = internal_config['phys_locs']
+    align_locations = internal_config['align_locations']
 
-    # List of finished files so we can skip files when handling multicore fibers.
-    finished_files = []
+    # Time step for resampling to a uniform time step
+    delta_t = internal_config['resampling_time']
+
+    # Time limits for processing only a subsection
+    if internal_config['time_limits']['flag']:
+        tstart = pd.Timestamp(internal_config['tstart'])
+        tstop = pd.Timestamp(internal_config['tstop'])
 
     # When finalizing the dataset all extraneous coordinates and data
     # is dropped, leaving behind these variables.
-    coords_to_keep = ['xyz', 'time', 'x', 'y', 'z', 'core', 'LAF']
+    coords_to_keep = ['xyz', 'time', 'x', 'y', 'z', 'LAF']
     vars_to_keep = ['cal_temp']
-    if coretype == 'multicore':
-        cores_to_proc = list(cores.keys())
+
+    finished_files = []
 
     for exp_name in experiment_names:
         # Find all 'calibrated' netcdfs within the calibrated directory,
-        # sort them by date and core name, and process each individually.
+        # sort them by date, suffix, and process each individually.
+
         os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
         contents = os.listdir()
-        ncfiles = [file for file in contents if '.nc' in file and 'cal' in file]
+        if outname_suffix:
+            ncfiles = [file for file in contents
+                if '.nc' in file
+                and 'cal' in file
+                and outname_suffix in file]
+        else:
+            ncfiles = [file for file in contents
+                if '.nc' in file
+                and 'cal' in file]
         ncfiles.sort()
         ntot = np.size(ncfiles)
 
@@ -349,132 +411,137 @@ if final_flag:
             print('Physically labeling ' + cal_nc + ' (' + str(ncal + 1)
                   + ' of ' + str(ntot) + ')')
 
-            # Deal with multicore fibers differently than single core fibers.
-            if coretype == 'multicore':
-                os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
-                # Check if we already handled this core.
-                if cal_nc in finished_files:
-                    continue
-                # Cores are separate files but share all other name components.
-                # For a single datetime find the cores available.
-                nc_cal_core_name = '_'.join(name_components[:-1])
+            # Open each calibrated file.
+            os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
+            dstemp = xr.open_dataset(cal_nc)
+            if (internal_config['time_limits']['flag'] and
+                    (pd.Timestamp(dstemp.time.min().values) < tstart
+                    or pd.Timestamp(dstemp.time.max().values) > tstop)):
+                print('Outside time bounds. skipping...')
+                dstemp.close()
+                continue
 
-                # Finds all core files for this time step.
-                nc_cal_core = [file for file in ncfiles
-                               if nc_cal_core_name in file and 'cal' in file]
-                dstemp_out = {}
+            # Resample to a common time stamp interval with the reference/bath
+            # instruments. Do this using a linear interpolation.
+            # Round to the nearest time interval
+            dt_start=pd.Timestamp(dstemp.time.values[0]).round(delta_t)
+            dt_end=pd.Timestamp(dstemp.time.values[-1]).round(delta_t)
 
-                # Assign physical coordinates. Each core is appended to a
-                # list to be merged later.
-                for c in nc_cal_core:
-                    dstemp = xr.open_dataset(c)
-                    dstemp.load()
+            # Catch a weird edge case for a single time step.
+            if not dt_start == dt_end:
+                # Create a regular interval time stamp index
+                reg_time_pd=pd.date_range(start=dt_start,
+                                            end=dt_end,
+                                            freq=delta_t)
+                dstemp=dstemp.interp(time=reg_time_pd,
+                                       kwargs={'fill_value': 'extrapolate'})
 
-                    # Drop everything except the calibrated temperature.
-                    # Clean up unused variables and labels.
-                    vars_to_drop = [v for v in dstemp.data_vars
-                                    if v not in vars_to_keep]
+            # Add a delta t attribute
+            dstemp.attrs['dt']=delta_t
 
-                    coords_to_drop = [c for c in dstemp.coords
-                                      if c not in coords_to_keep]
-                    try:
-                        coords_to_drop.remove(phys_locs)
-                    except ValueError:
-                        # Just continue onwards. The physical location was
-                        # not in the list of coordinates.
-                        coords_to_drop = coords_to_drop
-                    dstemp = dstemp.drop(vars_to_drop).drop(coords_to_drop)
+            # Clean up unused variables and labels.
+            vars_to_drop=[v for v in dstemp.data_vars
+                            if v not in vars_to_keep]
+            coords_to_drop=[c for c in dstemp.coords
+                              if c not in coords_to_keep]
 
-                    # Reformat the config locations to specify just a
-                    # single core
-                    core = str(dstemp.core.values)
-                    # Make sure we intend to process this core
-                    if core not in cores_to_proc:
-                        continue
+            # Clean up attributes and dropped the unused ones.
+            dt=dstemp.attrs['dt']
+            dLAF=dstemp.attrs['dLAF']
+            dstemp=dstemp.drop(vars_to_drop).drop(coords_to_drop)
+            dstemp.attrs=[]
+            dstemp.attrs['dt']=dt
+            dstemp.attrs['dLAF']=dLAF
 
-                    for ploc in phys_locs:
-                        if ploc not in dstemp_out:
-                            dstemp_out[ploc] = []
-                        # Relabel the locations. This allows locations to
-                        # change after calibrating, as the calibration only
-                        # cares about the location of the reference baths.
-                        dstemp = pyfocs.labelLoc_additional(dstemp,
-                                                            lib[core][ploc],
-                                                            ploc)
+            # Use the automatic alignment between sections to map one
+            # location onto another.
+            if align_locations:
+                common_sections=internal_config['common_sections']
+                unique_sections=internal_config['unique_sections']
+                locs_to_match=internal_config['location_matching']
 
-                        # Assign physical labels
-                        dstemp_out[ploc].append(
-                            pyfocs.labeler.dtsPhysicalCoords_3d(dstemp,
-                                                                lib[core][ploc]))
+                # @ Rename s1, s2 etc to `to` and `from` for consistent naming.
+                for map_from, map_to in locs_to_match.items():
+                    s1_list=[]
+                    s2_list=[]
+                    for section, shift in common_sections[map_from].items():
+                        s1, s2, _=pyfocs.interp_section(
+                            dstemp, lib, map_to, map_from, section,
+                            fixed_shift=shift,
+                            dl=10, plot_results=True)
 
-                # Merge the cores
-                for ploc in phys_locs:
-                    interp_to = None
-                    for nc, c in enumerate(dstemp_out[ploc]):
-                        # Make the assumption that the specific core is
-                        # not important as they should be identical within
-                        # the physical resolution of the DTS.
-                        if not interp_to and c.cal_temp.any():
-                            interp_to = c
-                        elif c.cal_temp.any() and interp_to:
-                            dstemp_out[ploc][nc] = dstemp_out[ploc][nc].interp(xyz=interp_to.xyz)
+                        # plt.gcf().savefig('.'.join((cal_nc, section)) + '.jpg')
 
-                    dstemp_out[ploc] = xr.concat(dstemp_out[ploc], dim='core')
+                        s1.coords[map_to]=section
+                        s2.coords[map_from]=section
 
-                    # Clean up attributes and dropped the unused ones.
-                    dt = dstemp_out[ploc].attrs['dt']
-                    dLAF = dstemp_out[ploc].attrs['dLAF']
-                    dstemp_out[ploc].attrs = []
-                    dstemp_out[ploc].attrs['dt'] = dt
-                    dstemp_out[ploc].attrs['dLAF'] = dLAF
+                        s1_list.append(s1)
+                        s2_list.append(s2)
+
+                    ds_ploc1=xr.concat(s1_list, dim='LAF')
+                    ds_ploc1=ds_ploc1.drop('x')
+                    ds_ploc1=pyfocs.labeler.dtsPhysicalCoords_3d(ds_ploc1,
+                                                                   lib[map_to])
+
+                    ds_ploc2=xr.concat(s2_list, dim='LAF')
+                    ds_ploc2=ds_ploc2.drop('x')
+                    ds_ploc2=pyfocs.labeler.dtsPhysicalCoords_3d(ds_ploc2,
+                                                                   lib[map_from])
+
+                    # If they are not the same size then this step failed.
+                    if not ds_ploc1.xyz.size == ds_ploc2.xyz.size:
+                        print(map_from + ' and ' + map_to + \
+                              ' were not successfully mapped to each other.')
+                        print('==================')
+                        print(map_to)
+                        print(ds_ploc1)
+                        print('==================')
+                        print(map_from)
+                        print(ds_ploc2)
+                        raise ValueError
 
                     # Output each location type as a separate final file.
-                    outname = '_'.join(filter(None, [exp_name, 'final',
-                                                     outname_date,
-                                                     outname_suffix,
-                                                     ploc])) + '.nc'
-                    os.chdir(internal_config[exp_name]['directories']['dirFinal'])
-                    dstemp_out[ploc].to_netcdf(outname, mode='w')
+                    os.chdir(internal_config[exp_name]
+                             ['directories']['dirFinal'])
+                    outname_ploc1='_'.join(filter(None, [exp_name, 'final',
+                                                           outname_date,
+                                                           outname_suffix,
+                                                           map_to])) + '.nc'
+                    outname_ploc2='_'.join(filter(None, [exp_name, 'final',
+                                                           outname_date,
+                                                           outname_suffix,
+                                                           map_from])) + '.nc'
 
-                # Make sure we don't reprocess files.
-                finished_files.extend(nc_cal_core)
+                    # @ Convert boolean attributes to 0/1
+                    del ds_ploc1.attrs['reverse']
+                    del ds_ploc2.attrs['reverse']
+                    ds_ploc1.to_netcdf(outname_ploc1, mode='w')
+                    ds_ploc2.to_netcdf(outname_ploc2, mode='w')
 
-            # Deal with the single core fiber.
+                    # @ Label unique locations
+
             else:
-                # Open each calibrated file.
-                os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
-                dstemp = xr.open_dataset(cal_nc)
-
-                # Clean up unused variables and labels.
-                vars_to_drop = [v for v in dstemp.data_vars
-                                if v not in vars_to_keep]
-                coords_to_drop = [c for c in dstemp.coords
-                                  if c not in coords_to_keep]
-
-                # Clean up attributes and dropped the unused ones.
-                dt = dstemp.attrs['dt']
-                dLAF = dstemp.attrs['dLAF']
-                dstemp = dstemp.drop(vars_to_drop).drop(coords_to_drop)
-                dstemp.attrs = []
-                dstemp.attrs['dt']  = dt
-                dstemp.attrs['dLAF'] = dLAF
-
                 for ploc in phys_locs:
                     # Relabel the locations. This allows locations to
                     # change after calibrating, as the calibration only
                     # cares about the location of the reference baths.
-                    dstemp_ploc = pyfocs.labelLoc_additional(dstemp,
+                    dstemp_ploc=pyfocs.labelLoc_additional(dstemp,
                                                             lib[ploc],
                                                             ploc)
 
                     # Assign physical labels
-                    dstemp_ploc = pyfocs.labeler.dtsPhysicalCoords_3d(dstemp_ploc,
+                    dstemp_ploc=pyfocs.labeler.dtsPhysicalCoords_3d(dstemp_ploc,
                                                                       lib[ploc])
 
                     # Output each location type as a separate final file.
-                    outname = '_'.join(filter(None, [exp_name, 'final',
+                    outname='_'.join(filter(None, [exp_name, 'final',
                                                      outname_date,
                                                      outname_suffix,
                                                      ploc])) + '.nc'
-                    os.chdir(internal_config[exp_name]['directories']['dirFinal'])
+                    os.chdir(internal_config[exp_name]
+                             ['directories']['dirFinal'])
                     dstemp_ploc.to_netcdf(outname, mode='w')
+
+            dstemp.close()
+            # Make sure we don't reprocess files.
+            finished_files.extend(cal_nc)

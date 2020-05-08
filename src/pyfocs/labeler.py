@@ -6,7 +6,7 @@ import pandas as pd
 from scipy import stats
 
 
-def labelLoc_additional(ds, location, loc_type):
+def labelLoc_additional(ds, location, loc_type, dim='LAF'):
     '''
     Assign location tags to an xarray Dataset containing DTS data.
 
@@ -26,20 +26,19 @@ def labelLoc_additional(ds, location, loc_type):
         return ds
 
     # Pre-alloate the new coordinates that are to be assigned.
-    ds.coords[loc_type] = (('LAF'), [None] * ds.LAF.size)
+    ds.coords[loc_type] = ((dim), [None] * ds[dim].size)
     ds.attrs[loc_type] = ';'.join(list(location.keys()))
 
     # Loop over all labels and find where they exist in the LAF domain.
     for lc in location:
         # If we've been handed a formatted location library then we know we
         # have a tuple of points.
-        if 'LAF' in location[lc]:
-            LAF1 = min(location[lc]['LAF'])
-            LAF2 = max(location[lc]['LAF'])
+        if dim in location[lc]:
+            x1 = min(location[lc][dim])
+            x2 = max(location[lc][dim])
             # Grab the LAF coordinate for ease of reference
-            LAF = ds.coords['LAF']
-            ds.coords[loc_type].loc[dict(LAF=LAF[(LAF > LAF1) &
-                                                 (LAF < LAF2)])] = lc
+            x = ds.coords[dim]
+            ds.coords[loc_type].loc[{dim: x[(x > x1) & (x < x2)]}] = lc
         else:
             # We were handed a dictionary with tuples.
             shape = np.shape(location[lc])
@@ -51,28 +50,28 @@ def labelLoc_additional(ds, location, loc_type):
             # For non-continuous label locations, loop through each labeled section
             if np.size(shape) > 1:
                 for loc_num in np.arange(0, max(shape)):
-                    LAF1 = min(location[lc][loc_num])
-                    LAF2 = max(location[lc][loc_num])
+                    x1 = min(location[lc][loc_num])
+                    x2 = max(location[lc][loc_num])
                     # Grab the LAF coordinate for ease of reference
-                    LAF = ds.coords['LAF']
-                    ds.coords[loc_type].loc[dict(LAF=LAF[(LAF > LAF1) &
-                                                         (LAF < LAF2)])] = lc
+                    x = ds.coords[dim]
+                    ds.coords[loc_type].loc[{dim: x[(x > x1) & (x < x2)]}] = lc
 
             # The label locations occur only once in the LAF domain.
             elif np.size(shape) == 1:
                 if np.size(location[lc]) > 1:
-                    LAF1 = min(location[lc])
-                    LAF2 = max(location[lc])
+                    x1 = min(location[lc])
+                    x2 = max(location[lc])
                     # Grab the LAF coordinate for ease of reference
-                    LAF = ds.coords['LAF']
-                    ds.coords[loc_type].loc[dict(LAF=LAF[(LAF > LAF1) &
-                                                         (LAF < LAF2)])] = lc
+                    x = ds.coords[dim]
+                    ds.coords[loc_type].loc[{dim: x[(x > x1) & (x < x2)]}] = lc
 
             # It is a single item element (i.e., a point) to label. Find the
             # nearest point to label.
             else:
-                LAF_single_loc = ds.sel(LAF=location[lc], method='nearest').LAF
-                ds.coords[loc_type].loc[(ds.LAF == LAF_single_loc)] = lc
+                single_loc = ds.sel({dim: location[lc]}, method='nearest')[dim]
+                ds.coords[loc_type].loc[(ds[dim] == single_loc)] = lc
+
+    ds[loc_type].swap_dims({dim: loc_type}).loc[{loc_type: None}] = ''
 
     return ds
 
@@ -193,7 +192,9 @@ def dtsPhysicalCoords(ds, location, loc_field='loc_general',
         return ds_out
 
 
-# ------------------------------------------------------------------------------
+from scipy import stats
+
+
 def dtsPhysicalCoords_3d(ds, location):
     '''
     Assign 3D physical coordinates to the xarray Dataset containing DTS data
@@ -230,35 +231,48 @@ def dtsPhysicalCoords_3d(ds, location):
         # Determine the LAF for this section.
         LAF1 = min(location[l]['LAF'])
         LAF2 = max(location[l]['LAF'])
-        dLAF, _ = stats.mode(np.diff(ds.LAF.values))
+        # We must account for the data flipped relative to the coordinates.
+        # When using automatic section alignment the LAF values can no longer
+        # be trusted to have an order we can use for assigning the reverse flag.
+        # Instead we rely on the reverse attribute.
+        reverse = False
+        if 'reverse' in ds.attrs:
+            reverse = ds.attrs['reverse']
+
+        elif location[l]['LAF'][0] > location[l]['LAF'][1]:
+            reverse = True
 
         # Extract out just the section in question
-        section = ds.loc[dict(LAF=LAF[(LAF > LAF1) & (LAF < LAF2)])]
-        num_LAF = np.size(section.LAF.values)
+        section = ds.loc[dict(LAF=LAF[(LAF >= LAF1) & (LAF <= LAF2)])]
+        # Determine the orientation of the fiber. If
+        # LAF decreases with distance along the section
+        # flip the array.
+        if reverse:
+            if not section['cal_temp'].get_axis_num('LAF') == 1:
+                print('Expected cal_temp to have shape of (time, LAF)')
+                raise ValueError
+            section['cal_temp'] = (('time', 'LAF'), np.flip(section['cal_temp'].values, axis=1))
+            section.coords['LAF'] = np.flip(section.LAF.values)
 
         # Interpolate each coordinate into a line
+        num_LAF = np.size(section.LAF.values)
+        dLAF, _ = stats.mode(np.diff(ds.LAF.values))
         (x_int, dx) = np.linspace(x[0], x[1], num=num_LAF, retstep=True)
         (y_int, dy) = np.linspace(y[0], y[1], num=num_LAF, retstep=True)
         (z_int, dz) = np.linspace(z[0], z[1], num=num_LAF, retstep=True)
 
         # Crude check for the mapping's consistency.
-        d = (dx**2 + dy**2 + dz**2)**(0.5)
-        if np.abs(d - dLAF) > 0.5 * dLAF:
+        d = ((dx)**2 + (dy)**2 + (dz)**2)**(0.5)
+        if np.abs(np.abs(d) - np.abs(dLAF)) > np.abs(0.5 * dLAF):
             delta_str = ('\ndx = ' + str(dx)
                          + '\n' + 'dy = ' + str(dy)
                          + '\n' + 'dz = ' + str(dz)
-                         + '\n' + 'total = ' + str(dz)
+                         + '\n' + 'total = ' + str(d)
                          + '\n' + 'dLAF = ' + str(dLAF))
             raise ValueError('Mapping problem detected for '
                              + location[l]['long name']
                              + '. Inferred data spacing is '
                              + delta_str)
-
-        # Determine the orientation of the fiber. If
-        # LAF decreases with distance along the section
-        # flip the array.
-        if not LAF1 > LAF2:
-            section['LAF'] = np.flip(section.LAF.values, 0)
 
         # Assign the physical coordinates using a pandas multiindex
         midx = pd.MultiIndex.from_arrays([x_int, y_int, z_int],
