@@ -17,8 +17,9 @@ def test_example_config_exists():
     '''
     Test that the example config exists.
     '''
-    assert os.path.isfile(example_config)
-    pass
+    for ex_name, ex_config in example_dict.items():
+        assert os.path.isfile(ex_config)
+        pass
 
 
 def test_pyfoc_LOVE19_examples():
