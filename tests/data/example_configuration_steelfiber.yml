@@ -1,6 +1,5 @@
 directories:
-  # path to where all the dts data is located. Change this for running the
-  # example.
+  # path to where all the dts data is located.
   local:
     dir_pre: /PATH/TO/EXAMPLE_DIRECTORY/
 
@@ -21,10 +20,7 @@ directories:
 
   # List the experiments that should be processed.
   experiment_names:
-  # Use a single file to do the CI and pytests
-    - single_file_demo
-  # Uncomment the below line to run the full demo.
-  # - multicore_demo
+  - multifiledemo
   # Name of the channels to process.
   channelName:
   - channel 1

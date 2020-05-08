@@ -6,12 +6,20 @@ import pytest
 
 path = os.path.dirname(os.path.abspath(__file__))
 path_data = os.path.join(path, 'data')
-path_data_external = os.path.join(path, 'data', 'multicore_demo', 'external')
+path_data_external = os.path.join(path, 'data', 'multifiledemo', 'external')
 
 # Dictionary of configuration files
 example_config_ss = os.path.join(path, 'data', 'example_configuration_steelfiber.yml')
+example_config_p1wls = os.path.join(path, 'data', 'example_twistedpair_p1wls.yml')
+example_config_p2wls = os.path.join(path, 'data', 'example_twistedpair_p2wls.yml')
+example_config_bothwls = os.path.join(path, 'data', 'example_twistedpair_bothwls.yml')
 
-example_dict = {'stainless steel': example_config_ss}
+example_dict = {
+    'stainless steel': example_config_ss,
+    'p1-wls': example_config_p1wls,
+    'p2-wls': example_config_p2wls,
+    'both-wls': example_config_bothwls,
+    }
 
 def test_example_config_exists():
     '''
