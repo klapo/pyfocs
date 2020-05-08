@@ -1,49 +1,19 @@
 # pyfocs
 
-version==version==0.3.1.
+version==0.3.1.
 
 pyfocs has been known by btmm_process (obscure non-pythonic name) and pyfox (an unmaintained package on PyPi) resulting in the new name for the library.
 
-# Getting Started
-
-## Installation
-
-This installation assumes you have the anaconda distribution of python. If you do not have anaconda see the basic [troubleshooting section](#Troubleshooting).
-
-### Using a package manager
-pyfocs can be installed by using:
-
-`pip install pyfocs`
-
-which installs pyfocs plus all dependencies. This install method has caused problems for Windows OS. If you encounter errors when running pyfocs using this method, we instead recommend following the below method. If installing through pip and using an anaconda environment, then this step should be performed after installing all necessary conda packages, preferably in a new anaconda environment. [`pip` and `conda` can create conflicts in the packages, especially if used interchangeably multiple times.](https://www.anaconda.com/using-pip-in-a-conda-environment/).
-
-### From source
-Alternatively you can download the source code from this repository (green button with "Clone or Download"), extract the package, navigate to the directory containing it, and run:
-
-`python setup.py install`
-
-Note that Windows users will need to use anaconda power prompt or a similar python environment.
-
-Both methods should result in the `PyFOX.py` being callable from the command line.
-
-### Dependency issues
-Please see the [troubleshooting section](#Troubleshooting). For issues not covered there please raise an issue and include details on your own system, your python version, and the versions of the packages pyfocs requires.
-
-## Example
-
-Download the data in the `example` directory. Within that directory is an example configuration file in yaml format. Adjust the `dir_pre` and `external` paths to be those of the example folder. Then, you should be able to run
-
-`PyFOX.py path/to/example_configuration.yml`
-
-Alternatively, providing no path to the yaml file will open a file browser for selecting the configuration file.
-
 # Overview
 
-The Bayreuth Micrometeorology python library for processing Fiber Optic Distributed Sensing (FODS) data. The library consists of a family of simple functions and a master script (`PyFOX`) that can be used to process output from a Silixa Distribute Temperature Sensing (DTS) device, such as an Ultima or XT, from the original `*.xml` files to calibrated temperatures with physical labels. This library is built around the [xarray](http://xarray.pydata.org) package for handling n-dimensional data, especially in a netcdf format.
+pyfocs is the University of Bayreuth Micrometeorology python library for processing Fiber Optic Distributed Sensing (FODS) data. It is intended to streamline the handling of large and long-term DTS setups.
+![](pyfocs_workflow.jpg)
 
-## Other libraries
+It automates the calibration and mapping of FODS data allowing the user to focus on the science. Calibration is robustly handled using the [dtscalibration package](https://github.com/dtscalibration/python-dts-calibration) (des Tombe, Schilperoort, and Bakker, 2020). pyfocs can robustly handle an arbitrary fiber geometry, number of reference sections, and fiber calibration setup (through the dtscalibration package).
 
-Other similar libraries exist, such as the [one developed at Delft University](https://github.com/bdestombe/python-geotechnical-profile), which can be more useful for some applications, especially those with double-ended configurations.
+The library consists of the automation script (`PyFOX.py`) used to herd the data from raw format to physically labeled and calibrated data in the netcdf format (see figure). Unfortunately pyfocs only supports Silixa Distribute Temperature Sensing (DTS) devices, such as an Ultima or XT, at the moment. This library is built around the [xarray](http://xarray.pydata.org) package for handling n-dimensional data, especially in a netcdf format.
+
+Also included are a family of functions for calculating wind speed from FODS data as well as other common statistical techniques, data manipulation, and diagnostics plots for FODS. See the example notebooks for more details.
 
 # PyFOX Steps
 
@@ -56,15 +26,29 @@ Each Subdirectory corresponds to a particular step in the processing.
 
 2) Creates netcdfs of the raw data, including the instrument reported temperature, stokes intensity, and anti-stokes intensity. Dimensions of Length Along the Fiber, `LAF`, and time.
 
-3) Labels the data, integrates external data streams and other reference data, performs step-loss corrections, performs single ended calibration based on Hausner et al., (2011). Splits multicore data into individual cores. Reports instrument reported temperature, calibrated temperature, log-power ratio of stoke and anti-stokes intensities, stokes intensity, anti-stokes intensities, and all data labels. Dimensions are `LAF` and `time`. New coordinates specified by location type in the location library can be used to label the data along with a `number of labels` by `number of LAF` coordinate.
+3) Integrates external data streams and other reference data, performs step-loss corrections, performs the user-defined calibration based on des Tombe et al, (2020). Returns instrument reported temperature, calibrated temperature, log-power ratio of stoke and anti-stokes intensities, stokes intensity, anti-stokes intensities, and all data labels. Dimensions are `LAF` and `time`. New coordinates specified by location type in the location library can be used to label the data along with a `number of labels` by `number of LAF` coordinate.
 
-4) Converts data labels with physical coordinates. Drops the LAF label and only includes the physical location (`xyz`) and `time`. Each `core` dimension is saved as a separate netcdf. Cores do not share the `xyz` dimension and must be aligned with each other. They do share the `time` dimension.
+4) Converts data labels with physical coordinates. Drops the LAF label and only includes the physical location (`xyz`) and `time`. Facilitates matching coordinates between sections for performing wind speed calculations along a common `x`, `y`, and `z` coordinate.
 
-## Example jupyter notebook
+# Installation
 
-For space reasons we only include the data for following steps 2-4 in the example notebook. The example notebook walks through the iterative approach for processing FODS data.
+This installation assumes you have the anaconda distribution of python. If you do not have anaconda see the basic [troubleshooting section](#Troubleshooting).
+
+pyfocs can be installed by using:
+
+`pip install pyfocs`
+
+which installs pyfocs plus all dependencies.
+
+If you encounter errors when running pyfocs using this method, we instead recommend installing from source. Download the source code from this repository (green button with "Clone or Download"), extract the package, navigate to the directory containing the `setup.py` file, and install using `pip install .`.
+
+Both methods should result in the `PyFOX.py` script being callable from the command line.
+
+## Example jupyter notebooks
 
 ### References
+
+des Tombe, B.; Schilperoort, B.; Bakker, M. Estimation of Temperature and Associated Uncertainty from Fiber-Optic Raman-Spectrum Distributed Temperature Sensing. Sensors 2020, 20, 2235.
 
 Hausner, M. B., Suárez, F., Glander, K. E., & Giesen, N. Van De. (2011). Calibrating Single-Ended Fiber-Optic Raman Spectra Distributed Temperature Sensing Data. Sensors, 11, 10859–10879. https://doi.org/10.3390/s111110859
 
@@ -77,9 +61,9 @@ Batch script for scheduled archiving of `.xml` files on the Silixa DTS devices. 
 ### Install the anaconda version of python
 https://www.anaconda.com/distribution/#download-section
 
-You should be prompted to install python for your particular OS. Install version 3.7*.
+You should be prompted to install python for your particular OS. Install a version >=3.6.
 
-## PyYAML updating
+### PyYAML updating
 An error in an old version of pip stops the updating of PyYAML. If you get an error related to this library you can solve it with:
 
 `pip install --ignore-installed PyYAML`
