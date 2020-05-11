@@ -2,8 +2,6 @@
 
 version==0.3.1.
 
-pyfocs has been known by btmm_process (obscure non-pythonic name) and pyfox (an unmaintained package on PyPi) resulting in the new name for the library.
-
 # Overview
 
 pyfocs is the University of Bayreuth Micrometeorology python library for processing Fiber Optic Distributed Sensing (FODS) data. It is intended to streamline the handling of large and long-term DTS setups.
@@ -14,6 +12,8 @@ It automates the calibration and mapping of FODS data allowing the user to focus
 The library consists of the automation script (`PyFOX.py`) used to herd the data from raw format to physically labeled and calibrated data in the netcdf format (see figure). Unfortunately pyfocs only supports Silixa Distribute Temperature Sensing (DTS) devices, such as an Ultima or XT, at the moment. This library is built around the [xarray](http://xarray.pydata.org) package for handling n-dimensional data, especially in a netcdf format.
 
 Also included are a family of functions for calculating wind speed from FODS data as well as other common statistical techniques, data manipulation, and diagnostics plots for FODS. See the example notebooks for more details.
+
+Check out our [EGU2020 talk](notebooks/EGU2020/Schilperoort_dtscalibration_pyfocs.pdf) for an overview of both libraries.
 
 # PyFOX Steps
 

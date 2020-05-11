@@ -18,7 +18,8 @@ def bias_violin(ds,
                 plot_var='bias',
                 fig_kwargs=None,
                 title=None,
-                plot_lims=None):
+                plot_lims=None,
+                temp_field_name='cal_temp'):
     '''
     Violinplots of bath biases showing the distribution over both time and
     space.
@@ -50,14 +51,14 @@ def bias_violin(ds,
             continue
 
         ref = callib[bn]['ref_sensor']
-        type = callib[bn]['type']
-        if type == 'calibration':
+        ref_type = callib[bn]['type']
+        if ref_type == 'calibration':
             colr = colr_cal
-        elif type == 'validation':
+        elif ref_type == 'validation':
             colr = colr_val
 
         if plot_var == 'bias':
-            val = (bath.cal_temp - bath[ref])
+            val = (bath[temp_field_name] - bath[ref])
             val_max = val.max().values
             val_min = val.min().values
 
@@ -99,7 +100,7 @@ def bias_violin(ds,
 
 
 def bath_validation(ds, in_callib, bath_lims=None, plot_var='bias',
-                    fig_kwargs=None, title=None):
+                    fig_kwargs=None, title=None, temp_field_name='cal_temp'):
     '''
     Bart-like  plots of bath biases and power anomaly.
     '''
@@ -153,7 +154,7 @@ def bath_validation(ds, in_callib, bath_lims=None, plot_var='bias',
     # Characterize each bath's calibration
     for bn_num, bn in enumerate(callib):
         ref = callib[bn]['ref_sensor']
-        type = callib[bn]['type']
+        ref_type = callib[bn]['type']
 
         # Handle the axes for this bath
         ax_LAF = ax_LAFs[bn_num]
@@ -164,7 +165,7 @@ def bath_validation(ds, in_callib, bath_lims=None, plot_var='bias',
         bath_start = bath.LAF.min()
         bath_end = bath.LAF.max()
         if plot_var == 'bias':
-            val = (bath.cal_temp - bath[ref])
+            val = (bath[temp_field_name] - bath[ref])
         # Create the power anomaly
         if plot_var == 'power':
             val = bath.logPsPas - bath.logPsPas.mean(dim='LAF')
@@ -498,10 +499,10 @@ def bath_check(ds,
     # Grab just this bath
     for bnum, bname in enumerate(callib):
         probename = callib[bname]['ref_sensor']
-        type = callib[bname]['type']
-        if type == 'calibration':
+        ref_type = callib[bname]['type']
+        if ref_type == 'calibration':
             colr = colr_cal
-        elif type == 'validation':
+        elif ref_type == 'validation':
             colr = colr_val
         axcol = axes[:, bnum]
 
@@ -548,7 +549,7 @@ def bath_check(ds,
                 ax.legend()
                 ax.set_ylabel('Temperature (C)')
             if ax.is_first_row():
-                ax.set_title(type + ': ' + bname)
+                ax.set_title(bname)
 
         # Power anomaly
         ax = axcol[0 + axind]
@@ -575,7 +576,7 @@ def bath_check(ds,
         ax.xaxis.set_major_locator(MultipleLocator(1))
         ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
         if ax.is_first_row():
-            ax.set_title(type + ': ' + bname)
+            ax.set_title(bname)
 
         # Standard deviation of power
         ax = axcol[1 + axind]
@@ -626,13 +627,13 @@ def overview(ds,
              fig_kwargs=None,
              title=None,
              temp_field_name='cal_temp',
-             type='temperature'
+             plot_type='temperature'
             ):
     '''
     Helper function for plotting the time-averaged overview of the DTS data.
     INPUTS:
         ds - xarray object following pyfocs protocol
-        type [<'temperature'>, 'variance'] - specifies the type of overview plot
+        plot_type [<'temperature'>, 'variance'] - specifies the type of plot
             'temperature' plot of instrument and calibrated temperature.
             'variance' plot running variance of the backscatter intensities.
         title - optional string, name for the plot
@@ -662,24 +663,26 @@ def overview(ds,
     else:
         xlims = [ds[indexer].min(), ds[indexer].max()]
 
-    if lims_dict and 'temperature' in lims_dict and type == 'temperature':
-        ylims = lims_dict['temperature']
-    elif type == 'temperature':
-        ylims = [ds['cal_temp'].min(),
-                 ds['cal_temp'].max()]
+    if lims_dict and plot_type in lims_dict:
+        ylims = lims_dict[plot_type]
+    elif plot_type == 'temperature':
+        ylims = [ds[temp_field_name].min(),
+                 ds[temp_field_name].max()]
 
-    if type == 'temperature':
-        # Instrument reported temperature
-        if temp_field_name == 'instr_temp' or temp_field_name == 'both':
+    if plot_type == 'temperature':
+        # Both instrument and calibrated temperatures
+        if temp_field_name == 'both':
             ax.plot(ds.LAF, ds.instr_temp.mean(dim='time'),
                     label='Instrument reported temperature')
-        # Calibrated temperature
-        if temp_field_name == 'cal_temp' or temp_field_name == 'both':
             ax.plot(ds.LAF, ds.cal_temp.mean(dim='time'),
                     label='Calibrated temperature')
+        # Whatever temperature name the user passed
+        else:
+            ax.plot(ds.LAF, ds[temp_field_name].mean(dim='time'),
+                    label=temp_field_name)
         ylabel = 'Temperature (C)'
 
-    if type == 'variance':
+    if plot_type == 'variance':
         ps_var = ds['Ps'].rolling(LAF=10, center=True).std().mean(dim='time')
         pas_var = ds['Pas'].rolling(LAF=10, center=True).std().mean(dim='time')
         if lims_dict and 'variance' in lims_dict:
@@ -691,21 +694,15 @@ def overview(ds,
         ax.plot(pas_var[indexer], pas_var, label='Anti-Stokes')
         ylabel = r'$\sigma_{LAF}$ (power) [-]'
 
-    if type == 'noise':
+    if plot_type == 'noise':
         print('Estimating instrument noise can take some time, especially for longer time slices')
         var = np.ones_like(ds.LAF) * np.nan
         noise = np.ones_like(ds.LAF) * np.nan
 
-        # Start here. Build a way to specify the field being plotted.
-        if temp_field_name == 'cal_temp':
-            field = temp_field_name
-        elif temp_field_name == 'instr_temp':
-            field = temp_field_name
-
         for nlaf, laf in enumerate(ds.LAF):
-            if np.isnan(ds.sel(LAF=laf)[field].values).any():
+            if np.isnan(ds.sel(LAF=laf)[temp_field_name].values).any():
                 continue
-            var[nlaf], _, noise[nlaf] = pyfocs.noisymoments(ds[field].sel(LAF=laf).values)
+            var[nlaf], _, noise[nlaf] = pyfocs.noisymoments(ds[temp_field_name].sel(LAF=laf).values)
 
         if lims_dict and 'noise' in lims_dict:
             ylims = lims_dict['noise']
