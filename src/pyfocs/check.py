@@ -546,12 +546,12 @@ def config(fn_cfg, ignore_flags=False):
             # logic dictates that the section label in fixed_shift exists in
             # the location library and that all shared sections in the location
             # library are given a fixed_shift.
-            if not set(common_sections).symmetric_difference(set(f_shift.keys())):
+            if set(common_sections).symmetric_difference(set(f_shift.keys())):
                 mess = ('All sections common to {map_from} and {map_to} '
                         'should be given a fixed_shift value.')
                 print(mess.format(map_from=map_from, map_to=map_to))
                 print('Sections found in location library: ' + str(common_sections))
-                print('Sections found in fixed_shift: ' + str(f_shift))
+                print('Sections found in fixed_shift: ' + str(f_shift.keys()))
             fixed_shift[map_from] = f_shift
 
         in_cfg['align_locations'] = True
