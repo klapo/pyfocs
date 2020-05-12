@@ -1,8 +1,6 @@
 # pyfocs
 
-version==0.3.1.
-
-pyfocs has been known by btmm_process (obscure non-pythonic name) and pyfox (an unmaintained package on PyPi) resulting in the new name for the library.
+version==0.4.0.
 
 # Overview
 
@@ -14,6 +12,8 @@ It automates the calibration and mapping of FODS data allowing the user to focus
 The library consists of the automation script (`PyFOX.py`) used to herd the data from raw format to physically labeled and calibrated data in the netcdf format (see figure). Unfortunately pyfocs only supports Silixa Distribute Temperature Sensing (DTS) devices, such as an Ultima or XT, at the moment. This library is built around the [xarray](http://xarray.pydata.org) package for handling n-dimensional data, especially in a netcdf format.
 
 Also included are a family of functions for calculating wind speed from FODS data as well as other common statistical techniques, data manipulation, and diagnostics plots for FODS. See the example notebooks for more details.
+
+Check out our [EGU2020 talk](notebooks/EGU2020/Schilperoort_dtscalibration_pyfocs.pdf) for an overview of both libraries.
 
 # PyFOX Steps
 
@@ -44,13 +44,19 @@ If you encounter errors when running pyfocs using this method, we instead recomm
 
 Both methods should result in the `PyFOX.py` script being callable from the command line.
 
-## Example jupyter notebooks
+# Example notebooks
+
+We detail most steps in the processing of DTS data and provide some pointers on best practices in our example notebooks. The notebooks refer to the example data stored in this repository.
+
+[Example 1: raw data checks](notebooks/pyfocs_ex1_rawdatacheck.ipynb) looks at how to assess data quality as it comes out of the instrument.
+
+[Example 2: calibrated data checks](notebooks/pyfocs_ex2_calibcheck.ipynb) looks at how to assess the calibration and what decisions are available. In also details how to refine mapping of physical labels for the last step.
+
+[Example 3: final data checks](notebooks/pyfocs_ex3_finalcheck.ipynb) looks at how DTS data are labeled with physical coordinates, how to calculate wind speed, and shows one way of quickly viewing the data.
 
 ### References
 
 des Tombe, B.; Schilperoort, B.; Bakker, M. Estimation of Temperature and Associated Uncertainty from Fiber-Optic Raman-Spectrum Distributed Temperature Sensing. Sensors 2020, 20, 2235.
-
-Hausner, M. B., Suárez, F., Glander, K. E., & Giesen, N. Van De. (2011). Calibrating Single-Ended Fiber-Optic Raman Spectra Distributed Temperature Sensing Data. Sensors, 11, 10859–10879. https://doi.org/10.3390/s111110859
 
 ### Muppet Archiver
 

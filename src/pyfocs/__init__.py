@@ -10,4 +10,4 @@ from .data import to_datastore, from_datastore, double_calibrate, merge_single, 
 from .align import section_limits, interp_section, section_shift_x
 from .wind_speed import calculate
 
-__version__ = '0.3.1'
+__version__ = '0.4.0'
