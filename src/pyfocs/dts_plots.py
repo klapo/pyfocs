@@ -286,8 +286,8 @@ def dts_loc_plot(ploc,
 
     # Axis limits
     y_mean = sect_mean['logPsPas'].mean(dim='LAF').values
-    y_min = sect_mean['logPsPas'].min().values + 0.004
-    y_max = sect_mean['logPsPas'].max().values + 0.001
+    y_min = sect_mean['logPsPas'].min().values - 0.004
+    y_max = sect_mean['logPsPas'].max().values + 0.004
 
     # locations labels
     for ploc_labels in phys_locs:
@@ -317,7 +317,7 @@ def dts_loc_plot(ploc,
     # Axis formatting
     ax.set_ylim(y_min, y_max)
     ax.set_ylabel('log(Ps/Pas)')
-    ax.xaxis.grid(True, which='minor')
+    ax.xaxis.grid(True, which='both')
     ax.xaxis.set_major_locator(MultipleLocator(10))
     ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
     ax.xaxis.set_minor_locator(MultipleLocator(2))
@@ -366,25 +366,19 @@ def dts_loc_plot(ploc,
     ax.set_ylim(y_min, y_max)
     ax.set_ylabel(r'$log(P_s), log(P_{as})$ Backscatter Intensities [-]')
     ax.legend(loc='lower left')
-    ax.xaxis.grid(True, which='minor')
+    ax.xaxis.grid(True, which='both')
     ax.xaxis.set_major_locator(MultipleLocator(10))
     ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
     ax.xaxis.set_minor_locator(MultipleLocator(2))
 
     # Spatial variances in stokes and anti-stokes intensities
     ax = axes[2]
-    # ax.plot(sect_ps_var.LAF,
-    #         sect_ps_var.values,
-    #         label='$P_s$')
-    # ax.plot(sect_pas_var.LAF,
-    #         sect_pas_var.values,
-    #         label='$P_{as}$')
     var_ratio = (sect_ps_var / sect_pas_var)
     ax.plot(sect_ps_var.LAF,
             var_ratio.values)
 
     y_mean = var_ratio.mean(dim='LAF').values
-    y_min = var_ratio.min().values - 0.1
+    y_min = np.max([var_ratio.min().values - 0.1, 0])
     y_max = var_ratio.max().values + 0.1
     for ploc_labels in phys_locs:
         lims = phys_locs[ploc_labels]['LAF']
@@ -405,14 +399,12 @@ def dts_loc_plot(ploc,
         ax.fill_between(lims, 0, 4000,
                         edgecolor='k', facecolor='0.9', alpha=0.8)
 
-    ax.xaxis.grid(True, which='minor')
+    ax.xaxis.grid(True, which='both')
     ax.xaxis.set_major_locator(MultipleLocator(10))
     ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
     ax.xaxis.set_minor_locator(MultipleLocator(2))
 
-    # ax.legend(loc='upper left')
     ax.set_ylim(y_min, y_max)
-    # ax.set_ylabel(r'$\sigma(P_s), \sigma(P_{as})$')
     ax.set_ylabel('$\sigma_{x}(P_s) / \sigma_{x}(P_{as})$ [-]')
     ax.set_xlim(s_start, s_end)
     ax.set_xlabel('LAF (m)')
