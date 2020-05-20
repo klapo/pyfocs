@@ -470,7 +470,21 @@ if final_flag:
                             fixed_shift=shift,
                             dl=10, plot_results=True)
 
-                        # plt.gcf().savefig('.'.join((cal_nc, section)) + '.jpg')
+                        # If they are not the same size then this step failed.
+                        if not s1.xyz.size == s2.xyz.size:
+                            mess = (
+                                '-'.join(map_from, section)
+                                + ' was not successfully mapped to '
+                                + '-'.join(map_to, section))
+                            print(mess)
+                            print('==================')
+                            print(map_to)
+                            print(s1)
+                            print('')
+                            print('==================')
+                            print(map_from)
+                            print(s2)
+                            raise ValueError
 
                         s1.coords[map_to]=section
                         s2.coords[map_from]=section
@@ -487,18 +501,6 @@ if final_flag:
                     ds_ploc2=ds_ploc2.drop('x')
                     ds_ploc2=pyfocs.labeler.dtsPhysicalCoords_3d(ds_ploc2,
                                                                    lib[map_from])
-
-                    # If they are not the same size then this step failed.
-                    if not ds_ploc1.xyz.size == ds_ploc2.xyz.size:
-                        print(map_from + ' and ' + map_to + \
-                              ' were not successfully mapped to each other.')
-                        print('==================')
-                        print(map_to)
-                        print(ds_ploc1)
-                        print('==================')
-                        print(map_from)
-                        print(ds_ploc2)
-                        raise ValueError
 
                     # Output each location type as a separate final file.
                     os.chdir(internal_config[exp_name]
