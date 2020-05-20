@@ -83,7 +83,9 @@ def section_shift_x(
     if len(s1.LAF.values) < len(s2.LAF.values):
         s2 = s2.isel(LAF=slice(0, len(s1.LAF.values)))
 
-    if not fixed_shift:
+    # No fixed_shift was provided so we will determine the optimal shift
+    # using the cross-correlation.
+    if fixed_shift is None:
         # Interpolate to a fine 'x' scale to allow non-integer dLAF adjustments
         if restep:
             num_steps = len(s1.LAF.values) * restep
@@ -125,7 +127,8 @@ def section_shift_x(
         dlaf, _ = stats.mode(np.diff(ds.LAF.values))
         shift_x = shift * dlaf / restep
 
-    else:
+    # The fixed_shift was provided as a set value.
+    elif fixed_shift is not None:
         dlaf, _ = stats.mode(np.diff(ds.LAF.values))
         shift_x = fixed_shift
         restep = 1
@@ -255,7 +258,7 @@ def interp_section(
             fig_kwargs['figsize'] = (10, 4)
 
         # No cross-correlation is perfomed when providing a fixed_shift
-        if fixed_shift:
+        if fixed_shift is not None:
             num_rows = 2
             fig, axes = plt.subplots(num_rows, 1, **fig_kwargs)
         else:
@@ -270,7 +273,8 @@ def interp_section(
             sub_s2_mean = sub_s2.mean(dim='time')
 
         ax_ind = 0
-        if not fixed_shift:
+        # A cross-correlation was performed, we will include it in the plot.
+        if fixed_shift is None:
             ax = axes[ax_ind]
             ax_ind = ax_ind + 1
             ax.plot(lags, c)
