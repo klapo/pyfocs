@@ -23,7 +23,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='pyfocs',
-    version='0.4.0',
+    version='0.4.1',
     license='MIT',
     description='Processing of meteorological FODS data.',
     long_description=long_description,

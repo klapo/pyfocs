@@ -216,7 +216,7 @@ for exp_name in experiment_names:
                                                       internal_config,
                                                       False)
                     method = cal['method'].split()[0]
-                    dstore.calibration_single_ended(method=method)
+                    dstore = pyfocs.single_calibrate(dstore, method=method)
                     dstemp = pyfocs.data.from_datastore(
                         dstore,
                         datavars=probe_names

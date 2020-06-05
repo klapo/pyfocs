@@ -37,10 +37,7 @@ def to_datastore(ds, config, double):
     timeval = 1
     timeunit = 's'
     dt_np = np.timedelta64(timeval, timeunit)
-    if double:
-        dstore['userAcquisitionTimeFW'] = (('time'), np.ones(len(dstore['time'])) * dt_np)
-    else:
-        dstore['userAcquisitionTime'] = (('time'), np.ones(len(dstore['time'])) * dt_np)
+    dstore['userAcquisitionTimeFW'] = (('time'), np.ones(len(dstore['time'])) * dt_np)
 
     # Build the reference sections
 
@@ -198,6 +195,36 @@ def merge_single(dstore_fw, dstore_bw, shift_window=20, fixed_shift=None):
     return double
 
 
+def single_calibrate(single, method):
+    '''
+    Calibrate a single-ended datastore object.
+    '''
+
+    if method == 'ols':
+        # Calibrate
+        single.calibration_single_ended(
+            method=method,
+        )
+    elif method == 'wls':
+        # Estimate the variances
+        # @ allow for choosing between linear, exponential, and constant
+        st_var, resid = single.variance_stokes_constant(st_label='st')
+        ast_var, _ = single.variance_stokes_constant(st_label='ast')
+
+        # And calibrate
+        single.calibration_single_ended(
+            st_var=st_var,
+            ast_var=ast_var,
+            method=method)
+
+    # pyfocs is generally used to process shorter time chunks
+    # Loading the dask object into memory can alleviate slow
+    # operations later when the data is accessed.
+    single.load()
+
+    return single
+
+
 def double_calibrate(double, method, keep_fw_bw=False):
     '''
     Calibrate a double-ended datastore object.
@@ -225,8 +252,8 @@ def double_calibrate(double, method, keep_fw_bw=False):
             store_tmpw='tmpw',
             method=method)
 
-    # Since the confidence intervals, as described in example notebook 16,
-    # are not relevant for atmospheric deployments, we drop everything except temperature.
+    # We only keep calibrated temperature
+    # @ Add option for estimating noise variance and returning that value
     fields_to_drop = ['userAcquisitionTimeFW',
                       'userAcquisitionTimeBW',
                       'tmpf_mc_var',
