@@ -466,7 +466,7 @@ if final_flag:
                     s2_list=[]
                     for section, shift in common_sections[map_from].items():
                         s1, s2, lib = pyfocs.interp_section(
-                            dstemp, lib, map_to, map_from, section,
+                            dstemp, temp_lib, map_to, map_from, section,
                             fixed_shift=shift,
                             dl=10, plot_results=True)
 
@@ -496,13 +496,13 @@ if final_flag:
                     ds_ploc1=ds_ploc1.drop('x')
                     ds_ploc1=pyfocs.labeler.dtsPhysicalCoords_3d(
                         ds_ploc1,
-                        lib[map_to])
+                        temp_lib[map_to])
 
                     ds_ploc2=xr.concat(s2_list, dim='LAF')
                     ds_ploc2=ds_ploc2.drop('x')
                     ds_ploc2=pyfocs.labeler.dtsPhysicalCoords_3d(
                         ds_ploc2,
-                        lib[map_from])
+                        temp_lib[map_from])
 
                     # Output each location type as a separate final file.
                     os.chdir(internal_config[exp_name]
