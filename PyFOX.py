@@ -465,8 +465,8 @@ if final_flag:
                     s1_list=[]
                     s2_list=[]
                     for section, shift in common_sections[map_from].items():
-                        s1, s2, lib = pyfocs.interp_section(
-                            dstemp, temp_lib, map_to, map_from, section,
+                        s1, s2, temp_lib = pyfocs.interp_section(
+                            dstemp, lib, map_to, map_from, section,
                             fixed_shift=shift,
                             dl=10, plot_results=True)
 
