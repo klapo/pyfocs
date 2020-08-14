@@ -386,15 +386,15 @@ if final_flag:
 
         os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
         contents = os.listdir()
-        if outname_suffix:
-            ncfiles = [file for file in contents
-                if '.nc' in file
-                and 'cal' in file
-                and outname_suffix in file]
-        else:
-            ncfiles = [file for file in contents
-                if '.nc' in file
-                and 'cal' in file]
+        # if outname_suffix:
+        #     ncfiles = [file for file in contents
+        #         if '.nc' in file
+        #         and 'cal' in file
+        #         and outname_suffix in file]
+        # else:
+        ncfiles = [file for file in contents
+            if '.nc' in file
+            and 'cal' in file]
         ncfiles.sort()
         ntot = np.size(ncfiles)
 
@@ -462,10 +462,10 @@ if final_flag:
 
                 # @ Rename s1, s2 etc to `to` and `from` for consistent naming.
                 for map_from, map_to in locs_to_match.items():
-                    s1_list=[]
-                    s2_list=[]
+                    map_to_list=[]
+                    map_from_list=[]
                     for section, shift in common_sections[map_from].items():
-                        s1, s2, temp_lib = pyfocs.interp_section(
+                        ds_map_to, ds_map_from, temp_lib = pyfocs.interp_section(
                             dstemp, lib, map_to, map_from, section,
                             fixed_shift=shift,
                             dl=10, plot_results=True)
@@ -486,19 +486,24 @@ if final_flag:
                             print(s2)
                             raise ValueError
 
-                        s1.coords[map_to]=section
-                        s2.coords[map_from]=section
+                        ds_map_to.coords[map_to]=section
+                        ds_map_from.coords[map_from]=section
 
-                        s1_list.append(s1)
-                        s2_list.append(s2)
+                        map_to_list.append(ds_map_to)
+                        map_from_list.append(map_from)
 
-                    ds_ploc1=xr.concat(s1_list, dim='LAF')
+                    for uns in unique_sections[map_to]:
+                        uns_slice = slice(lib[][1] - dl, lims_s1[0] + dl)
+                        s1 = dstemp.sel(LAF=slice())
+
+
+                    ds_ploc1=xr.concat(map_to_list, dim='LAF')
                     ds_ploc1=ds_ploc1.drop('x')
                     ds_ploc1=pyfocs.labeler.dtsPhysicalCoords_3d(
                         ds_ploc1,
                         temp_lib[map_to])
 
-                    ds_ploc2=xr.concat(s2_list, dim='LAF')
+                    ds_ploc2=xr.concat(map_from_list, dim='LAF')
                     ds_ploc2=ds_ploc2.drop('x')
                     ds_ploc2=pyfocs.labeler.dtsPhysicalCoords_3d(
                         ds_ploc2,
@@ -507,11 +512,11 @@ if final_flag:
                     # Output each location type as a separate final file.
                     os.chdir(internal_config[exp_name]
                              ['directories']['dirFinal'])
-                    outname_ploc1='_'.join(filter(None, [exp_name, 'final',
+                    outname_ploc_map_to='_'.join(filter(None, [exp_name, 'final',
                                                          outname_date,
                                                          outname_suffix,
                                                          map_to])) + '.nc'
-                    outname_ploc2='_'.join(filter(None, [exp_name, 'final',
+                    outname_ploc_map_from='_'.join(filter(None, [exp_name, 'final',
                                                          outname_date,
                                                          outname_suffix,
                                                          map_from])) + '.nc'
@@ -519,8 +524,8 @@ if final_flag:
                     # @ Convert boolean attributes to 0/1
                     del ds_ploc1.attrs['reverse']
                     del ds_ploc2.attrs['reverse']
-                    ds_ploc1.to_netcdf(outname_ploc1, mode='w')
-                    ds_ploc2.to_netcdf(outname_ploc2, mode='w')
+                    ds_ploc1.to_netcdf(outname_ploc_map_to, mode='w')
+                    ds_ploc2.to_netcdf(outname_ploc_map_from, mode='w')
 
                     # @ Label unique locations
 
