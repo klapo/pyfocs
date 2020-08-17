@@ -116,6 +116,8 @@ def section_shift_x(
         if not lag:
             lag = int(np.min([len(s1_vals) * restep, len(s2_vals) * restep]) // 2)
         lags = np.arange(-lag, lag + 1)
+        if s2_reverse:
+            lags = np.flip(lags)
         c = pyfocs.stats.norm_xcorr(
             s1_vals,
             s2_vals,
@@ -241,7 +243,7 @@ def interp_section(
     sub_s2 = s2.interp(x=sub_s1.x.values).swap_dims({'x': 'LAF'})
 
     # The interp command causes s2 to take on s1's properties.
-    sub_s2.attrs['reverse'] = sub_s1.attrs['reverse']
+    sub_s2.attrs['reverse'] = s2.attrs['reverse']
 
     # Return the adjusted LAF values based on aligning s2 to s1
     LAFmin = float(sub_s2.LAF.min().values)
