@@ -370,8 +370,8 @@ if final_flag:
 
     # Time limits for processing only a subsection
     if internal_config['time_limits']['flag']:
-        tstart = pd.Timestamp(internal_config['tstart'])
-        tstop = pd.Timestamp(internal_config['tstop'])
+        tstart = pd.Timestamp(internal_config['time_limits']['tstart'])
+        tstop = pd.Timestamp(internal_config['time_limits']['tstop'])
 
     # When finalizing the dataset all extraneous coordinates and data
     # is dropped, leaving behind these variables.
@@ -460,7 +460,6 @@ if final_flag:
                 unique_sections=internal_config['unique_sections']
                 locs_to_match=internal_config['location_matching']
 
-                # @ Rename s1, s2 etc to `to` and `from` for consistent naming.
                 for map_from, map_to in locs_to_match.items():
                     map_to_list=[]
                     map_from_list=[]
@@ -471,7 +470,7 @@ if final_flag:
                             dl=10, plot_results=True)
 
                         # If they are not the same size then this step failed.
-                        if not s1.LAF.size == s2.LAF.size:
+                        if not ds_map_to.LAF.size == ds_map_from.LAF.size:
                             mess = (
                                 '-'.join(map_from, section)
                                 + ' was not successfully mapped to '
@@ -479,32 +478,51 @@ if final_flag:
                             print(mess)
                             print('==================')
                             print(map_to)
-                            print(s1)
+                            print(ds_map_to)
                             print('')
                             print('==================')
                             print(map_from)
-                            print(s2)
+                            print(ds_map_from)
                             raise ValueError
 
                         ds_map_to.coords[map_to]=section
                         ds_map_from.coords[map_from]=section
 
+                        ds_map_to = ds_map_to.drop('x')
+                        ds_map_from = ds_map_from.drop('x')
+
                         map_to_list.append(ds_map_to)
-                        map_from_list.append(map_from)
+                        map_from_list.append(ds_map_from)
 
+                    # Add in any unique sections not shared by the two
+                    # sections that were matched.
+
+                    # Unique sections in map_to
                     for uns in unique_sections[map_to]:
-                        uns_slice = slice(lib[][1] - dl, lims_s1[0] + dl)
-                        s1 = dstemp.sel(LAF=slice())
+                        uns_lims = temp_lib[map_to][uns]['LAF']
+                        x1 = min(uns_lims)
+                        x2 = max(uns_lims)
+                        uns_slice = slice(x1, x2)
+                        dstemp_uns = dstemp.sel(LAF=uns_slice)
+                        dstemp_uns.coords[map_to] = uns
+                        map_to_list.append(dstemp_uns)
 
+                    # Unique sections in map_from
+                    for uns in unique_sections[map_from]:
+                        uns_lims = temp_lib[map_from][uns]['LAF']
+                        x1 = min(uns_lims)
+                        x2 = max(uns_lims)
+                        uns_slice = slice(x1, x2)
+                        dstemp_uns = dstemp.sel(LAF=uns_slice)
+                        dstemp_uns.coords[map_from] = uns
+                        map_from_list.append(dstemp_uns)
 
                     ds_ploc1=xr.concat(map_to_list, dim='LAF')
-                    ds_ploc1=ds_ploc1.drop('x')
                     ds_ploc1=pyfocs.labeler.dtsPhysicalCoords_3d(
                         ds_ploc1,
                         temp_lib[map_to])
 
                     ds_ploc2=xr.concat(map_from_list, dim='LAF')
-                    ds_ploc2=ds_ploc2.drop('x')
                     ds_ploc2=pyfocs.labeler.dtsPhysicalCoords_3d(
                         ds_ploc2,
                         temp_lib[map_from])
