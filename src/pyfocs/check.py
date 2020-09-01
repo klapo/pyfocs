@@ -137,6 +137,8 @@ def config(fn_cfg, ignore_flags=False):
                     # Build the path to the file.
                     in_cfg['external_data'] = os.path.join(dir_ext, ext_fname)
 
+                    # @ Actually open the file to check for each reference sensor.
+
                     probe_names.extend(cal['external_fields'])
                     cal['external_flag'] = True
 
@@ -404,6 +406,8 @@ def config(fn_cfg, ignore_flags=False):
         check_loc_library = True
         if 'phys_locs_labeling' in cfg['dataProperties']:
             if cfg['dataProperties']['phys_locs_labeling'] == 'stacked':
+                stacked = True
+            else:
                 stacked = True
         else:
             stacked = False

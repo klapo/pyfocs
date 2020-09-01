@@ -160,6 +160,7 @@ for exp_name in experiment_names:
             dstemp = xr.open_dataset(raw_nc)
 
             # Assign reference data
+            # @Align the reference data with the timestamp of the DTS data.
             dstemp, probe_names = pyfocs.assign_ref_data(dstemp,
                                                          cal,
                                                          ref_data=ref_data)
