@@ -48,6 +48,7 @@ def bias_violin(ds,
         try:
             bath = swap_sel(ds, 'LAF', 'calibration', bn)
         except KeyError:
+            # @ Add re-labeling plus a warning here.
             continue
 
         ref = callib[bn]['ref_sensor']
