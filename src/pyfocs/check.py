@@ -3,6 +3,7 @@ import yaml
 from pyfocs import yamlDict
 import copy
 import numpy as np
+import xarray as xr
 
 
 def config(fn_cfg, ignore_flags=False):
@@ -112,7 +113,7 @@ def config(fn_cfg, ignore_flags=False):
 
     # -------------------------------------------------------------------------
     # Integrity of caibration parameters
-    if in_cfg['flags']['calibrate_flag'] or ignore_flags:
+    if in_cfg['flags']['calibrate_flag'] and not ignore_flags:
         probe_names = []
         cal = cfg['calibration']
 
@@ -121,8 +122,10 @@ def config(fn_cfg, ignore_flags=False):
         if 'label_data' in cal and cal['label_data']:
             label_data_flag = True
 
-        # External data stream for reference probes
+        # Check that the external data file exists and that the external data
+        # fields can be found inside it.
         if 'external_fields' in cal and cal['external_fields']:
+            cal['external_fields'] = np.atleast_1d(cal['external_fields'])
             # Verify if the external data was provided and exists
             if dir_ext:
                 ext_fname = os.path.join(dir_ext,
@@ -137,8 +140,13 @@ def config(fn_cfg, ignore_flags=False):
                     # Build the path to the file.
                     in_cfg['external_data'] = os.path.join(dir_ext, ext_fname)
 
-                    # @ Actually open the file to check for each reference sensor.
+                    # Open the file to check for each reference sensor.
+                    ext_data = xr.open_dataset(in_cfg['external_data'])
 
+                    # Check each external variable specified exists.
+                    for ext_ref in cal['external_fields']:
+                        mess = ('{ef} was not found in the external reference data.')
+                        assert ext_ref in ext_data, mess.format(ef=ext_ref)
                     probe_names.extend(cal['external_fields'])
                     cal['external_flag'] = True
 
@@ -401,7 +409,7 @@ def config(fn_cfg, ignore_flags=False):
     # -------------------------------------------------------------------------
     # Labeling sections and physical coordinates
     # Prepare relevant parameters for finalizing
-    if in_cfg['flags']['final_flag'] or label_data_flag or ignore_flags:
+    if not ignore_flags and (in_cfg['flags']['final_flag'] or label_data_flag):
         # Indicate that we need to check the integrity of the location library.
         check_loc_library = True
         if 'phys_locs_labeling' in cfg['dataProperties']:
