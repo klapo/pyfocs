@@ -10,7 +10,7 @@ def prandtl(temp):
     # Units check
     if (np.nanmax(temp) and np.nanmin(temp)) < 150:
         temp = temp + 273.15
-        print('Converted air temperature from Celsius to Kelvin.')
+        # print('Converted air temperature from Celsius to Kelvin.')
 
     temp = temp / 1000
     return(-0.1 * temp + 0.7423)
@@ -25,7 +25,7 @@ def kinematicViscosity(temp):
     # Units check
     if (np.nanmax(temp) and np.nanmin(temp)) < 150:
         temp = temp + 273.15
-        print('Converted air temperature from Celsius to Kelvin.')
+        # print('Converted air temperature from Celsius to Kelvin.')
 
     temp = temp / 1000
     return((75 * temp**2 + 47.827 * temp - 5.3589) * 0.000001)
@@ -41,7 +41,7 @@ def thermalConductivity(temp):
     # Units check
     if (np.nanmax(temp) and np.nanmin(temp)) < 150:
         temp = temp + 273.15
-        print('Converted air temperature from Celsius to Kelvin.')
+        # print('Converted air temperature from Celsius to Kelvin.')
 
     k = 1.5207 * 10**(-11) * temp**3 - 4.8574 * 10**(-8) * temp**2 + 1.0184 * 10**(-4) * temp - 0.00039333
     return(k)
@@ -112,6 +112,7 @@ def calculate(heated, unheated, power):
     # By using identical fibers we can avoid most of the radiation modeling.
     # Only component that is different between the heated/unheated fibers is
     # the longwave cooling.
+    # @ Check for units
     lw_out_heat = sigma * emissivity * heated.values**4
     lw_out_unheat = sigma * emissivity * unheated.values**4
 
