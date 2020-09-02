@@ -406,7 +406,7 @@ def dts_loc_plot(ploc,
     ax.xaxis.set_minor_locator(MultipleLocator(2))
 
     ax.set_ylim(y_min, y_max)
-    ax.set_ylabel('$\sigma_{x}(P_s) / \sigma_{x}(P_{as})$ [-]')
+    ax.set_ylabel('$\frac{\sigma_{x}(P_s)}{\sigma_{x}(P_{as})}$ [-]')
     ax.set_xlim(s_start, s_end)
     ax.set_xlabel('LAF (m)')
     fig.tight_layout()
