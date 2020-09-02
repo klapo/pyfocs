@@ -631,6 +631,26 @@ def config(fn_cfg, ignore_flags=False):
         else:
             in_cfg['max_fiber_limit'] = -1
 
+    # Determine if a separate calibration suffix was provided.
+    if 'cal_suffix' in cfg['directories']:
+        in_cfg['cal_suffix'] = cfg['directories']['cal_suffix']
+        if in_cfg['cal_suffix'] and '_' in in_cfg['cal_suffix']:
+            mess = ('File suffixes cannot contain underscores. '
+                    'This character is reserved by the pyfocs naming scheme.')
+            raise ValueError(mess)
+    else:
+        in_cfg['cal_suffix'] = None
+
+    # Determine if a separate calibration suffix was provided.
+    if 'final_suffix' in cfg['directories']:
+        in_cfg['final_suffix'] = cfg['directories']['final_suffix']
+        if in_cfg['final_suffix'] and '_' in in_cfg['final_suffix']:
+            mess = ('File suffixes cannot contain underscores. '
+                    'This character is reserved by the pyfocs naming scheme.')
+            raise ValueError(mess)
+    else:
+        in_cfg['final_suffix'] = None
+
     # Determine if a file suffix was provided.
     if 'suffix' in cfg['directories']:
         in_cfg['outname_suffix'] = cfg['directories']['suffix']
@@ -638,8 +658,14 @@ def config(fn_cfg, ignore_flags=False):
             mess = ('File suffixes cannot contain underscores. '
                     'This character is reserved by the pyfocs naming scheme.')
             raise ValueError(mess)
+        # If no separate suffixes for calib. or final data use a single suffix.
+        if not in_cfg['final_suffix']:
+            in_cfg['final_suffix'] = in_cfg['outname_suffix']
+        if not in_cfg['cal_suffix']:
+            in_cfg['cal_suffix'] = in_cfg['outname_suffix']
     else:
         in_cfg['outname_suffix'] = None
+
 
     if ('fiber_limits' in cfg['dataProperties']
             and not in_cfg['outname_suffix']):

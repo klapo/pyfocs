@@ -65,7 +65,8 @@ if step_loss_flag:
 # Channels/experiments/output file names
 channelNames = internal_config['channelNames']
 experiment_names = internal_config['experiment_names']
-outname_suffix = internal_config['outname_suffix']
+cal_suffix = internal_config['cal_suffix']
+final_suffix = internal_config['final_suffix']
 
 # -----------------------------------------------------------------------------
 # Archive and create raw netcdfs
@@ -95,7 +96,7 @@ for exp_name in experiment_names:
 
 for exp_name in experiment_names:
     # --------------------------------------------------------------------------
-    # Process DTS files
+    # Calibrate the data
     # --------------------------------------------------------------------------
     if calibrate_flag:
 
@@ -132,7 +133,7 @@ for exp_name in experiment_names:
             outname = '_'.join(filter(None, [exp_name, 'cal',
                                              outname_channel,
                                              outname_date,
-                                             outname_suffix,
+                                             cal_suffix,
                                              ])) + '.nc'
             # Check of the files to create and determine if we are overwriting.
             if write_mode == 'preserve':
@@ -354,10 +355,10 @@ for exp_name in experiment_names:
 
             print('')
 
+
 # -----------------------------------------------------------------------------
 # Finalize with physical coordinates
 # -----------------------------------------------------------------------------
-
 if final_flag:
     print('-------------')
     print('Final preparation: assigning physical coordinates, dropping unused fields and locations')
@@ -387,15 +388,15 @@ if final_flag:
 
         os.chdir(internal_config[exp_name]['directories']['dirCalibrated'])
         contents = os.listdir()
-        # if outname_suffix:
-        #     ncfiles = [file for file in contents
-        #         if '.nc' in file
-        #         and 'cal' in file
-        #         and outname_suffix in file]
-        # else:
-        ncfiles = [file for file in contents
-            if '.nc' in file
-            and 'cal' in file]
+        if cal_suffix:
+            ncfiles = [file for file in contents
+                if '.nc' in file
+                and 'cal' in file
+                and cal_suffix in file]
+        else:
+            ncfiles = [file for file in contents
+                if '.nc' in file
+                and 'cal' in file]
         ncfiles.sort()
         ntot = np.size(ncfiles)
 
@@ -468,7 +469,7 @@ if final_flag:
                         ds_map_to, ds_map_from, temp_lib = pyfocs.interp_section(
                             dstemp, lib, map_to, map_from, section,
                             fixed_shift=shift,
-                            dl=10, plot_results=True)
+                            dl=10, plot_results=False)
 
                         # If they are not the same size then this step failed.
                         if not ds_map_to.LAF.size == ds_map_from.LAF.size:
@@ -533,11 +534,11 @@ if final_flag:
                              ['directories']['dirFinal'])
                     outname_ploc_map_to='_'.join(filter(None, [exp_name, 'final',
                                                          outname_date,
-                                                         outname_suffix,
+                                                         final_suffix,
                                                          map_to])) + '.nc'
                     outname_ploc_map_from='_'.join(filter(None, [exp_name, 'final',
                                                          outname_date,
-                                                         outname_suffix,
+                                                         final_suffix,
                                                          map_from])) + '.nc'
 
                     # @ Convert boolean attributes to 0/1
@@ -565,7 +566,7 @@ if final_flag:
                     # Output each location type as a separate final file.
                     outname='_'.join(filter(None, [exp_name, 'final',
                                                    outname_date,
-                                                   outname_suffix,
+                                                   final_suffix,
                                                    ploc])) + '.nc'
                     os.chdir(internal_config[exp_name]
                              ['directories']['dirFinal'])
