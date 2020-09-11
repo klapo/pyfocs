@@ -671,7 +671,7 @@ def config(fn_cfg, ignore_flags=False):
     if ('fiber_limits' in cfg['dataProperties']
             and (not in_cfg['outname_suffix']
                  or not in_cfg['cal_suffix']
-                 or not in_cfg['final_suffix']):
+                 or not in_cfg['final_suffix'])):
         warn = ('Fiber limits were provided without a suffix. This may cause '
                 'issues with overwriting data for multicore fibers.')
         print(warn)
