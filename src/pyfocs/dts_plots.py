@@ -465,7 +465,6 @@ def bath_check(ds,
                              numcols,
                              **fig_kwargs)
     axes = np.atleast_2d(axes)
-    print(np.shape(axes))
     if title:
         fig.suptitle(title)
 
