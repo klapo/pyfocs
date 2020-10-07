@@ -236,11 +236,9 @@ def dtsPhysicalCoords_3d(ds, location):
         # be trusted to have an order we can use for assigning the reverse flag.
         # Instead we rely on the reverse attribute.
         reverse = False
-        if 'reverse' in ds.attrs:
-            reverse = ds.attrs['reverse']
-
-        elif location[l]['LAF'][0] > location[l]['LAF'][1]:
-            reverse = True
+        if 'reverse' not in ds.attrs:
+            if location[l]['LAF'][0] > location[l]['LAF'][1]:
+                reverse = True
 
         # Extract out just the section in question
         section = ds.loc[dict(LAF=LAF[(LAF >= LAF1) & (LAF <= LAF2)])]
