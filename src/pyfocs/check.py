@@ -3,6 +3,7 @@ import yaml
 from pyfocs import yamlDict
 import copy
 import numpy as np
+import xarray as xr
 
 
 def config(fn_cfg, ignore_flags=False):
@@ -112,7 +113,7 @@ def config(fn_cfg, ignore_flags=False):
 
     # -------------------------------------------------------------------------
     # Integrity of caibration parameters
-    if in_cfg['flags']['calibrate_flag'] or ignore_flags:
+    if in_cfg['flags']['calibrate_flag'] and not ignore_flags:
         probe_names = []
         cal = cfg['calibration']
 
@@ -121,8 +122,10 @@ def config(fn_cfg, ignore_flags=False):
         if 'label_data' in cal and cal['label_data']:
             label_data_flag = True
 
-        # External data stream for reference probes
+        # Check that the external data file exists and that the external data
+        # fields can be found inside it.
         if 'external_fields' in cal and cal['external_fields']:
+            cal['external_fields'] = np.atleast_1d(cal['external_fields'])
             # Verify if the external data was provided and exists
             if dir_ext:
                 ext_fname = os.path.join(dir_ext,
@@ -137,6 +140,13 @@ def config(fn_cfg, ignore_flags=False):
                     # Build the path to the file.
                     in_cfg['external_data'] = os.path.join(dir_ext, ext_fname)
 
+                    # Open the file to check for each reference sensor.
+                    ext_data = xr.open_dataset(in_cfg['external_data'])
+
+                    # Check each external variable specified exists.
+                    for ext_ref in cal['external_fields']:
+                        mess = ('{ef} was not found in the external reference data.')
+                        assert ext_ref in ext_data, mess.format(ef=ext_ref)
                     probe_names.extend(cal['external_fields'])
                     cal['external_flag'] = True
 
@@ -399,11 +409,13 @@ def config(fn_cfg, ignore_flags=False):
     # -------------------------------------------------------------------------
     # Labeling sections and physical coordinates
     # Prepare relevant parameters for finalizing
-    if in_cfg['flags']['final_flag'] or label_data_flag or ignore_flags:
+    if not ignore_flags and (in_cfg['flags']['final_flag'] or label_data_flag):
         # Indicate that we need to check the integrity of the location library.
         check_loc_library = True
         if 'phys_locs_labeling' in cfg['dataProperties']:
             if cfg['dataProperties']['phys_locs_labeling'] == 'stacked':
+                stacked = True
+            else:
                 stacked = True
         else:
             stacked = False
@@ -429,6 +441,7 @@ def config(fn_cfg, ignore_flags=False):
             print(mess)
     else:
         check_loc_library = False
+        stacked = False
 
     # Error messages for the assert statements.
     missing_mess = ('Coordinates for {ploc} were not defined by pairs of LAF, '
@@ -619,6 +632,26 @@ def config(fn_cfg, ignore_flags=False):
         else:
             in_cfg['max_fiber_limit'] = -1
 
+    # Determine if a separate calibration suffix was provided.
+    if 'cal_suffix' in cfg['directories']:
+        in_cfg['cal_suffix'] = cfg['directories']['cal_suffix']
+        if in_cfg['cal_suffix'] and '_' in in_cfg['cal_suffix']:
+            mess = ('File suffixes cannot contain underscores. '
+                    'This character is reserved by the pyfocs naming scheme.')
+            raise ValueError(mess)
+    else:
+        in_cfg['cal_suffix'] = None
+
+    # Determine if a separate calibration suffix was provided.
+    if 'final_suffix' in cfg['directories']:
+        in_cfg['final_suffix'] = cfg['directories']['final_suffix']
+        if in_cfg['final_suffix'] and '_' in in_cfg['final_suffix']:
+            mess = ('File suffixes cannot contain underscores. '
+                    'This character is reserved by the pyfocs naming scheme.')
+            raise ValueError(mess)
+    else:
+        in_cfg['final_suffix'] = None
+
     # Determine if a file suffix was provided.
     if 'suffix' in cfg['directories']:
         in_cfg['outname_suffix'] = cfg['directories']['suffix']
@@ -626,11 +659,19 @@ def config(fn_cfg, ignore_flags=False):
             mess = ('File suffixes cannot contain underscores. '
                     'This character is reserved by the pyfocs naming scheme.')
             raise ValueError(mess)
+        # If no separate suffixes for calib. or final data use a single suffix.
+        if not in_cfg['final_suffix']:
+            in_cfg['final_suffix'] = in_cfg['outname_suffix']
+        if not in_cfg['cal_suffix']:
+            in_cfg['cal_suffix'] = in_cfg['outname_suffix']
     else:
         in_cfg['outname_suffix'] = None
 
+
     if ('fiber_limits' in cfg['dataProperties']
-            and not in_cfg['outname_suffix']):
+            and (not in_cfg['outname_suffix']
+                 or not in_cfg['cal_suffix']
+                 or not in_cfg['final_suffix'])):
         warn = ('Fiber limits were provided without a suffix. This may cause '
                 'issues with overwriting data for multicore fibers.')
         print(warn)

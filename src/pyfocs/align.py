@@ -119,6 +119,7 @@ def section_shift_x(
             lags = np.arange(lag, -lag -1, -1)
         else:
             lags = np.arange(-lag, lag + 1)
+
         c = pyfocs.stats.norm_xcorr(
             s1_vals,
             s2_vals,

@@ -48,6 +48,7 @@ def bias_violin(ds,
         try:
             bath = swap_sel(ds, 'LAF', 'calibration', bn)
         except KeyError:
+            # @ Add re-labeling plus a warning here.
             continue
 
         ref = callib[bn]['ref_sensor']
@@ -405,7 +406,7 @@ def dts_loc_plot(ploc,
     ax.xaxis.set_minor_locator(MultipleLocator(2))
 
     ax.set_ylim(y_min, y_max)
-    ax.set_ylabel('$\sigma_{x}(P_s) / \sigma_{x}(P_{as})$ [-]')
+    ax.set_ylabel('$\frac{\sigma_{x}(P_s)}{\sigma_{x}(P_{as})}$ [-]')
     ax.set_xlim(s_start, s_end)
     ax.set_xlabel('LAF (m)')
     fig.tight_layout()
@@ -464,7 +465,6 @@ def bath_check(ds,
                              numcols,
                              **fig_kwargs)
     axes = np.atleast_2d(axes)
-    print(np.shape(axes))
     if title:
         fig.suptitle(title)
 
