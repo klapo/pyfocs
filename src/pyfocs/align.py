@@ -115,9 +115,11 @@ def section_shift_x(
         # Find the index with the maximum correlation
         if not lag:
             lag = int(np.min([len(s1_vals) * restep, len(s2_vals) * restep]) // 2)
-        lags = np.arange(-lag, lag + 1)
         if s2_reverse:
-            lags = np.flip(lags)
+            lags = np.arange(lag, -lag -1, -1)
+        else:
+            lags = np.arange(-lag, lag + 1)
+
         c = pyfocs.stats.norm_xcorr(
             s1_vals,
             s2_vals,
@@ -243,7 +245,7 @@ def interp_section(
     sub_s2 = s2.interp(x=sub_s1.x.values).swap_dims({'x': 'LAF'})
 
     # The interp command causes s2 to take on s1's properties.
-    sub_s2.attrs['reverse'] = s2.attrs['reverse']
+    sub_s2.attrs['reverse'] = s2_reverse
 
     # Return the adjusted LAF values based on aligning s2 to s1
     LAFmin = float(sub_s2.LAF.min().values)
@@ -319,12 +321,12 @@ def interp_section(
         ax.set_title('b) ' + label, loc='left')
         ax.set_xlabel('Common x index [m]')
         ax.set_ylabel('Temperature [C]')
-        ax.legend()
         text = '\n'.join([ploc1 + ': ' + str(loc_s1),
                           ploc2 + ': ' + str(fn_lib[ploc2][label]['LAF']),
                           ploc1 + ' length=' + str(len(sub_s1.LAF.values)),
-                          ploc2 + 'length=' + str(len(sub_s2.LAF.values))])
+                          ploc2 + ' length=' + str(len(sub_s2.LAF.values))])
         ax.text(0.15, 0.7, text, transform=ax.transAxes, bbox={'facecolor': 'white', 'alpha': 0.5})
+        ax.legend(loc='upper right')
         ax.set_xlim(0, s1.x.max())
         ax.set_ylim(s1[temp_field].min() - delta_T, s1[temp_field].max() + delta_T)
 
