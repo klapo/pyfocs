@@ -667,7 +667,6 @@ def config(fn_cfg, ignore_flags=False):
     else:
         in_cfg['outname_suffix'] = None
 
-
     if ('fiber_limits' in cfg['dataProperties']
             and (not in_cfg['outname_suffix']
                  or not in_cfg['cal_suffix']
