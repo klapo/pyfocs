@@ -390,13 +390,13 @@ if final_flag:
         contents = os.listdir()
         if cal_suffix:
             ncfiles = [file for file in contents
-                if '.nc' in file
-                and 'cal' in file
-                and cal_suffix in file]
+                       if '.nc' in file
+                       and 'cal' in file
+                       and cal_suffix in file]
         else:
             ncfiles = [file for file in contents
-                if '.nc' in file
-                and 'cal' in file]
+                       if '.nc' in file
+                       and 'cal' in file]
         ncfiles.sort()
         ntot = np.size(ncfiles)
 
@@ -418,7 +418,7 @@ if final_flag:
             dstemp = xr.open_dataset(cal_nc)
             if (internal_config['time_limits']['flag'] and
                     (pd.Timestamp(dstemp.time.min().values) < tstart
-                    or pd.Timestamp(dstemp.time.max().values) > tstop)):
+                     or pd.Timestamp(dstemp.time.max().values) > tstop)):
                 print('Outside time bounds. skipping...')
                 dstemp.close()
                 continue
@@ -426,45 +426,45 @@ if final_flag:
             # Resample to a common time stamp interval with the reference/bath
             # instruments. Do this using a linear interpolation.
             # Round to the nearest time interval
-            dt_start=pd.Timestamp(dstemp.time.values[0]).round(delta_t)
-            dt_end=pd.Timestamp(dstemp.time.values[-1]).round(delta_t)
+            dt_start = pd.Timestamp(dstemp.time.values[0]).round(delta_t)
+            dt_end = pd.Timestamp(dstemp.time.values[-1]).round(delta_t)
 
             # Catch a weird edge case for a single time step.
             if not dt_start == dt_end:
                 # Create a regular interval time stamp index
-                reg_time_pd=pd.date_range(start=dt_start,
+                reg_time_pd = pd.date_range(start=dt_start,
                                             end=dt_end,
                                             freq=delta_t)
-                dstemp=dstemp.interp(time=reg_time_pd,
+                dstemp = dstemp.interp(time=reg_time_pd,
                                        kwargs={'fill_value': 'extrapolate'})
 
             # Add a delta t attribute
             dstemp.attrs['dt']=delta_t
 
             # Clean up unused variables and labels.
-            vars_to_drop=[v for v in dstemp.data_vars
+            vars_to_drop = [v for v in dstemp.data_vars
                             if v not in vars_to_keep]
-            coords_to_drop=[c for c in dstemp.coords
+            coords_to_drop = [c for c in dstemp.coords
                               if c not in coords_to_keep]
 
             # Clean up attributes and dropped the unused ones.
-            dt=dstemp.attrs['dt']
-            dLAF=dstemp.attrs['dLAF']
-            dstemp=dstemp.drop(vars_to_drop).drop(coords_to_drop)
-            dstemp.attrs=[]
-            dstemp.attrs['dt']=dt
-            dstemp.attrs['dLAF']=dLAF
+            dt = dstemp.attrs['dt']
+            dLAF = dstemp.attrs['dLAF']
+            dstemp = dstemp.drop(vars_to_drop).drop(coords_to_drop)
+            dstemp.attrs = []
+            dstemp.attrs['dt'] = dt
+            dstemp.attrs['dLAF'] = dLAF
 
             # Use the automatic alignment between sections to map one
             # location onto another.
             if align_locations:
-                common_sections=internal_config['common_sections']
-                unique_sections=internal_config['unique_sections']
-                locs_to_match=internal_config['location_matching']
+                common_sections = internal_config['common_sections']
+                unique_sections = internal_config['unique_sections']
+                locs_to_match = internal_config['location_matching']
 
                 for map_from, map_to in locs_to_match.items():
-                    map_to_list=[]
-                    map_from_list=[]
+                    map_to_list = []
+                    map_from_list = []
                     for section, shift in common_sections[map_from].items():
                         ds_map_to, ds_map_from, temp_lib = pyfocs.interp_section(
                             dstemp, lib, map_to, map_from, section,
@@ -487,8 +487,8 @@ if final_flag:
                             print(ds_map_from)
                             raise ValueError
 
-                        ds_map_to.coords[map_to]=section
-                        ds_map_from.coords[map_from]=section
+                        ds_map_to.coords[map_to] = section
+                        ds_map_from.coords[map_from] = section
 
                         ds_map_to = ds_map_to.drop('x')
                         ds_map_from = ds_map_from.drop('x')
@@ -519,27 +519,27 @@ if final_flag:
                         dstemp_uns.coords[map_from] = uns
                         map_from_list.append(dstemp_uns)
 
-                    ds_ploc1=xr.concat(map_to_list, dim='LAF')
-                    ds_ploc1=pyfocs.labeler.dtsPhysicalCoords_3d(
+                    ds_ploc1 = xr.concat(map_to_list, dim='LAF')
+                    ds_ploc1 = pyfocs.labeler.dtsPhysicalCoords_3d(
                         ds_ploc1,
                         temp_lib[map_to])
 
-                    ds_ploc2=xr.concat(map_from_list, dim='LAF')
-                    ds_ploc2=pyfocs.labeler.dtsPhysicalCoords_3d(
+                    ds_ploc2 = xr.concat(map_from_list, dim='LAF')
+                    ds_ploc2 = pyfocs.labeler.dtsPhysicalCoords_3d(
                         ds_ploc2,
                         temp_lib[map_from])
 
                     # Output each location type as a separate final file.
                     os.chdir(internal_config[exp_name]
                              ['directories']['dirFinal'])
-                    outname_ploc_map_to='_'.join(filter(None, [exp_name, 'final',
-                                                         outname_date,
-                                                         final_suffix,
-                                                         map_to])) + '.nc'
-                    outname_ploc_map_from='_'.join(filter(None, [exp_name, 'final',
-                                                         outname_date,
-                                                         final_suffix,
-                                                         map_from])) + '.nc'
+                    outname_ploc_map_to = '_'.join(filter(None, [exp_name, 'final',
+                                                          outname_date,
+                                                          final_suffix,
+                                                          map_to])) + '.nc'
+                    outname_ploc_map_from = '_'.join(filter(None, [exp_name, 'final',
+                                                            outname_date,
+                                                            final_suffix,
+                                                            map_from])) + '.nc'
 
                     # @ Convert boolean attributes to 0/1
                     del ds_ploc1.attrs['reverse']
@@ -554,20 +554,20 @@ if final_flag:
                     # Relabel the locations. This allows locations to
                     # change after calibrating, as the calibration only
                     # cares about the location of the reference baths.
-                    dstemp_ploc=pyfocs.labelLoc_additional(
+                    dstemp_ploc = pyfocs.labelLoc_additional(
                         dstemp,
                         lib[ploc],
                         ploc)
 
                     # Assign physical labels
-                    dstemp_ploc=pyfocs.labeler.dtsPhysicalCoords_3d(dstemp_ploc,
+                    dstemp_ploc = pyfocs.labeler.dtsPhysicalCoords_3d(dstemp_ploc,
                                                                     lib[ploc])
 
                     # Output each location type as a separate final file.
-                    outname='_'.join(filter(None, [exp_name, 'final',
-                                                   outname_date,
-                                                   final_suffix,
-                                                   ploc])) + '.nc'
+                    outname = '_'.join(filter(None, [exp_name, 'final',
+                                                     outname_date,
+                                                     final_suffix,
+                                                     ploc])) + '.nc'
                     os.chdir(internal_config[exp_name]
                              ['directories']['dirFinal'])
                     dstemp_ploc.to_netcdf(outname, mode='w')
