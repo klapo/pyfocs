@@ -192,9 +192,6 @@ def dtsPhysicalCoords(ds, location, loc_field='loc_general',
         return ds_out
 
 
-from scipy import stats
-
-
 def dtsPhysicalCoords_3d(ds, location):
     '''
     Assign 3D physical coordinates to the xarray Dataset containing DTS data
@@ -239,6 +236,9 @@ def dtsPhysicalCoords_3d(ds, location):
         if 'reverse' not in ds.attrs:
             if location[l]['LAF'][0] > location[l]['LAF'][1]:
                 reverse = True
+
+        elif 'reverse' in ds.attrs:
+            reverse = ds.attrs['reverse']
 
         # Extract out just the section in question
         section = ds.loc[dict(LAF=LAF[(LAF >= LAF1) & (LAF <= LAF2)])]
