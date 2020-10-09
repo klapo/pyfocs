@@ -311,10 +311,12 @@ def assign_ref_data(dstemp, cal, ref_data=None):
     if cal['builtin_flag']:
         probe1 = cal['builtin_probe_names']['probe1Temperature']
         probe2 = cal['builtin_probe_names']['probe2Temperature']
-        if probe1:
+        # Catches edge cases when the probe temperatures are already renamed.
+        if probe1 and probe1 not in dstemp.data_vars:
             dstemp = dstemp.rename({'probe1Temperature': probe1})
             probe_names.append(probe1)
-        if probe2:
+        # Catches edge cases when the probe temperatures are already renamed.
+        if probe2 and probe2 not in dstemp.data_vars:
             dstemp = dstemp.rename({'probe2Temperature': probe2})
             probe_names.append(probe2)
 
