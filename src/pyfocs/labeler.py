@@ -192,7 +192,7 @@ def dtsPhysicalCoords(ds, location, loc_field='loc_general',
         return ds_out
 
 
-def dtsPhysicalCoords_3d(ds, location):
+def dtsPhysicalCoords_3d(ds, location, reset_midx=True):
     '''
     Assign 3D physical coordinates to the xarray Dataset containing DTS data
     converting the 1d LAF dimension into a 3D location.
@@ -282,7 +282,8 @@ def dtsPhysicalCoords_3d(ds, location):
     # Concatenate along the physical coordinate MultiIndex
     ds_out = xr.concat(all_sections, 'xyz')
     # xarray does not yet support writing a MultiIndex to netcdf format.
-    ds_out = ds_out.reset_index('xyz')
+    if reset_midx:
+        ds_out = ds_out.reset_index('xyz')
 
     # Here is how to recreate the MultiIndex after resetting it like above.
     # midx = pd.MultiIndex.from_arrays([ds_out.x, ds_out.y, ds_out.z], names=('x', 'y', 'z'))
