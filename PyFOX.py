@@ -73,6 +73,7 @@ final_suffix = internal_config['final_suffix']
 # -----------------------------------------------------------------------------
 # %% Archive/read the raw xml files
 for exp_name in experiment_names:
+    # @ Update logging so that the output makes more sense for the various points.
     print('-------------')
     print(exp_name)
     print('-------------')

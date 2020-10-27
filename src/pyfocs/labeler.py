@@ -318,6 +318,18 @@ def create_multiindex(ds, coords=['x', 'y', 'z']):
 
 
 # ------------------------------------------------------------------------------
+def xr_unique_index(ds, dim):
+    '''
+    It is not uncommon for data to have shared xyz labels at vertices,
+    creating non-unique indices. This is fixed by re-indexing using just
+    unique values.
+    '''
+    _, index = np.unique(ds[dim], return_index=True)
+    ds = ds.isel({dim: index})
+    return ds
+
+
+# ------------------------------------------------------------------------------
 def yamlDict(yamlPath):
     '''
     Reads the .yml label location file and returns the location dictionary
