@@ -47,7 +47,15 @@ def thermalConductivity(temp):
     return(k)
 
 
-def calculate(heated, unheated, power):
+def calculate(
+    heated,
+    unheated,
+    power,
+    lw_in,
+    method='S15',
+    params=None,
+    deltaT_dt_smoothing=None,
+    return_EB=False):
     '''
     Inputs:
         heated - xarray object of dts observations. Assumed to have be in physical units, not LAF.
@@ -55,41 +63,71 @@ def calculate(heated, unheated, power):
         power - Power applied to the fiber in W/m. Must either be a single
             number or a DataArray with the same coordinates as heated and
             unheated.
+        method - {['S15'], 'vR20'}, string indicating which method to use when
+            calculating the convective heat coefficient. Choices are the
+            original Sayde et al., 2015 and the van Ramshorst et al., 2020.
     Outputs:
+        fiber_wind - an xarray dataset with the properties from subtracting
+         `heated` and `unheated`.
     '''
+
+    if 'S15' not in method and 'vR20' not in method:
+        raise KeyError('method must be either S15 or vR20.')
 
     # Power should either be a float or an array that is a function of LAF
     # @ check that the above statement is True.
 
-    # Constants coefficients
-    offset = 0  # unused
-    # Cable radius in meters
-    rad = 0.000625
-    # Spatial (instrument) resolution of dts observations
-    L = 0.127
-    # Heat capacity (in ? units)
-    crv = 1
-    # Stefan-Boltzmann constant
+    # @ The params dictionary should not be optional -- there should be no
+    # default values
+    # Constants and coefficients
+    if params is None:
+        params = {}
+    # Cable radius (in m)
+    if 'rad' in params:
+        rad = params['rad']
+    else:
+        rad = 0.000625
+    # Heat capacity (in J kg^-1 K^-1)
+    if 'crv' in params:
+        crv = params['crv']
+    else:
+        crv = 1
+    # Emissivity of the fiber surface (-)
+    if 'emissivity' in params:
+        emissivity = params['emissivity']
+    else:
+        emissivity = 0.95  # From table for PE
+    # Fiber density (kg m^-3)
+    if 'density' in params:
+        density = params['density']
+    else:
+        density = 1000
+
+   # Stefan-Boltzmann constant
     sigma = 5.67 * 10**(-8)
-    # Emissivity of the fiber surface
-    emissivity = 0.95  # From table for PE
+
     # Coefficients for modeling the convective heat flux assuming that Re > 40
-    c = 0.51
-    m = 0.5
-    npr = 0.37
+    if method == 'S15':
+        c = 0.51
+        m = 0.5
+        npr = 0.37
+    elif method == 'vR20':
+        c = 0.683
+        m = 0.466
+        npr = 1 / 3
+
+    # Basic plausibility check for units
+    if heated.max() < 100:
+        print('Fiber temperatures appear to be in Celcius, not Kelvin')
+    if unheated.max() < 100:
+        print('Fiber temperatures appear to be in Celcius, not Kelvin')
 
     ########
     # Diffeerence between the heated and unheated fibers.
-    # mean(Heated(t) + Heated(t+1) - Unheated(t) - Unheated(t+1)) / 2
-    # Future development could include using a smoother/more sophisticated derivative estimate.
-    delta = (heated - unheated)
-    # size of the dataset
-    # len_time = dts.time.size
     # Resampling/averaging/smoothing should be done by the user.
-    #     delta = (heated.isel(time=slice(0, len_time-1)).values
-    #              + heated.isel(time=slice(1, len_time)).values
-    #              - unheated.isel(time=slice(0, len_time-1)).values
-    #              - unheated.isel(time=slice(1, len_time))).values
+    # Future development could include using a smoother/more
+    # sophisticated differencing estimate.
+    delta = (heated - unheated)
 
     ########
     # Time-derivative
@@ -99,22 +137,26 @@ def calculate(heated, unheated, power):
     dt = pd.Timedelta(dt).total_seconds()
     # Difference between each time step for the provided dataset.
     deltaT_dt_heat = (heated.diff(dim='time')) / dt
-    deltaT_dt_unheat = (unheated.diff(dim='time')) / dt
 
-    ########
-    # Align the heated/unheated datasets with the differenced datasets
-    heated = heated.reindex_like(heated.diff(dim='time'))
-    unheated = unheated.reindex_like(unheated.diff(dim='time'))
-    delta = delta.reindex_like(delta.diff(dim='time'))
+    # Align the time derivative with the original time series.
+    deltaT_dt_heat = deltaT_dt_heat.reindex_like(
+        heated, method='nearest', tolerance=2 * dt)
+
+    # This option "smooths" the noisy storage term. However, this term is orders of
+    # magnitude smaller than all the others so it has a negligible effect. As such,
+    # it is a candidate for removal in future versions.
+    if deltaT_dt_smoothing is not None:
+        deltaT_dt_heat = deltaT_dt_heat.resample(time=deltaT_dt_smoothing).mean()
+        deltaT_dt_heat = deltaT_dt_heat.interp_like(heated)
 
     ########
     # Radiation components
-    # By using identical fibers we can avoid most of the radiation modeling.
-    # Only component that is different between the heated/unheated fibers is
-    # the longwave cooling.
-    # @ Check for units
-    lw_out_heat = sigma * emissivity * heated.values**4
-    lw_out_unheat = sigma * emissivity * unheated.values**4
+    # By using identical fibers we can avoid some of the radiation modeling from S15.
+    # We need to derive the incoming and outgoing longwave.
+    lw_out_heat = sigma * emissivity * heated**4
+    # @ Make the user do whatever treatment of the incoming longwave outside
+    # pyfocs.
+    lw_in = lw_in / 2 * emissivity
 
     ########
     # Temperature dependent properties of the convective heat transfer
@@ -122,7 +164,8 @@ def calculate(heated, unheated, power):
     prandtl_heat = prandtl(heated.values)
     prandtl_unheat = prandtl(unheated.values)
 
-    # Thermal conductivity (k) and kinematic viscosity (nu) are calculated using the "air" temperature, which we get from the unheated fiber.
+    # Thermal conductivity (k) and kinematic viscosity (nu) are calculated using
+    # the "air" temperature, which we get from the unheated fiber.
     k = thermalConductivity(unheated.values)
     nu = kinematicViscosity(unheated.values)
 
@@ -133,14 +176,34 @@ def calculate(heated, unheated, power):
     # terms to drop out, regardless of night/day time. The below solution, however, relies on
     # assuming the heat flux off of the unheated fibers is approximately zero. I'm not sure
     # if that is reasonable.
-    # Use the coefficients for Re > 40 (defined above) to model the convective heat flux.
-    # The original expression for reference
-    # fd=c*((2*rad/kv).^m)*(pr.^npr)*((pr/prs).^0.25)*k*3.14*DTch2ch1;
-    demon = c * (2 * rad)**(m - 1) * prandtl_unheat**npr * (prandtl_unheat / prandtl_heat)**(0.25) * k * nu**(-m) * delta
+    if method == 'S15':
+        # Use the coefficients for Re > 40 (defined above) to model the
+        # convective heat flux. The original expression from the S15 matlab code
+        # for reference:
+        # fd=c*((2*rad/kv).^m)*(pr.^npr)*((pr/prs).^0.25)*k*3.14*DTch2ch1;
+        demon = (c * (2 * rad)**(m - 1) * prandtl_unheat**npr
+                 * (prandtl_unheat / prandtl_heat)**(0.25)
+                 * k * nu**(-m) * delta)
+    elif method == 'vR20':
+        # This version assumes that prandtl_heat and prandtl_unheat are
+        # identical as delta-T is never more than 6K. We find detla-T is on
+        # average 8.8K and ranges to 31K for LOVE19. This still creates a
+        # small difference (0.708 vs 0.711 assuming 60C and 30C) but the
+        # assumption may need to be re-examined for certain applications.
+        demon = (c * (2 * rad)**(m - 1) * prandtl_unheat**(npr)
+                 * k * nu**(-m) * delta)
 
-    # The original expression for reference
+    # The original expression from the S15 code for reference
     # fn=crv*(((-dT1)/dt))+dT4*e*2*rad*3.14;
-    numer = -1000 * crv * (rad / 2) * (deltaT_dt_heat - deltaT_dt_unheat) + (lw_out_heat - lw_out_unheat)
+    dQdt = -density * crv * (rad / 2) * (deltaT_dt_heat)
+    netLW = (lw_in - lw_out_heat)
+    numer = (dQdt + netLW)
 
-    fiber_wind = ((0.5*power / (2 * np.pi * rad) + numer) / demon)**(1 / m)
-    return fiber_wind
+    # Original expression (pre 09.11.20)
+    # fiber_wind = ((0.5 * power / (2 * np.pi * rad) + numer) / demon)**(1 / m)
+    # I believe it should be
+    fiber_wind = ((0.5 * power / (np.pi * rad) + numer) / demon)**(1 / m)
+    if return_EB:
+        return fiber_wind, dQdt, netLW, demon
+    else:
+        return fiber_wind
