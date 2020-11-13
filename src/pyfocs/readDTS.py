@@ -6,7 +6,6 @@ import xarray as xr
 import glob
 import tarfile
 import numpy as np
-from .labeler import labelLoc_general, labelLoc_additional, yamlDict
 
 
 # Error classes
@@ -33,7 +32,7 @@ def xml_read(dumbXMLFile):
     try:
         with open(dumbXMLFile) as dumb:
             doc = xmltodict.parse(dumb.read())
-    except Exception as e:
+    except Exception:
         # The exception in the xmltodict code is poorly formatted. So we do a
         # general catch here and hope for the best.
         # Raising this error allows us to catch corrupted files.
@@ -192,17 +191,10 @@ def archive_read(cfg, write_mode='preserve', prevNumChunk=0):
                 temp_Dataset = xr.Dataset.from_dataframe(df)
                 temp_Dataset.coords['time'] = meta['dt_start']
 
-                # Determine how to handle the reference probes
-                # Default behavior is to use the instrument reported reference
-                # temperatures.
-                if cfg['flags']['ref_temp_option'] == 'default':
-                    temp_Dataset['probe1Temperature'] = meta['probe1Temperature']
-                    temp_Dataset['probe2Temperature'] = meta['probe2Temperature']
-
-                # Use constant temperatures provided by the user.
-                if cfg['flags']['ref_temp_option'] == 'constant':
-                    temp_Dataset['probe1Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe1_value']
-                    temp_Dataset['probe2Temperature'] = np.ones_like(temp_Dataset.LAF.size) * cfg['dataProperties']['probe2_value']
+                # Assing the reference probes to the dataset. This is no
+                # longer an option.
+                temp_Dataset['probe1Temperature'] = meta['probe1Temperature']
+                temp_Dataset['probe2Temperature'] = meta['probe2Temperature']
 
                 # If the flag is 'external' than no probe temperature field is
                 # returned as the external data stream must be handled
@@ -222,23 +214,22 @@ def archive_read(cfg, write_mode='preserve', prevNumChunk=0):
             ds.attrs = {'LAF_beg': meta['LAF_beg'],
                         'LAF_end': meta['LAF_end'],
                         'dLAF': meta['dLAF']}
-            # ds = labelLoc_general(ds, labels)
 
-            # Label the Ultima PT100 data. These names are used in
-            # calibration and must match the 'refField' variables.
-            try:
-                ds = ds.rename({'probe1Temperature': cfg['dataProperties']['probe1Temperature'],
-                                'probe2Temperature': cfg['dataProperties']['probe2Temperature']})
-            except KeyError:
-                # If no names are supplied, drop the PT100s. This is
-                # excpected behavior when working with an external
-                # datastream for the reference PT100s
-                ds = ds.drop(['probe1Temperature', 'probe2Temperature'])
-            except ValueError:
-                # Passing no values for the probe names causes a ValueError
-                # since both will be `None`. In that case, skip over the
-                # probe naming.
-                print('No PT100 field names were passed.')
+            # Delete this block once the new calibration routine is working.
+            # # Label the Ultima PT100 data. These names are used in
+            # # calibration and must match the 'refField' variables.
+            # try:
+            #     ds = ds.rename({'probe1Temperature': cfg['probe1'],
+            #                     'probe2Temperature': cfg['probe2']})
+            # # Passing no values for the probe names causes a ValueError
+            # # since both will be `None`. In that case, skip over the
+            # # probe naming.
+            # except ValueError:
+            #     print('No PT100 field names were passed.')
+            # # No new names are handed to the probes.
+            # except KeyError:
+            #     print('No PT100 field names were passed.')
+
 
             # Save to netcdf
             os.chdir(dirProcessed)

@@ -17,6 +17,7 @@ include tox.ini .travis.yml .appveyor.yml pyproject.toml
 global-exclude *.py[cod] __pycache__/* *.so *.dylib
 
 # Suggested from tox
+include PyFOX.py
 include *.jpg
 include *.pdf
 recursive-include muppet_archiver *.bat

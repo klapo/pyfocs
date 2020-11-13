@@ -6,11 +6,12 @@ from pyfocs import xml_read
 # Paths to example data
 path = os.path.dirname(os.path.abspath(__file__))
 path_data = os.path.join(path, 'data')
-mc_demo = 'multicore_demo'
-sf_demo = 'single_file_demo'
+mc_demo = 'multifiledemo'
+sf_demo = 'singlefiledemo'
+channel = 'channel 1'
 sfn = 'channel 1_20190722000003996.xml'
 
-path_data_singlefile = os.path.join(path_data, sf_demo, 'raw_xml', sfn)
+path_data_singlefile = os.path.join(path_data, sf_demo, 'raw_xml', channel, sfn)
 path_data_multifile = os.path.join(path_data, mc_demo)
 yaml_file = os.path.join(path_data, 'example_configuration.yml')
 
