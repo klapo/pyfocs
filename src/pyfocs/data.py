@@ -147,7 +147,7 @@ def double_end_dv_clean(ds):
     return ds.drop(drop_vars)
 
 
-def merge_single(dstore_fw, dstore_bw, shift_window=20, fixed_shift=None):
+def merge_single(dstore_fw, dstore_bw, shift_window=20, fixed_shift=None, plot_result=False):
     '''
     Merge two single-ended channels to a single double-ended configuration.
     '''
@@ -174,7 +174,7 @@ def merge_single(dstore_fw, dstore_bw, shift_window=20, fixed_shift=None):
         shift1, shift2 = suggest_cable_shift_double_ended(
             double.mean(dim='time').compute(),
             shift_lims,
-            plot_result=False,
+            plot_result=plot_result,
         )
 
         # If the recommended shifts are identical

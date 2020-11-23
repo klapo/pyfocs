@@ -13,6 +13,10 @@ def config(fn_cfg, ignore_flags=False):
     expected by pyfocs.
     '''
 
+    # @ refactor the code to have separate location library, calibration,
+    # flags, etc checks. Should enable the ignore_flags option to be useful
+    # again in the future.
+
     # The internal config file and location library are handed back to pyfocs
     in_cfg = {}
     lib = {}
