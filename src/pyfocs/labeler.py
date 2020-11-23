@@ -200,12 +200,26 @@ def dtsPhysicalCoords_3d(ds, location, reset_midx=True):
     Input:
         ds            -  xarray dataset with DTS data. Expects to find a
                          dimension labeled 'LAF'
-        location_list -  Dictionary containing location labels for converting
-                         LAF to a physical coordinate. Must contain the fields
-                         'x_coord', 'y_coord', 'z_coord', each containing a
-                         list or numpy array with two numbers, and 'LAF' with
-                         two elements specifying the LAF value corresponding to
-                         the two elements in each coord field.
+        location      -  Location library from pyfocs.check containing
+                         information for converting LAF to a physical
+                         coordinate. Must contain the fields 'x_coord',
+                         'y_coord', 'z_coord', each containing a list or numpy
+                         array with two numbers, and 'LAF' with two elements
+                         specifying the LAF value corresponding to the two
+                         elements in each coord field.
+        reset_midx    -  Resets the 'xyz' index from a pandas MultiIndex.
+                         Enables saving the netcdf as the MultiIndex cannot be
+                         be saved. To recreate the MultiIndex:
+                             midx = pd.MultiIndex.from_arrays(
+                                [ds.x, ds.y, ds.z], names=('x', 'y', 'z')
+                             )
+                             ds = ds.drop(['x', 'y', 'z'])
+                             ds = ds.assign_coords(xyz = midx)
+        distance_check - [{True}, False], boolean flag for whether the labeler
+                         should look for consistency between the LAF step-size
+                         and the step size of the newly labeled physical
+                         coordinates. Disabling this flag is useful e.g. for
+                         wrapped-columns.
     Output:
         ds            -  xarray Dataset formatted to include just the
                          physically labeled coordinate system.
@@ -260,17 +274,19 @@ def dtsPhysicalCoords_3d(ds, location, reset_midx=True):
         (z_int, dz) = np.linspace(z[0], z[1], num=num_LAF, retstep=True)
 
         # Crude check for the mapping's consistency.
-        d = ((dx)**2 + (dy)**2 + (dz)**2)**(0.5)
-        if np.abs(np.abs(d) - np.abs(dLAF)) > np.abs(0.5 * dLAF):
-            delta_str = ('\ndx = ' + str(dx)
-                         + '\n' + 'dy = ' + str(dy)
-                         + '\n' + 'dz = ' + str(dz)
-                         + '\n' + 'total = ' + str(d)
-                         + '\n' + 'dLAF = ' + str(dLAF))
-            raise ValueError('Mapping problem detected for '
-                             + location[l]['long name']
-                             + '. Inferred data spacing is '
-                             + delta_str)
+        if (('distance_check' in location[l] and location[l]['distance_check'])
+                or 'distance_check' not in location[l]):
+            d = ((dx)**2 + (dy)**2 + (dz)**2)**(0.5)
+            if np.abs(np.abs(d) - np.abs(dLAF)) > np.abs(0.5 * dLAF):
+                delta_str = ('\ndx = ' + str(dx)
+                             + '\n' + 'dy = ' + str(dy)
+                             + '\n' + 'dz = ' + str(dz)
+                             + '\n' + 'total = ' + str(d)
+                             + '\n' + 'dLAF = ' + str(dLAF))
+                raise ValueError('Mapping problem detected for '
+                                 + location[l]['long name']
+                                 + '. Inferred data spacing is '
+                                 + delta_str)
 
         # Assign the physical coordinates using a pandas multiindex
         midx = pd.MultiIndex.from_arrays([x_int, y_int, z_int],
