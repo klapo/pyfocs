@@ -5,7 +5,7 @@ version==0.5.0.
 # Overview
 
 pyfocs is the University of Bayreuth Micrometeorology python library for processing Fiber Optic Distributed Sensing (FODS) data. It is intended to streamline the handling of large and long-term DTS setups.
-![](pyfocs_workflow.jpg)
+![](pyfocs_workflow.png)
 
 It automates the calibration and mapping of FODS data allowing the user to focus on the science. Calibration is robustly handled using the [dtscalibration package](https://github.com/dtscalibration/python-dts-calibration) (des Tombe, Schilperoort, and Bakker, 2020). pyfocs can robustly handle an arbitrary fiber geometry, number of reference sections, and fiber calibration setup (through the dtscalibration package).
 
