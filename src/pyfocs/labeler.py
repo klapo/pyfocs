@@ -192,7 +192,7 @@ def dtsPhysicalCoords(ds, location, loc_field='loc_general',
         return ds_out
 
 
-def dtsPhysicalCoords_3d(ds, location, reset_midx=True):
+def dtsPhysicalCoords_3d(ds, location, datavar='cal_temp', reset_midx=True):
     '''
     Assign 3D physical coordinates to the xarray Dataset containing DTS data
     converting the 1d LAF dimension into a 3D location.
@@ -260,10 +260,10 @@ def dtsPhysicalCoords_3d(ds, location, reset_midx=True):
         # LAF decreases with distance along the section
         # flip the array.
         if reverse:
-            if not section['cal_temp'].get_axis_num('LAF') == 1:
-                print('Expected cal_temp to have shape of (time, LAF)')
+            if not section[datavar].get_axis_num('LAF') == 1:
+                print('Expected {} to have shape of (time, LAF)'.format(datavar))
                 raise ValueError
-            section['cal_temp'] = (('time', 'LAF'), np.flip(section['cal_temp'].values, axis=1))
+            section[datavar] = (('time', 'LAF'), np.flip(section[datavar].values, axis=1))
             section.coords['LAF'] = np.flip(section.LAF.values)
 
         # Interpolate each coordinate into a line
