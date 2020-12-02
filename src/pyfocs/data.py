@@ -293,9 +293,9 @@ def assign_ref_data(dstemp, cal, ref_data=None):
 
     # Add in external reference data. Interpolate to the DTS time.
     if cal['external_flag']:
-        temp_ref_data = ref_data.reindex_like(dstemp.time,
-                                              method='nearest')
-
+        # temp_ref_data = ref_data.reindex_like(dstemp.time,
+        #                                       method='nearest')
+        temp_ref_data = ref_data.interp_like(dstemp.time)
         for ext_ref in cal['external_fields']:
             mess = ('{ef} was not found in the external reference data.')
             assert ext_ref in temp_ref_data, mess.format(ef=ext_ref)
