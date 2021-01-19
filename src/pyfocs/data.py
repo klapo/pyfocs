@@ -170,9 +170,14 @@ def merge_single(dstore_fw, dstore_bw, shift_window=20, fixed_shift=None, plot_r
 
         # Estimate the number of indices to shift the two channels to align them.
         # I use some overly generous limits for searching
-        # This parameter should be made an optional argument passed to the function.
+
+        # I prefer to use the time mean for calculating the optimal shift, but
+        # doing so squeezes the time dimension. We can "expand" this missing
+        # dimension and tranpose it into the right order to trick
+        # dtscalibration.
+        double_time_mean = double.mean(dim='time').compute().expand_dims('time').transpose('x', 'time')
         shift1, shift2 = suggest_cable_shift_double_ended(
-            double.mean(dim='time').compute(),
+            double_time_mean,
             shift_lims,
             plot_result=plot_result,
         )
