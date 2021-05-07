@@ -1,3 +1,6 @@
+import numpy as np
+
+
 def swap_sel(ds, coord1, coord2, selection):
     '''
     Selects data using a non-dimension coordinate and then returns an xarray
