@@ -192,7 +192,13 @@ def dtsPhysicalCoords(ds, location, loc_field='loc_general',
         return ds_out
 
 
-def dtsPhysicalCoords_3d(ds, location, datavar='cal_temp', reset_midx=True):
+def dtsPhysicalCoords_3d(
+    ds,
+    location,
+    datavar='cal_temp',
+    reset_midx=True,
+    distance_check=True,
+    ):
     '''
     Assign 3D physical coordinates to the xarray Dataset containing DTS data
     converting the 1d LAF dimension into a 3D location.
