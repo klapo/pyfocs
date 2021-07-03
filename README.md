@@ -61,32 +61,3 @@ des Tombe, B.; Schilperoort, B.; Bakker, M. Estimation of Temperature and Associ
 ### Muppet Archiver
 
 Batch script for scheduled archiving of `.xml` files on the Silixa DTS devices. Why muppet? Unviersity of Bayreuth Micrometeorology names their Silixa devices after muppet characters. Requires an anaconda 3.* distribution of python. Task scheduler must point to the `.bat` script and not the python script.
-
-## <a name="Troubleshooting"></a>Troubleshooting/First time with python
-
-### Install the anaconda version of python
-https://www.anaconda.com/distribution/#download-section
-
-You should be prompted to install python for your particular OS. Install a version >=3.6.
-
-### PyYAML updating
-An error in an old version of pip stops the updating of PyYAML. If you get an error related to this library you can solve it with:
-
-`pip install --ignore-installed PyYAML`
-
-### Windows specific stuff
-You will always need to use the anaconda power prompt or a similar environment. You will find it difficult/impossible to run python outside of the anaconda environment.
-
-From https://www.correlatedsolutions.com/support/index.php?/Knowledgebase/Article/View/85/1/running-python-scripts-from-anywhere-under-windows
-
-```
-For the first time, windows asks what application to use to run *.py files.
-Select python in Anaconda directory: make sure check box "Always use this app to open .py files" is checked
-Click "More Apps"
-Click "Look for another app on this PC"
-Find path to anaconda python, e.g. "C:\Users\Your Name\Anaconda3\python"
-Click "Open"
-Click "OK"
-```
-
-Other issues may be related to running the anaconda prompt without administrator issues.
